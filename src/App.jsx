@@ -111,7 +111,7 @@ function App() {
     setIsVisible(true);
     setIsUserTurnToMove(false);
     setFeedbackMessage('');
-    setFeedbackArrow(null);
+    setFeedbackArrow(null); // Ensure feedback arrow is cleared on puzzle reset
   };
 
   function handleNextMove() {
@@ -170,8 +170,7 @@ function App() {
   // Function to play a sequence of moves on the board
   const playMoveSequence = (movesToPlay, finalMoveIsUserGuess = false, userGuess = null) => {
     setIsUserTurnToMove(false); // Disable interaction during playback
-    setFeedbackArrow(null); // Clear any existing feedback arrow
-    setArrows([]); // Clear any existing arrows
+    setArrows([]); // Clear any existing arrows (except the one set by handleDrop for immediate feedback)
 
     const puzzle = puzzles[currentPuzzleIndex];
     let playbackGame = new Chess(puzzle.fen); // Start with the initial puzzle FEN
@@ -192,36 +191,36 @@ function App() {
       const to = move.slice(2, 4);
 
       setTimeout(() => {
+        console.log(`playMoveSequence: Attempting move ${move} for puzzle ${currentPuzzleIndex} at step ${i}`);
         const moveResult = playbackGame.move({ from, to });
         if (moveResult) {
+          console.log(`playMoveSequence: Move ${move} successful. New FEN: ${playbackGame.fen()}`);
           setGame(new Chess(playbackGame.fen())); // Update game state
           setBoardPosition(playbackGame.fen()); // Update board position
           setArrows([{ from, to }]); // Show arrow for this move
 
-          if (i < movesToPlay.length - 1) { // Clear arrow unless it's the very last move
+          if (i < movesToPlay.length - 1) { // Clear arrow unless it's the very last move in the sequence
             setTimeout(() => setArrows([]), arrowClearDelay);
           }
         } else {
-          console.error(`Error during playback: Invalid move ${move} in puzzle ${currentPuzzleIndex} at step ${i}`);
+          console.error(`playMoveSequence: Error during playback: Invalid move ${move} in puzzle ${currentPuzzleIndex} at step ${i}. Current FEN: ${playbackGame.fen()}`);
           setFeedbackMessage('Error during playback. Check console.');
-          setIsVisible(false);
+          setIsVisible(false); // Consider more graceful error handling here
         }
 
         // After the very last move in the sequence
         if (i === movesToPlay.length - 1) {
           setTimeout(() => {
-            setFeedbackArrow(null); // Clear arrow
+            setFeedbackArrow(null); // Explicitly clear the feedback arrow after the entire sequence
             if (finalMoveIsUserGuess) {
               const isCorrect = (userGuess === currentPuzzleMoves[currentMoveIndex]);
               setFeedbackMessage(isCorrect ? 'Correct! Well done!' : 'Incorrect move. Try again.');
               if (!isCorrect) {
                 // If incorrect, revert board to initial FEN and allow retry
-                setFeedbackArrow(null); // Ensure arrow is cleared immediately
                 setBoardPosition(puzzles[currentPuzzleIndex].fen); // Ensure board is reset
                 setIsUserTurnToMove(true); // Allow user to try again
               } else {
                 // If correct, stay on this final board state
-                // and enable next/replay buttons by setting isUserTurnToMove to false
                 setIsUserTurnToMove(false); // Exit user turn mode
               }
             } else { // This is for "Reveal Solution"
@@ -240,7 +239,9 @@ function App() {
     console.log("handleRevealSolution: Revealing solution for puzzle:", currentPuzzleIndex);
     const puzzle = puzzles[currentPuzzleIndex];
     // Play the full puzzle sequence up to the quizzed move (currentMoveIndex which is 2)
+    // This will play moves at index 0, 1, and 2.
     const movesToReveal = puzzle.moves.slice(0, currentMoveIndex + 1);
+    console.log("handleRevealSolution: Moves to reveal:", movesToReveal);
     playMoveSequence(movesToReveal, false); // Not a user guess
   }
 
@@ -266,6 +267,10 @@ function App() {
       const expectedMove = currentPuzzleMoves[currentMoveIndex]; // This should be the 3rd move (index 2)
       const userGuess = `${sourceSquare}${targetSquare}`;
       console.log("handleDrop: User guess:", userGuess, "Expected move:", expectedMove);
+
+      // Immediately set the feedback arrow based on the guess
+      const isCorrectGuess = (userGuess === expectedMove);
+      setFeedbackArrow({ from: sourceSquare, to: targetSquare, color: isCorrectGuess ? 'rgba(0, 255, 0, 0.4)' : 'rgba(255, 0, 0, 0.4)' });
 
       const puzzle = puzzles[currentPuzzleIndex];
       // Create the sequence to play: first two auto moves + user's guess
@@ -438,8 +443,8 @@ function App() {
         )}
 
         {/* Buttons shown after user attempts their move (correct or incorrect) OR after showing answer */}
-        {/* Corrected condition for Replay Puzzle and Next Puzzle buttons */}
-        {((currentMoveIndex >= 2 && !isUserTurnToMove) || (isUserTurnToMove && feedbackMessage.includes('Incorrect'))) && (
+        {/* The Replay Puzzle button should be available once we are past the initial auto moves (currentMoveIndex >= 2) */}
+        {currentMoveIndex >= 2 && (
           <>
             <button
               onClick={handleReplayPuzzle}
@@ -447,20 +452,23 @@ function App() {
             >
               Replay Puzzle
             </button>
-            {currentPuzzleIndex < puzzles.length - 1 ? (
-              <button
-                onClick={handleNextPuzzle}
-                style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#6c757d', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
-              >
-                Next Puzzle
-              </button>
-            ) : (
-              <button
-                onClick={() => resetCurrentPuzzle(0)} // Resets to the first puzzle
-                style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#6c757d', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
-              >
-                Start Over
-              </button>
+            {/* Next Puzzle / Start Over buttons only appear if it's NOT the user's turn to guess */}
+            {!isUserTurnToMove && (
+              currentPuzzleIndex < puzzles.length - 1 ? (
+                <button
+                  onClick={handleNextPuzzle}
+                  style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#6c757d', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
+                >
+                  Next Puzzle
+                </button>
+              ) : (
+                <button
+                  onClick={() => resetCurrentPuzzle(0)} // Resets to the first puzzle
+                  style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#6c757d', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
+                >
+                  Start Over
+                </button>
+              )
             )}
           </>
         )}

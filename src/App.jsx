@@ -86,17 +86,20 @@ const ARROWHEAD_EFFECTIVE_LENGTH = 10; // This value should match the refX of th
 
 function App() {
   const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
+  // Initialize game and puzzle moves based on the current puzzle index
   const [game, setGame] = useState(new Chess(puzzles[currentPuzzleIndex].fen));
   const [currentPuzzleMoves, setCurrentPuzzleMoves] = useState(puzzles[currentPuzzleIndex].moves);
-  const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
+  const [currentMoveIndex, setCurrentMoveIndex] = useState(0); // Tracks moves within the current puzzle
   const [showTestMode, setShowTestMode] = useState(false);
   const [arrows, setArrows] = useState([]); // This will now hold only the current arrow
-  const [boardPosition, setBoardPosition] = useState(puzzles[currentPuzzleIndex].fen); // Board position remains static for puzzle visualization
+  // boardPosition will remain static for puzzle visualization, only changing on new puzzles
+  const [boardPosition, setBoardPosition] = useState(puzzles[currentPuzzleIndex].fen);
   const [isVisible, setIsVisible] = useState(true);
 
   function handleNextMove() {
     try {
-      if (currentMoveIndex < currentPuzzleMoves.length) {
+      // Check if we are still within the first two automatic moves of the current puzzle
+      if (currentMoveIndex < 2 && currentMoveIndex < currentPuzzleMoves.length) {
         const move = currentPuzzleMoves[currentMoveIndex];
         if (!move || move.length < 4) {
           throw new Error('Invalid move format in currentPuzzleMoves array: ' + move);
@@ -109,22 +112,18 @@ function App() {
           throw new Error(`Invalid 'from' or 'to' square in move: ${move}. From: ${from}, To: ${to}`);
         }
 
+        // IMPORTANT CHANGE: ONLY display the arrow, DO NOT move pieces on the board.
+        // The boardPosition state is NOT updated here.
         setArrows([{ from, to }]);
-        setCurrentMoveIndex((prev) => prev + 1);
-      } else if (currentPuzzleIndex < puzzles.length - 1) {
-        // Go to the next puzzle
-        const nextPuzzleIndex = currentPuzzleIndex + 1;
-        setCurrentPuzzleIndex(nextPuzzleIndex);
-        setGame(new Chess(puzzles[nextPuzzleIndex].fen));
-        setCurrentPuzzleMoves(puzzles[nextPuzzleIndex].moves);
-        setBoardPosition(puzzles[nextPuzzleIndex].fen);
-        setCurrentMoveIndex(0);
-        setArrows([]);
+        setCurrentMoveIndex((prev) => prev + 1); // Increment for the next click
+
       } else {
-        // All puzzles complete
-        console.log("All puzzles completed!");
-        setShowTestMode(true);
-        setArrows([]);
+        // This block is reached if currentMoveIndex is 2 or more,
+        // meaning the two automatic moves have been played.
+        // We now transition to the "Test" phase for this puzzle.
+        console.log("Two automatic moves played. Ready for test mode for current puzzle.");
+        setArrows([]); // Clear arrows before entering test mode
+        // The button logic will automatically switch to "Test" here.
       }
     } catch (error) {
       console.error('Error in handleNextMove:', error);
@@ -134,25 +133,28 @@ function App() {
 
   function handleTestMode() {
     console.log("Entering Test Mode. showTestMode will be set to true.");
+    // Clear the board for the user to make their move
     const emptyGame = new Chess();
     emptyGame.clear();
-    setGame(emptyGame);
-    setBoardPosition(emptyGame.fen());
-    setShowTestMode(true);
-    setArrows([]);
+    setGame(emptyGame); // Reset game state
+    setBoardPosition(emptyGame.fen()); // Set board to empty FEN for test mode
+    setShowTestMode(true); // Activate test mode
+    setArrows([]); // Clear any existing arrows
   }
 
   function handleReplay() {
-    setCurrentPuzzleIndex(0);
-    setGame(new Chess(puzzles[0].fen));
-    setCurrentPuzzleMoves(puzzles[0].moves);
-    setCurrentMoveIndex(0);
-    setShowTestMode(false);
-    setArrows([]);
-    setBoardPosition(puzzles[0].fen);
-    setIsVisible(true);
+    // Reset to the beginning of the current puzzle
+    const initialPuzzleFen = puzzles[currentPuzzleIndex].fen;
+    setGame(new Chess(initialPuzzleFen));
+    setCurrentPuzzleMoves(puzzles[currentPuzzleIndex].moves); // Ensure correct puzzle moves are loaded
+    setCurrentMoveIndex(0); // Reset move index
+    setShowTestMode(false); // Exit test mode
+    setArrows([]); // Clear arrows
+    setBoardPosition(initialPuzzleFen); // Reset board to initial puzzle FEN
+    setIsVisible(true); // Make the app visible again if it was hidden due to an error
   }
 
+  // Renders the draggable chess pieces for test mode
   const renderPieceMenu = () => {
     const playerColor = 'w';
     return (
@@ -272,15 +274,16 @@ function App() {
         </div>
       </div>
       <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-        {currentMoveIndex < currentPuzzleMoves.length || currentPuzzleIndex < puzzles.length - 1 ? (
+        {/* Conditional rendering for Next/Test button */}
+        {currentMoveIndex < 2 ? ( // Show Next button for the first 2 moves
           <button
             onClick={handleNextMove}
-            disabled={showTestMode}
+            disabled={showTestMode} // Disable if in test mode (though it shouldn't be active here)
             style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#4CAF50', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
           >
             Next
           </button>
-        ) : (
+        ) : ( // Otherwise, show Test button
           <button
             onClick={handleTestMode}
             style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#008CBA', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}

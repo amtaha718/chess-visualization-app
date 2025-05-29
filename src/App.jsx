@@ -3,7 +3,8 @@ import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import './index.css';
 
-const PIECES = ['p', 'n', 'b', 'r', 'q', 'k'];
+// No longer using PIECES as sandbox mode is removed.
+// const PIECES = ['p', 'n', 'b', 'r', 'q', 'k'];
 
 /**
  * @typedef {Object} ChessPuzzle
@@ -86,8 +87,9 @@ function App() {
   const [game, setGame] = useState(new Chess(puzzles[currentPuzzleIndex].fen));
   const [currentPuzzleMoves, setCurrentPuzzleMoves] = useState(puzzles[currentPuzzleIndex].moves);
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0); // Tracks moves within the current puzzle
-  const [showSandboxMode, setShowSandboxMode] = useState(false); // Renamed from showTestMode for clarity
-  const [arrows, setArrows] = useState([]); // This will now hold only the current arrow
+  // Removed showSandboxMode
+  const [arrows, setArrows] = useState([]); // This will now hold only the current automatic arrow
+  // boardPosition will remain static at initialFEN during automatic puzzle visualization
   const [boardPosition, setBoardPosition] = useState(puzzles[currentPuzzleIndex].fen);
   const [isVisible, setIsVisible] = useState(true);
   const [isUserTurnToMove, setIsUserTurnToMove] = useState(false); // New state for user's test move
@@ -100,9 +102,9 @@ function App() {
     setGame(new Chess(newPuzzle.fen));
     setCurrentPuzzleMoves(newPuzzle.moves);
     setCurrentMoveIndex(0);
-    setShowSandboxMode(false);
+    // Removed setShowSandboxMode(false);
     setArrows([]);
-    setBoardPosition(newPuzzle.fen);
+    setBoardPosition(newPuzzle.fen); // Reset board to initial FEN for the new puzzle
     setIsVisible(true);
     setIsUserTurnToMove(false);
     setFeedbackMessage('');
@@ -128,26 +130,19 @@ function App() {
           throw new Error(`Invalid 'from' or 'to' square in move: ${move}. From: ${from}, To: ${to}`);
         }
 
-        // Apply the move to the game state and update board position
-        const tempGame = new Chess(game.fen());
-        const moveResult = tempGame.move({ from, to });
-
-        if (!moveResult) {
-            throw new Error(`Illegal move: ${move} from FEN: ${game.fen()}`);
-        }
-
-        setGame(tempGame); // Update the main game state
-        setBoardPosition(tempGame.fen()); // Update board to reflect the move
-        setArrows([{ from, to }]); // Show arrow for this move
+        // IMPORTANT: ONLY display the arrow, DO NOT move pieces on the board in this phase.
+        setArrows([{ from, to }]);
         setCurrentMoveIndex((prev) => prev + 1); // Increment for the next click
 
       } else {
         // This block is reached if currentMoveIndex is 2 or more,
         // meaning the two automatic moves have been played.
-        // Now it's time for the user's move for this puzzle.
+        // Now it's time to prompt the user for their move.
         console.log("Two automatic moves played. Ready for user's test move for current puzzle.");
-        setArrows([]); // Clear arrows before user's turn
+        setArrows([]); // Clear automatic arrows
         setIsUserTurnToMove(true); // Activate user's turn
+        // Revert board to initial FEN for the user to make their move
+        setBoardPosition(puzzles[currentPuzzleIndex].fen);
       }
     } catch (error) {
       console.error('Error in handleNextMove:', error);
@@ -162,20 +157,8 @@ function App() {
     setIsUserTurnToMove(true); // Set state to enable user interaction for the puzzle move
     setFeedbackMessage(''); // Clear previous feedback
     setFeedbackArrow(null); // Clear previous feedback arrow
-  }
-
-  // This function is for the separate "sandbox" mode, not the puzzle test.
-  function handleEnterSandboxMode() {
-    console.log("Entering Sandbox Mode. showSandboxMode will be set to true.");
-    const emptyGame = new Chess();
-    emptyGame.clear();
-    setGame(emptyGame);
-    setBoardPosition(emptyGame.fen());
-    setShowSandboxMode(true); // Activate sandbox mode
-    setArrows([]);
-    setIsUserTurnToMove(false); // Ensure user test mode is off
-    setFeedbackMessage('');
-    setFeedbackArrow(null);
+    // Ensure board is reset to initial FEN for user's turn
+    setBoardPosition(puzzles[currentPuzzleIndex].fen);
   }
 
   function handleReplayPuzzle() {
@@ -186,65 +169,16 @@ function App() {
     if (currentPuzzleIndex < puzzles.length - 1) {
       resetCurrentPuzzle(currentPuzzleIndex + 1);
     } else {
-      console.log("All puzzles completed!");
-      // Optionally, go to a final screen or reset to first puzzle
+      console.log("All puzzles completed! Looping back to the first puzzle.");
       resetCurrentPuzzle(0); // Loop back to the first puzzle for now
     }
   }
 
-  // Renders the draggable chess pieces for sandbox mode
-  const renderPieceMenu = () => {
-    const playerColor = 'w';
-    return (
-      <div className="piece-menu">
-        {PIECES.map((p) => {
-          const pieceCode = playerColor === 'w' ? p.toUpperCase() : p;
-          const pieceImageSrc = `https://placehold.co/40x40/cccccc/000000?text=${pieceCode}`;
-          return (
-            <div
-              key={pieceCode}
-              className="piece-tile"
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData('piece', pieceCode);
-                window.draggedPiece = pieceCode;
-              }}
-            >
-              <img
-                src={pieceImageSrc}
-                alt={pieceCode}
-                width={40}
-                onError={(e) => {
-                  console.error(`Failed to load piece image: ${e.target.src}`);
-                  e.target.src = `https://placehold.co/40x40/cccccc/000000?text=NA`;
-                }}
-              />
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
+  // Removed renderPieceMenu as sandbox mode is removed.
 
-  // Handles dropping a piece onto a square (either in sandbox or user test mode)
+  // Handles dropping a piece onto a square (only when it's the user's turn)
   function handleDrop(sourceSquare, targetSquare) {
-    if (showSandboxMode) { // Logic for the separate sandbox mode
-      const pieceType = window.draggedPiece;
-      if (!pieceType) return false;
-
-      const board = document.querySelector('.board');
-      const squareEl = board?.querySelector(`.square-${targetSquare}`);
-
-      if (squareEl) {
-        const img = document.createElement('img');
-        img.src = `https://images.chesscomfiles.com/chess-themes/pieces/neo/150/${pieceType}.png`;
-        img.style.width = '100%';
-        img.style.height = '100%';
-        squareEl.innerHTML = '';
-        squareEl.appendChild(img);
-      }
-      return true;
-    } else if (isUserTurnToMove) { // Logic for the user's puzzle test move
+    if (isUserTurnToMove) { // Logic for the user's puzzle test move
       const expectedMove = currentPuzzleMoves[currentMoveIndex]; // This should be the 3rd move (index 2)
       const userMove = `${sourceSquare}${targetSquare}`;
 
@@ -255,10 +189,22 @@ function App() {
       if (moveResult && userMove === expectedMove) {
         setFeedbackMessage('Correct! Well done!');
         setFeedbackArrow({ from: sourceSquare, to: targetSquare, color: 'rgba(0, 255, 0, 0.4)' }); // Green arrow
-        setGame(tempGame); // Update the board to show the correct move
+
+        // Temporarily show the correct move on the board
+        setGame(tempGame);
         setBoardPosition(tempGame.fen());
-        setIsUserTurnToMove(false); // User has made their move for this puzzle
-        setArrows([]); // Clear temporary arrow
+
+        // After a short delay, revert the board and prepare for next action
+        setTimeout(() => {
+          setFeedbackMessage('');
+          setFeedbackArrow(null);
+          setIsUserTurnToMove(false);
+          // Revert board to initial FEN of the puzzle
+          setBoardPosition(puzzles[currentPuzzleIndex].fen);
+          // Optionally, advance currentMoveIndex if you want to track user's correct moves
+          // setCurrentMoveIndex((prev) => prev + 1);
+        }, 1500); // Show correct move for 1.5 seconds
+
       } else {
         setFeedbackMessage('Incorrect. Try again or click Replay Puzzle.');
         setFeedbackArrow({ from: sourceSquare, to: targetSquare, color: 'rgba(255, 0, 0, 0.4)' }); // Red arrow for incorrect
@@ -268,7 +214,7 @@ function App() {
       }
       return true; // Indicate that the drop was handled
     }
-    return false; // Not in sandbox or user test mode
+    return false; // Not user's turn to make a puzzle move
   }
 
   if (!isVisible) {
@@ -292,20 +238,30 @@ function App() {
         <Chessboard
           position={boardPosition}
           onPieceDrop={(source, target) => handleDrop(source, target)}
-          // Draggable if in sandbox mode OR if it's the user's turn to make the puzzle move
-          arePiecesDraggable={showSandboxMode || isUserTurnToMove}
-          customBoardStyle={{ border: '2px solid #333', marginBottom: '20px', borderRadius: '8px' }}
+          // Draggable only if it's the user's turn to make the puzzle move
+          arePiecesDraggable={isUserTurnToMove}
+          customBoardStyle={{
+            border: '2px solid #333',
+            marginBottom: '20px',
+            borderRadius: '8px',
+            // Make board translucent during user's turn
+            opacity: isUserTurnToMove ? 0.6 : 1,
+            transition: 'opacity 0.3s ease-in-out'
+          }}
           boardWidth={boardWidth}
         />
         <div style={{ position: 'absolute', top: 0, left: 0, width: boardWidth, height: boardWidth, pointerEvents: 'none' }}>
           <svg width={boardWidth} height={boardWidth} viewBox={`0 0 ${boardWidth} ${boardWidth}`}>
             <defs>
-              <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+              {/* Blue arrow for automatic moves */}
+              <marker id="arrowhead-blue" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
                 <polygon points="0 0, 10 3.5, 0 7" fill="rgba(0, 128, 255, 0.4)" />
               </marker>
+              {/* Green arrow for correct user moves */}
               <marker id="arrowhead-green" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
                 <polygon points="0 0, 10 3.5, 0 7" fill="rgba(0, 255, 0, 0.4)" />
               </marker>
+              {/* Red arrow for incorrect user moves */}
               <marker id="arrowhead-red" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
                 <polygon points="0 0, 10 3.5, 0 7" fill="rgba(255, 0, 0, 0.4)" />
               </marker>
@@ -338,7 +294,7 @@ function App() {
                   y2={adjustedY2}
                   stroke="rgba(0, 128, 255, 0.4)"
                   strokeWidth="8"
-                  markerEnd="url(#arrowhead)"
+                  markerEnd="url(#arrowhead-blue)"
                 />
               );
             })}
@@ -390,27 +346,37 @@ function App() {
         </p>
       )}
       <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-        {/* Conditional rendering for Next / Test / Replay / Next Puzzle buttons */}
-        {currentMoveIndex < 2 && !isUserTurnToMove && !showSandboxMode && (
+        {/* "Next" button for automatic moves */}
+        {currentMoveIndex < 2 && !isUserTurnToMove ? (
           <button
             onClick={handleNextMove}
             style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#4CAF50', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
           >
             Next
           </button>
-        )}
+        ) : null}
 
-        {currentMoveIndex === 2 && !isUserTurnToMove && !showSandboxMode && (
+        {/* "Test" button appears after 2 automatic moves, before user's turn starts */}
+        {currentMoveIndex === 2 && !isUserTurnToMove ? (
           <button
             onClick={handleEnterUserTestMode}
             style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#008CBA', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
           >
             Test
           </button>
+        ) : null}
+
+        {/* Buttons shown after user attempts their move (correct or incorrect) */}
+        {isUserTurnToMove && ( // User is currently trying to make a move
+          <button
+            onClick={handleReplayPuzzle}
+            style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#f44336', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
+          >
+            Replay Puzzle
+          </button>
         )}
 
-        {/* Buttons shown after user attempts their move or if an error occurs */}
-        {(isUserTurnToMove || currentMoveIndex === 2) && !showSandboxMode && (
+        {!isUserTurnToMove && currentMoveIndex >= 2 && ( // User has finished their turn (correct or incorrect)
           <>
             <button
               onClick={handleReplayPuzzle}
@@ -418,16 +384,14 @@ function App() {
             >
               Replay Puzzle
             </button>
-            {currentPuzzleIndex < puzzles.length - 1 && (
+            {currentPuzzleIndex < puzzles.length - 1 ? (
               <button
                 onClick={handleNextPuzzle}
                 style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#6c757d', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
               >
                 Next Puzzle
               </button>
-            )}
-            {/* If all puzzles are done, maybe a "Start Over" button instead of Next Puzzle */}
-            {currentPuzzleIndex === puzzles.length - 1 && !isUserTurnToMove && (
+            ) : (
               <button
                 onClick={() => resetCurrentPuzzle(0)} // Resets to the first puzzle
                 style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#6c757d', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
@@ -437,18 +401,8 @@ function App() {
             )}
           </>
         )}
-
-        {/* Button to enter the separate Sandbox mode */}
-        {!isUserTurnToMove && !showSandboxMode && (
-          <button
-            onClick={handleEnterSandboxMode}
-            style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#ffc107', color: 'black', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
-          >
-            Enter Sandbox
-          </button>
-        )}
       </div>
-      {showSandboxMode && renderPieceMenu()}
+      {/* Removed renderPieceMenu as sandbox mode is removed */}
     </div>
   );
 }

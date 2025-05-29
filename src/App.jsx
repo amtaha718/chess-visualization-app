@@ -28,6 +28,13 @@ function App() {
     setShowTestMode(true);
   }
 
+  function handleReplay() {
+    const resetGame = new Chess();
+    setGame(resetGame);
+    setCurrentMoveIndex(0);
+    setShowTestMode(false);
+  }
+
   const renderPieceMenu = () => {
     const playerColor = game.turn();
     return (
@@ -41,6 +48,7 @@ function App() {
               draggable
               onDragStart={(e) => {
                 e.dataTransfer.setData('piece', pieceCode);
+                window.draggedPiece = pieceCode;
               }}
             >
               <img
@@ -84,6 +92,7 @@ function App() {
       />
       <button onClick={handleNextMove} disabled={showTestMode}>Next</button>
       <button onClick={handleTestMode}>Test</button>
+      <button onClick={handleReplay}>Replay</button>
       {showTestMode && renderPieceMenu()}
     </div>
   );

@@ -239,7 +239,7 @@ function App() {
   function handleRevealSolution() {
     console.log("handleRevealSolution: Revealing solution for puzzle:", currentPuzzleIndex);
     const puzzle = puzzles[currentPuzzleIndex];
-    // Play the full puzzle sequence up to the quizzed move (index 2)
+    // Play the full puzzle sequence up to the quizzed move (currentMoveIndex which is 2)
     const movesToReveal = puzzle.moves.slice(0, currentMoveIndex + 1);
     playMoveSequence(movesToReveal, false); // Not a user guess
   }
@@ -296,7 +296,7 @@ function App() {
       <h1 style={{ marginBottom: '20px', color: '#333' }}>Chess Visualization Trainer</h1>
       <p style={{ marginBottom: '10px' }}>Puzzle {currentPuzzleIndex + 1} of {puzzles.length}</p>
 
-      <div style={{ position: 'relative', width={boardWidth} height={boardWidth} }}>
+      <div style={{ position: 'relative', width: boardWidth, height: boardWidth }}>
         <Chessboard
           position={boardPosition}
           onPieceDrop={(source, target) => handleDrop(source, target)}

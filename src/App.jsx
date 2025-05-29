@@ -33,13 +33,15 @@ function App() {
         setGame(newGame);
         setBoardPosition(newGame.fen());
         setArrows((prev) => [...prev, { from, to }]);
-        setCurrentMoveIndex(currentMoveIndex + 1);
+        setCurrentMoveIndex((prev) => prev + 1);
       } else if (currentMoveIndex === puzzleMoves.length) {
-        setGame(new Chess(initialFEN));
-        setBoardPosition(initialFEN);
+        const newGame = new Chess();
+        newGame.clear();
+        setGame(newGame);
+        setBoardPosition(newGame.fen());
         setArrows([]);
         setShowTestMode(true);
-        setCurrentMoveIndex(currentMoveIndex + 1);
+        setCurrentMoveIndex((prev) => prev + 1);
       }
     } catch (error) {
       console.error('Error during handleNextMove:', error);
@@ -112,7 +114,7 @@ function App() {
     return false;
   }
 
-  const customArrows = arrows
+  const customArrows = (Array.isArray(arrows) ? arrows : [])
     .filter(({ from, to }) => from && to)
     .map(({ from, to }) => ({ from, to, color: 'rgba(0, 128, 255, 0.4)' }));
 

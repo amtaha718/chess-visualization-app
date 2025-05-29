@@ -100,14 +100,3 @@ function App() {
 
 export default App;
 
-// index.css
-.piece-menu {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-}
-
-.piece-tile {
-  margin: 0 10px;
-  cursor: grab;
-}

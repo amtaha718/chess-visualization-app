@@ -15,19 +15,32 @@ function App() {
   const [showTestMode, setShowTestMode] = useState(false);
   const [arrows, setArrows] = useState([]);
   const [boardPosition, setBoardPosition] = useState(initialFEN);
+  const [isVisible, setIsVisible] = useState(true);
 
   function handleNextMove() {
-    if (currentMoveIndex < puzzleMoves.length) {
-      const move = puzzleMoves[currentMoveIndex];
-      const from = move.slice(0, 2);
-      const to = move.slice(2, 4);
+    try {
+      if (currentMoveIndex < puzzleMoves.length) {
+        const move = puzzleMoves[currentMoveIndex];
+        const from = move.slice(0, 2);
+        const to = move.slice(2, 4);
 
-      const tempGame = new Chess(boardPosition);
-      tempGame.move({ from, to });
-      setBoardPosition(tempGame.fen());
+        const tempGame = new Chess(boardPosition);
+        const moveResult = tempGame.move({ from, to });
+        if (!moveResult) throw new Error('Invalid move');
 
-      setArrows((prev) => [...prev, { from, to }]);
-      setCurrentMoveIndex(currentMoveIndex + 1);
+        setBoardPosition(tempGame.fen());
+        setArrows((prev) => [...prev, { from, to }]);
+        setCurrentMoveIndex(currentMoveIndex + 1);
+      } else if (currentMoveIndex === puzzleMoves.length) {
+        // reset to original position for test
+        setBoardPosition(initialFEN);
+        setArrows([]);
+        setShowTestMode(true);
+        setCurrentMoveIndex(currentMoveIndex + 1);
+      }
+    } catch (error) {
+      console.error('Error during handleNextMove:', error);
+      setIsVisible(false);
     }
   }
 
@@ -46,6 +59,7 @@ function App() {
     setShowTestMode(false);
     setBoardPosition(initialFEN);
     setArrows([]);
+    setIsVisible(true);
   }
 
   const renderPieceMenu = () => {
@@ -95,7 +109,11 @@ function App() {
     return false;
   }
 
-  const customArrows = arrows.map(({ from, to }) => ({ from, to, color: 'rgba(0, 128, 255, 0.4)' }));
+  const customArrows = arrows
+    .filter(({ from, to }) => from && to)
+    .map(({ from, to }) => ({ from, to, color: 'rgba(0, 128, 255, 0.4)' }));
+
+  if (!isVisible) return <div style={{ padding: 20, color: 'red' }}>An error occurred. Please click Replay.</div>;
 
   return (
     <div className="App">

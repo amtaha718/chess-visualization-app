@@ -14,18 +14,23 @@ function App() {
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [showTestMode, setShowTestMode] = useState(false);
   const [arrows, setArrows] = useState([]);
+  const [boardPosition, setBoardPosition] = useState(initialFEN);
 
   function handleNextMove() {
     if (currentMoveIndex < puzzleMoves.length) {
       const move = puzzleMoves[currentMoveIndex];
       const from = move.slice(0, 2);
       const to = move.slice(2, 4);
-      setArrows([...arrows, { from, to }]);
+      setArrows((prev) => [...prev, { from, to }]);
       setCurrentMoveIndex(currentMoveIndex + 1);
     }
   }
 
   function handleTestMode() {
+    const emptyGame = new Chess();
+    emptyGame.clear();
+    setGame(emptyGame);
+    setBoardPosition(emptyGame.fen());
     setShowTestMode(true);
   }
 
@@ -34,11 +39,12 @@ function App() {
     setGame(resetGame);
     setCurrentMoveIndex(0);
     setShowTestMode(false);
+    setBoardPosition(initialFEN);
     setArrows([]);
   }
 
   const renderPieceMenu = () => {
-    const playerColor = game.turn();
+    const playerColor = 'w'; // always test white for now
     return (
       <div className="piece-menu">
         {PIECES.map((p) => {
@@ -90,7 +96,7 @@ function App() {
     <div className="App">
       <h1>Chess Visualization Trainer</h1>
       <Chessboard
-        position={showTestMode ? '8/8/8/8/8/8/8/8' : initialFEN}
+        position={boardPosition}
         onPieceDrop={(source, target) => handleDrop(source, target)}
         arePiecesDraggable={!showTestMode}
         customBoardStyle={{ border: '2px solid #333', marginBottom: '20px' }}

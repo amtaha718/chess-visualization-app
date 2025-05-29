@@ -5,8 +5,27 @@ import './index.css';
 
 const PIECES = ['p', 'n', 'b', 'r', 'q', 'k'];
 
-const initialFEN = 'r1bq1rk1/ppp1bppp/2n2n2/3pp3/3P4/2P1PN2/PP1N1PPP/R1BQ1RK1 w - - 0 1';
-const puzzleMoves = ['d4e5', 'c6e5', 'f3e5', 'c8e6'];
+/**
+ * @typedef {Object} ChessPuzzle
+ * @property {string} fen - The starting FEN for the puzzle.
+ * @property {string[]} moves - An array of moves in SAN (Standard Algebraic Notation).
+ */
+
+const puzzles = [
+  {
+    fen: 'r1bqkbnr/ppp2ppp/2n5/1B1pp3/3PP3/5N2/PPP2PPP/RNBQK2R w KQkq - 0 4',
+    moves: ['exd5', 'Qxd5', 'Nc3', 'Qa5+', 'Bd2', 'Bb4']
+  },
+  {
+    fen: '4rrk1/pp3ppp/3q1n2/2ppn3/8/P1PP1N2/1P1NQPPP/R3K2R w KQ - 0 15',
+    moves: ['Nxe5', 'Rxe5', 'd4', 'cxd4', 'cxd4', 'Rxe2+']
+  },
+  {
+    fen: 'r1bq1rk1/ppp2ppp/2n2n2/3pp3/3P4/2P1PN2/PP1N1PPP/R1BQ1RK1 w - - 0 1',
+    moves: ['d4e5', 'c6e5', 'f3e5', 'c8e6']
+  },
+  // Add 7-9 more puzzles here...
+];
 
 // Helper function to validate if a string is a valid chess square (e.g., 'a1', 'h8')
 const isValidSquare = (square) => {
@@ -19,112 +38,106 @@ const getSquareCoordinates = (square, boardWidth) => {
   const rank = parseInt(square[1], 10) - 1; // '1' -> 0, '2' -> 1, etc.
 
   const squareSize = boardWidth / 8;
-  // Calculate center of the square. 'x' increases from left to right.
-  // 'y' increases from top to bottom, so for rank '1' (bottom), y should be largest.
   const x = file * squareSize + squareSize / 2;
-  const y = (7 - rank) * squareSize + squareSize / 2; // (7 - rank) to invert y-axis for SVG (top is 0)
+  const y = (7 - rank) * squareSize + squareSize / 2;
   return { x, y };
 };
 
-// Define a constant for the effective length of the arrowhead for line shortening
-const ARROWHEAD_EFFECTIVE_LENGTH = 10; // This value should match the refX of the marker
+const ARROWHEAD_EFFECTIVE_LENGTH = 10;
 
 function App() {
-  const [game, setGame] = useState(new Chess(initialFEN));
+  const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
+  const [game, setGame] = useState(new Chess(puzzles[currentPuzzleIndex].fen));
+  const [currentPuzzleMoves, setCurrentPuzzleMoves] = useState(puzzles[currentPuzzleIndex].moves);
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [showTestMode, setShowTestMode] = useState(false);
-  const [arrows, setArrows] = useState([]); // This will now hold only the current arrow
-  const [boardPosition, setBoardPosition] = useState(initialFEN); // Board position remains static for puzzle visualization
+  const [arrows, setArrows] = useState([]);
+  const [boardPosition, setBoardPosition] = useState(puzzles[currentPuzzleIndex].fen);
   const [isVisible, setIsVisible] = useState(true);
 
   function handleNextMove() {
     try {
-      // Check if there are more moves in the puzzle
-      if (currentMoveIndex < puzzleMoves.length) {
-        const move = puzzleMoves[currentMoveIndex];
-        // Basic validation for the move string
+      if (currentMoveIndex < currentPuzzleMoves.length) {
+        const move = currentPuzzleMoves[currentMoveIndex];
         if (!move || move.length < 4) {
-          throw new Error('Invalid move format in puzzleMoves array: ' + move);
+          throw new Error('Invalid move format in currentPuzzleMoves array: ' + move);
         }
 
         const from = move.slice(0, 2);
         const to = move.slice(2, 4);
 
-        // EXTRA VALIDATION: Ensure 'from' and 'to' are valid chess squares
         if (!isValidSquare(from) || !isValidSquare(to)) {
           throw new Error(`Invalid 'from' or 'to' square in move: ${move}. From: ${from}, To: ${to}`);
         }
 
-        // IMPORTANT CHANGE: ONLY add the current arrow, replacing any previous ones
         setArrows([{ from, to }]);
-
-        // Increment the move index
         setCurrentMoveIndex((prev) => prev + 1);
-
+      } else if (currentPuzzleIndex < puzzles.length - 1) {
+        // Go to the next puzzle
+        const nextPuzzleIndex = currentPuzzleIndex + 1;
+        setCurrentPuzzleIndex(nextPuzzleIndex);
+        setGame(new Chess(puzzles[nextPuzzleIndex].fen));
+        setCurrentPuzzleMoves(puzzles[nextPuzzleIndex].moves);
+        setBoardPosition(puzzles[nextPuzzleIndex].fen);
+        setCurrentMoveIndex(0);
+        setArrows([]);
       } else {
-        // This block is executed when all puzzle moves have been shown.
-        // The "Next" button will be disabled and replaced by the "Test" button.
-        console.log("All puzzle moves displayed. Now in 'Test' mode or ready for 'Replay'.");
-        setArrows([]); // Clear arrows once puzzle is complete
+        // All puzzles complete
+        console.log("All puzzles completed!");
+        setShowTestMode(true);
+        setArrows([]);
       }
     } catch (error) {
-      console.error('Error during handleNextMove:', error);
-      // If an error occurs, set isVisible to false to display an error message
+      console.error('Error in handleNextMove:', error);
       setIsVisible(false);
     }
   }
 
   function handleTestMode() {
-    console.log("Entering Test Mode. showTestMode will be set to true."); // Debugging log
-    // Create a new empty game and clear the board
+    console.log("Entering Test Mode. showTestMode will be set to true.");
     const emptyGame = new Chess();
     emptyGame.clear();
     setGame(emptyGame);
-    setBoardPosition(emptyGame.fen()); // Set board to empty FEN for test mode
-    // Activate test mode
+    setBoardPosition(emptyGame.fen());
     setShowTestMode(true);
-    // Clear arrows when entering test mode
     setArrows([]);
   }
 
   function handleReplay() {
-    // Reset the game to the initial FEN
-    const resetGame = new Chess(initialFEN);
-    setGame(resetGame);
-    // Reset all related states
+    setCurrentPuzzleIndex(0);
+    setGame(new Chess(puzzles[0].fen));
+    setCurrentPuzzleMoves(puzzles[0].moves);
     setCurrentMoveIndex(0);
     setShowTestMode(false);
-    setBoardPosition(initialFEN); // Reset board to initial FEN
-    setArrows([]); // Clear all arrows
-    setIsVisible(true); // Make the app visible again after an error
+    setArrows([]);
+    setBoardPosition(puzzles[0].fen);
+    setIsVisible(true);
   }
 
-  // Renders the draggable chess pieces for test mode
   const renderPieceMenu = () => {
-    const playerColor = 'w'; // Currently hardcoded to white pieces
+    const playerColor = 'w';
     return (
       <div className="piece-menu">
         {PIECES.map((p) => {
-          // Determine the piece code (uppercase for white, lowercase for black)
           const pieceCode = playerColor === 'w' ? p.toUpperCase() : p;
+          const pieceImageSrc = `https://placehold.co/40x40/cccccc/000000?text=${pieceCode}`;
           return (
             <div
               key={pieceCode}
               className="piece-tile"
-              draggable // Make the piece draggable
+              draggable
               onDragStart={(e) => {
-                // Store the piece code in dataTransfer and a global window variable for access in handleDrop
                 e.dataTransfer.setData('piece', pieceCode);
                 window.draggedPiece = pieceCode;
               }}
             >
               <img
-                src={`https://images.chesscomfiles.com/chess-themes/pieces/neo/150/${pieceCode}.png`}
+                src={pieceImageSrc}
                 alt={pieceCode}
                 width={40}
-                onError={(e) => { // Add onError handler for debugging
+                onError={(e) => {
                   console.error(`Failed to load piece image: ${e.target.src}`);
-                  e.target.src = `https://placehold.co/40x40/cccccc/000000?text=${pieceCode}`; // Fallback placeholder
+                  e.target.src = `https://placehold.co/40x40/cccccc/000000?text=NA`;
                 }}
               />
             </div>
@@ -134,65 +147,52 @@ function App() {
     );
   };
 
-  // Handles dropping a piece onto a square in test mode
   function handleDrop(sourceSquare, targetSquare) {
     if (showTestMode) {
-      const pieceType = window.draggedPiece; // Get the type of piece being dragged
-      if (!pieceType) return false; // If no piece is being dragged, do nothing
+      const pieceType = window.draggedPiece;
+      if (!pieceType) return false;
 
-      // Find the target square element on the board
       const board = document.querySelector('.board');
       const squareEl = board?.querySelector(`.square-${targetSquare}`);
 
       if (squareEl) {
-        // Create an image element for the dropped piece
         const img = document.createElement('img');
         img.src = `https://images.chesscomfiles.com/chess-themes/pieces/neo/150/${pieceType}.png`;
         img.style.width = '100%';
         img.style.height = '100%';
-        squareEl.innerHTML = ''; // Clear existing content in the square
-        squareEl.appendChild(img); // Add the new piece image
+        squareEl.innerHTML = '';
+        squareEl.appendChild(img);
       }
-      return true; // Indicate that the drop was handled
+      return true;
     }
-    return false; // Not in test mode, so don't handle the drop
+    return false;
   }
 
-  // If an error occurred, display a simple error message
   if (!isVisible) {
     return (
       <div style={{ padding: 20, color: 'red', textAlign: 'center' }}>
         <p>An error occurred. Please click 'Replay' to restart.</p>
-        <button onClick={handleReplay} style={{
-          padding: '10px 20px',
-          fontSize: '16px',
-          cursor: 'pointer',
-          borderRadius: '8px',
-          border: '1px solid #ccc',
-          backgroundColor: '#f0f0f0',
-          marginTop: '10px'
-        }}>Replay</button>
+        <button onClick={handleReplay} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #ccc', backgroundColor: '#f0f0f0', marginTop: '10px' }}>Replay</button>
       </div>
     );
   }
 
-  const boardWidth = 400; // Define board width for coordinate calculation
+  const boardWidth = 400;
 
   return (
     <div className="App" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px' }}>
       <h1 style={{ marginBottom: '20px', color: '#333' }}>Chess Visualization Trainer</h1>
-      <div style={{ position: 'relative', width: boardWidth, height: boardWidth }}> {/* Container for board and SVG */}
+      <p style={{ marginBottom: '10px' }}>Puzzle {currentPuzzleIndex + 1} of {puzzles.length}</p>
+      <div style={{ position: 'relative', width: boardWidth, height: boardWidth }}>
         <Chessboard
-          position={boardPosition} // This will now remain initialFEN during puzzle display
+          position={boardPosition}
           onPieceDrop={(source, target) => handleDrop(source, target)}
           arePiecesDraggable={!showTestMode}
           customBoardStyle={{ border: '2px solid #333', marginBottom: '20px', borderRadius: '8px' }}
           boardWidth={boardWidth}
         />
-        {/* Custom SVG Overlay for Arrows */}
         <div style={{ position: 'absolute', top: 0, left: 0, width: boardWidth, height: boardWidth, pointerEvents: 'none' }}>
           <svg width={boardWidth} height={boardWidth} viewBox={`0 0 ${boardWidth} ${boardWidth}`}>
-            {/* Define arrowhead marker */}
             <defs>
               <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
                 <polygon points="0 0, 10 3.5, 0 7" fill="rgba(0, 128, 255, 0.4)" />
@@ -202,16 +202,14 @@ function App() {
               const start = getSquareCoordinates(arrow.from, boardWidth);
               const end = getSquareCoordinates(arrow.to, boardWidth);
 
-              // Calculate vector from start to end
               const dx = end.x - start.x;
               const dy = end.y - start.y;
               const distance = Math.sqrt(dx * dx + dy * dy);
 
-              // Shorten the line by ARROWHEAD_EFFECTIVE_LENGTH so the arrowhead tip lands at 'end'
               let adjustedX2 = end.x;
               let adjustedY2 = end.y;
 
-              if (distance > ARROWHEAD_EFFECTIVE_LENGTH) { // Only shorten if line is long enough
+              if (distance > ARROWHEAD_EFFECTIVE_LENGTH) {
                 const unitDx = dx / distance;
                 const unitDy = dy / distance;
                 adjustedX2 = end.x - unitDx * ARROWHEAD_EFFECTIVE_LENGTH;
@@ -220,14 +218,14 @@ function App() {
 
               return (
                 <line
-                  key={index} // Use index as key, safe here as we only show one arrow at a time
+                  key={index}
                   x1={start.x}
                   y1={start.y}
                   x2={adjustedX2}
                   y2={adjustedY2}
-                  stroke="rgba(0, 128, 255, 0.4)" // Use the same color as before
+                  stroke="rgba(0, 128, 255, 0.4)"
                   strokeWidth="8"
-                  markerEnd="url(#arrowhead)" // Add arrowhead
+                  markerEnd="url(#arrowhead)"
                 />
               );
             })}
@@ -235,56 +233,25 @@ function App() {
         </div>
       </div>
       <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-        {/* Conditional rendering for Next/Test button */}
-        {currentMoveIndex < puzzleMoves.length ? (
+        {currentMoveIndex < currentPuzzleMoves.length || currentPuzzleIndex < puzzles.length - 1 ? (
           <button
             onClick={handleNextMove}
-            disabled={showTestMode} // Only disable if in test mode
-            style={{
-              padding: '10px 20px',
-              fontSize: '16px',
-              cursor: 'pointer',
-              borderRadius: '8px',
-              border: '1px solid #333',
-              backgroundColor: '#4CAF50',
-              color: 'white',
-              boxShadow: '2px 2px 5px rgba(0,0,0,0.2)',
-              transition: 'background-color 0.3s ease'
-            }}
+            disabled={showTestMode}
+            style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#4CAF50', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
           >
             Next
           </button>
         ) : (
           <button
             onClick={handleTestMode}
-            style={{
-              padding: '10px 20px',
-              fontSize: '16px',
-              cursor: 'pointer',
-              borderRadius: '8px',
-              border: '1px solid #333',
-              backgroundColor: '#008CBA',
-              color: 'white',
-              boxShadow: '2px 2px 5px rgba(0,0,0,0.2)',
-              transition: 'background-color 0.3s ease'
-            }}
+            style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#008CBA', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
           >
             Test
           </button>
         )}
         <button
           onClick={handleReplay}
-          style={{
-            padding: '10px 20px',
-            fontSize: '16px',
-            cursor: 'pointer',
-            borderRadius: '8px',
-            border: '1px solid #333',
-            backgroundColor: '#f44336',
-            color: 'white',
-            boxShadow: '2px 2px 5px rgba(0,0,0,0.2)',
-            transition: 'background-color 0.3s ease'
-          }}
+          style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#f44336', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
         >
           Replay
         </button>

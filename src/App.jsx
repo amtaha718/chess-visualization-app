@@ -26,17 +26,17 @@ function App() {
 
 function handleTestMode() {
   const resetGame = new Chess();
-  const tempGame = new Chess();
 
-  // Replay only opponent moves up to one before the user's turn
+  // Apply opponent’s moves only
   for (let i = 0; i < puzzleMoves.length - 1; i++) {
-    tempGame.move(puzzleMoves[i]);
+    resetGame.move(puzzleMoves[i]);
   }
 
-  setGame(tempGame);
+  setGame(resetGame);
+  setCurrentMoveIndex(puzzleMoves.length - 1);
   setShowTestMode(true);
-  setCurrentMoveIndex(puzzleMoves.length - 1); // So "Next" won’t work anymore
 }
+
 
 
   function handleReplay() {

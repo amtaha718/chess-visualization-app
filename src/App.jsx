@@ -48,7 +48,7 @@ const puzzles = [
   },
   {
     fen: 'rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 2',
-    moves: ['d2d4', 'c5d4', 'f3d4', 'g8f6']
+    moves: ['d2d4', 'c5xd4', 'f3xd4', 'g8f6']
   },
   {
     fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
@@ -99,8 +99,13 @@ function App() {
   const [feedbackMessage, setFeedbackMessage] = useState(''); // New state for feedback message
   const [feedbackArrow, setFeedbackArrow] = useState(null); // New state for feedback arrow (green/red)
 
+  // Log state at each render for debugging
+  console.log("Render: Puzzle Index:", currentPuzzleIndex, "Move Index:", currentMoveIndex, "User Turn:", isUserTurnToMove, "Board FEN:", boardPosition);
+
+
   // Function to reset the current puzzle
   const resetCurrentPuzzle = (puzzleIndex) => {
+    console.log("resetCurrentPuzzle called for index:", puzzleIndex);
     const newPuzzle = puzzles[puzzleIndex];
     setGame(new Chess(newPuzzle.fen));
     setCurrentPuzzleMoves(newPuzzle.moves);
@@ -115,6 +120,7 @@ function App() {
 
   function handleNextMove() {
     try {
+      console.log("handleNextMove: before update, currentMoveIndex:", currentMoveIndex, "currentPuzzleIndex:", currentPuzzleIndex);
       setFeedbackMessage(''); // Clear any previous feedback
       setFeedbackArrow(null); // Clear any previous feedback arrow
 
@@ -135,16 +141,18 @@ function App() {
         // IMPORTANT: ONLY display the arrow, DO NOT move pieces on the board in this phase.
         setArrows([{ from, to }]);
         setCurrentMoveIndex((prev) => prev + 1); // Increment for the next click
+        console.log("handleNextMove: after arrow display, new Move Index will be:", currentMoveIndex + 1);
 
       } else {
         // This block is reached if currentMoveIndex is 2 or more,
         // meaning the two automatic moves have been played.
         // Now it's time to prompt the user for their move.
-        console.log("Two automatic moves played. Ready for user's test move for current puzzle.");
+        console.log("handleNextMove: Two automatic moves played. Transitioning to user test mode.");
         setArrows([]); // Clear automatic arrows
         setIsUserTurnToMove(true); // Activate user's turn
         // Revert board to initial FEN for the user to make their move
         setBoardPosition(puzzles[currentPuzzleIndex].fen);
+        console.log("handleNextMove: Board reset to initial FEN for puzzle", currentPuzzleIndex, ":", puzzles[currentPuzzleIndex].fen);
       }
     } catch (error) {
       console.error('Error in handleNextMove:', error);
@@ -154,7 +162,7 @@ function App() {
 
   // This function is called when the "Test" button (after auto-moves) is clicked.
   function handleEnterUserTestMode() {
-    console.log("Entering User Test Mode for puzzle:", currentPuzzleIndex);
+    console.log("handleEnterUserTestMode: currentPuzzleIndex at test start:", currentPuzzleIndex, "FEN for test:", puzzles[currentPuzzleIndex].fen);
     setArrows([]); // Clear any lingering arrows
     setIsUserTurnToMove(true); // Set state to enable user interaction for the puzzle move
     setFeedbackMessage(''); // Clear previous feedback
@@ -164,12 +172,19 @@ function App() {
   }
 
   function handleReplayPuzzle() {
+    console.log("handleReplayPuzzle: Replaying puzzle:", currentPuzzleIndex);
     resetCurrentPuzzle(currentPuzzleIndex);
   }
 
   function handleNextPuzzle() {
+    console.log("handleNextPuzzle: Advancing from puzzle", currentPuzzleIndex);
     if (currentPuzzleIndex < puzzles.length - 1) {
-      resetCurrentPuzzle(currentPuzzleIndex + 1);
+      const nextPuzzleIndex = currentPuzzleIndex + 1;
+      setCurrentPuzzleIndex(nextPuzzleIndex); // This will trigger a re-render
+      // The resetCurrentPuzzle will be called in the next render cycle due to state change
+      // For immediate effect, we can call it directly, but ensure state is consistent.
+      resetCurrentPuzzle(nextPuzzleIndex); // Call reset with the new index
+      console.log("handleNextPuzzle: Moved to next puzzle index:", nextPuzzleIndex, "FEN:", puzzles[nextPuzzleIndex].fen);
     } else {
       console.log("All puzzles completed! Looping back to the first puzzle.");
       resetCurrentPuzzle(0); // Loop back to the first puzzle for now
@@ -181,6 +196,7 @@ function App() {
     if (isUserTurnToMove) { // Logic for the user's puzzle test move
       const expectedMove = currentPuzzleMoves[currentMoveIndex]; // This should be the 3rd move (index 2)
       const userMove = `${sourceSquare}${targetSquare}`;
+      console.log("handleDrop: User move:", userMove, "Expected move:", expectedMove);
 
       // Create a temporary game instance to attempt the user's move
       const tempGame = new Chess(game.fen());
@@ -193,6 +209,7 @@ function App() {
         // Temporarily show the correct move on the board
         setGame(tempGame);
         setBoardPosition(tempGame.fen());
+        console.log("handleDrop: Correct move. New board FEN:", tempGame.fen());
 
         // After a short delay, revert the board and prepare for next action
         setTimeout(() => {
@@ -201,13 +218,15 @@ function App() {
           setIsUserTurnToMove(false);
           // Revert board to initial FEN of the puzzle
           setBoardPosition(puzzles[currentPuzzleIndex].fen);
+          console.log("handleDrop: Board reverted to initial FEN for puzzle", currentPuzzleIndex, ":", puzzles[currentPuzzleIndex].fen);
           // Optionally, advance currentMoveIndex if you want to track user's correct moves
-          // setCurrentMoveIndex((prev) => prev + 1);
+          // setCurrentMoveIndex((prev) => prev + 1); // Not needed if we only test one move per puzzle
         }, 1500); // Show correct move for 1.5 seconds
 
       } else {
         setFeedbackMessage('Incorrect move. Try again or click Replay Puzzle.'); // Updated message
         setFeedbackArrow({ from: sourceSquare, to: targetSquare, color: 'rgba(255, 0, 0, 0.4)' }); // Red arrow for incorrect
+        console.log("handleDrop: Incorrect move. User move:", userMove, "Expected:", expectedMove);
         // Do NOT update game or boardPosition if incorrect, keep board as is.
         // Keep isUserTurnToMove true so they can try again or replay.
         return false; // Indicate the move was not valid for the chessboard component

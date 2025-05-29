@@ -227,7 +227,7 @@ function App() {
               setFeedbackMessage('Solution revealed.');
               setIsUserTurnToMove(false); // Exit user turn mode
             }
-          }, 1500); // Clear arrow and show final feedback after 1.5s
+          }, 1500); // Clear feedback message and arrow after 1.5s
         }
       }, delay);
       delay += movePlaybackDelay;

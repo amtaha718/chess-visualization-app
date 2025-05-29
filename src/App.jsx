@@ -15,8 +15,9 @@ const puzzles = [
     moves: ['e4d5', 'd8d5', 'b1c3', 'd5a5', 'c1d2', 'f8b4']
   },
   {
-    fen: '4rrk1/pp3ppp/3q1n2/2ppn3/8/P1PP1N2/1P1NQPPP/R3K2R w KQ - 0 15',
-    moves: ['f3e5', 'e8e5', 'd2d4', 'c5d4', 'c3d4', 'e5e2']
+    // Simplified Puzzle 2 for debugging solution playback
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+    moves: ['e2e4', 'e7e5', 'g1f3']
   },
   {
     fen: 'r1bq1rk1/ppp1bppp/2n2n2/3pp3/3P4/2P1PN2/PP1N1PPP/R1BQ1RK1 w - - 0 1',
@@ -252,10 +253,10 @@ function App() {
   }
 
   function handleNextPuzzle() {
-    console.log("handleNextPuzzle: Advancing from puzzle", currentPuzzleIndex);
+    console.log("handleNextPuzzle: Called. Current puzzle index BEFORE update:", currentPuzzleIndex); // Added log
     setCurrentPuzzleIndex(prevIndex => {
         const nextIndex = (prevIndex + 1) % puzzles.length; // Loop back to 0 if at end
-        console.log("handleNextPuzzle: Setting nextPuzzleIndex to:", nextIndex);
+        console.log("handleNextPuzzle: Inside setState callback. prevIndex:", prevIndex, "nextIndex:", nextIndex); // Existing log, now more descriptive
         resetCurrentPuzzle(nextIndex); // Call reset with the newly calculated index
         return nextIndex;
     });

@@ -181,6 +181,11 @@ function App() {
     const movePlaybackDelay = 1000; // 1 second delay between moves
     const arrowClearDelay = 700; // Clear arrow after 0.7 seconds
 
+    // Add a 1-second pause before starting the loop if it's a user guess playback
+    if (finalMoveIsUserGuess) {
+      delay += 1000; // Initial 1-second pause
+    }
+
     for (let i = 0; i < movesToPlay.length; i++) {
       const move = movesToPlay[i];
       const from = move.slice(0, 2);

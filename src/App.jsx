@@ -17,18 +17,18 @@ function App() {
   const [boardPosition, setBoardPosition] = useState(initialFEN);
 
   function handleNextMove() {
-  if (currentMoveIndex < puzzleMoves.length) {
-    const move = puzzleMoves[currentMoveIndex];
-    const tempGame = new Chess(boardPosition);
-    tempGame.move({ from: move.slice(0, 2), to: move.slice(2, 4) });
-    setBoardPosition(tempGame.fen());
+    if (currentMoveIndex < puzzleMoves.length) {
+      const move = puzzleMoves[currentMoveIndex];
+      const from = move.slice(0, 2);
+      const to = move.slice(2, 4);
 
-    const from = move.slice(0, 2);
-    const to = move.slice(2, 4);
-    setArrows((prev) => [...prev, { from, to }]);
-    setCurrentMoveIndex(currentMoveIndex + 1);
-}
+      const tempGame = new Chess(boardPosition);
+      tempGame.move({ from, to });
+      setBoardPosition(tempGame.fen());
 
+      setArrows((prev) => [...prev, { from, to }]);
+      setCurrentMoveIndex(currentMoveIndex + 1);
+    }
   }
 
   function handleTestMode() {
@@ -106,6 +106,7 @@ function App() {
         arePiecesDraggable={!showTestMode}
         customBoardStyle={{ border: '2px solid #333', marginBottom: '20px' }}
         customArrows={customArrows}
+        boardWidth={400}
       />
       <button onClick={handleNextMove} disabled={showTestMode}>Next</button>
       <button onClick={handleTestMode}>Test</button>

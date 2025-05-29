@@ -80,16 +80,21 @@ const getSquareCoordinates = (square, boardWidth) => {
   return { x, y };
 };
 
-const ARROWHEAD_EFFECTIVE_LENGTH = 10;
+// Adjusted arrowhead length and marker properties for better fit
+const ARROWHEAD_EFFECTIVE_LENGTH = 8; // Reduced length
+const MARKER_WIDTH = 8;
+const MARKER_HEIGHT = 6;
+const MARKER_REF_X = 8; // Should match markerWidth for tip to align with line end
+const MARKER_REF_Y = MARKER_HEIGHT / 2;
+const MARKER_POLYGON_POINTS = `0 0, ${MARKER_WIDTH} ${MARKER_REF_Y}, 0 ${MARKER_HEIGHT}`;
+
 
 function App() {
   const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
   const [game, setGame] = useState(new Chess(puzzles[currentPuzzleIndex].fen));
   const [currentPuzzleMoves, setCurrentPuzzleMoves] = useState(puzzles[currentPuzzleIndex].moves);
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0); // Tracks moves within the current puzzle
-  // Removed showSandboxMode
   const [arrows, setArrows] = useState([]); // This will now hold only the current automatic arrow
-  // boardPosition will remain static at initialFEN during automatic puzzle visualization
   const [boardPosition, setBoardPosition] = useState(puzzles[currentPuzzleIndex].fen);
   const [isVisible, setIsVisible] = useState(true);
   const [isUserTurnToMove, setIsUserTurnToMove] = useState(false); // New state for user's test move
@@ -102,7 +107,6 @@ function App() {
     setGame(new Chess(newPuzzle.fen));
     setCurrentPuzzleMoves(newPuzzle.moves);
     setCurrentMoveIndex(0);
-    // Removed setShowSandboxMode(false);
     setArrows([]);
     setBoardPosition(newPuzzle.fen); // Reset board to initial FEN for the new puzzle
     setIsVisible(true);
@@ -174,8 +178,6 @@ function App() {
     }
   }
 
-  // Removed renderPieceMenu as sandbox mode is removed.
-
   // Handles dropping a piece onto a square (only when it's the user's turn)
   function handleDrop(sourceSquare, targetSquare) {
     if (isUserTurnToMove) { // Logic for the user's puzzle test move
@@ -206,7 +208,7 @@ function App() {
         }, 1500); // Show correct move for 1.5 seconds
 
       } else {
-        setFeedbackMessage('Incorrect. Try again or click Replay Puzzle.');
+        setFeedbackMessage('Incorrect move. Try again or click Replay Puzzle.'); // Updated message
         setFeedbackArrow({ from: sourceSquare, to: targetSquare, color: 'rgba(255, 0, 0, 0.4)' }); // Red arrow for incorrect
         // Do NOT update game or boardPosition if incorrect, keep board as is.
         // Keep isUserTurnToMove true so they can try again or replay.
@@ -254,16 +256,16 @@ function App() {
           <svg width={boardWidth} height={boardWidth} viewBox={`0 0 ${boardWidth} ${boardWidth}`}>
             <defs>
               {/* Blue arrow for automatic moves */}
-              <marker id="arrowhead-blue" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill="rgba(0, 128, 255, 0.4)" />
+              <marker id="arrowhead-blue" markerWidth={MARKER_WIDTH} markerHeight={MARKER_HEIGHT} refX={MARKER_REF_X} refY={MARKER_REF_Y} orient="auto">
+                <polygon points={MARKER_POLYGON_POINTS} fill="rgba(0, 128, 255, 0.4)" />
               </marker>
               {/* Green arrow for correct user moves */}
-              <marker id="arrowhead-green" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill="rgba(0, 255, 0, 0.4)" />
+              <marker id="arrowhead-green" markerWidth={MARKER_WIDTH} markerHeight={MARKER_HEIGHT} refX={MARKER_REF_X} refY={MARKER_REF_Y} orient="auto">
+                <polygon points={MARKER_POLYGON_POINTS} fill="rgba(0, 255, 0, 0.4)" />
               </marker>
               {/* Red arrow for incorrect user moves */}
-              <marker id="arrowhead-red" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill="rgba(255, 0, 0, 0.4)" />
+              <marker id="arrowhead-red" markerWidth={MARKER_WIDTH} markerHeight={MARKER_HEIGHT} refX={MARKER_REF_X} refY={MARKER_REF_Y} orient="auto">
+                <polygon points={MARKER_POLYGON_POINTS} fill="rgba(255, 0, 0, 0.4)" />
               </marker>
             </defs>
             {/* Render automatic puzzle arrows */}
@@ -402,7 +404,6 @@ function App() {
           </>
         )}
       </div>
-      {/* Removed renderPieceMenu as sandbox mode is removed */}
     </div>
   );
 }

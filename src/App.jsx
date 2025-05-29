@@ -241,7 +241,7 @@ function App() {
     const puzzle = puzzles[currentPuzzleIndex];
     // Play the full puzzle sequence up to the quizzed move (currentMoveIndex which is 2)
     const movesToReveal = puzzle.moves.slice(0, currentMoveIndex + 1);
-    playMoveSequence(movesToPlay, false); // Not a user guess
+    playMoveSequence(movesToReveal, false); // Not a user guess
   }
 
 
@@ -272,4 +272,23 @@ function App() {
       const movesToPlay = [...puzzle.moves.slice(0, currentMoveIndex), userGuess];
 
       // Play the sequence with the user's guess as the final move
-      playMoveSequence(movesToPlay, true, userGuess); //
+      playMoveSequence(movesToPlay, true, userGuess); // true for finalMoveIsUserGuess, pass userGuess
+      return true; // Indicate that the drop was handled
+    }
+    return false; // Not user's turn to make a puzzle move
+  }
+
+  if (!isVisible) {
+    return (
+      <div style={{ padding: 20, color: 'red', textAlign: 'center' }}>
+        <p>An error occurred. Please click 'Replay Puzzle' or 'Next Puzzle'.</p>
+        <button onClick={handleReplayPuzzle} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #ccc', backgroundColor: '#f0f0f0', marginTop: '10px', marginRight: '10px' }}>Replay Puzzle</button>
+        <button onClick={handleNextPuzzle} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #ccc', backgroundColor: '#f0f0f0', marginTop: '10px' }}>Next Puzzle</button>
+      </div>
+    );
+  }
+
+  const boardWidth = 400;
+
+  return (
+    <div className="App

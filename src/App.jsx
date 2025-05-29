@@ -75,6 +75,7 @@ function App() {
   }
 
   function handleTestMode() {
+    console.log("Entering Test Mode. showTestMode will be set to true."); // Debugging log
     // Create a new empty game and clear the board
     const emptyGame = new Chess();
     emptyGame.clear();
@@ -121,6 +122,10 @@ function App() {
                 src={`https://images.chesscomfiles.com/chess-themes/pieces/neo/150/${pieceCode}.png`}
                 alt={pieceCode}
                 width={40}
+                onError={(e) => { // Add onError handler for debugging
+                  console.error(`Failed to load piece image: ${e.target.src}`);
+                  e.target.src = `https://placehold.co/40x40/cccccc/000000?text=${pieceCode}`; // Fallback placeholder
+                }}
               />
             </div>
           );

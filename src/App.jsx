@@ -16,27 +16,37 @@ function App() {
   const [arrows, setArrows] = useState([]);
   const [boardPosition, setBoardPosition] = useState(initialFEN);
 
+  function handleNextMove() {
+    if (currentMoveIndex < puzzleMoves.length) {
+      const move = puzzleMoves[currentMoveIndex];
+      const from = move.slice(0, 2);
+      const to = move.slice(2, 4);
 
+      const tempGame = new Chess(boardPosition);
+      tempGame.move({ from, to });
+      setBoardPosition(tempGame.fen());
 
- function handleNextMove() {
-  if (currentMoveIndex < puzzleMoves.length) {
-    const move = puzzleMoves[currentMoveIndex];
-    const from = move.slice(0, 2);
-    const to = move.slice(2, 4);
-
-    setArrows((prev) => [...prev, { from, to }]);
-    setCurrentMoveIndex(currentMoveIndex + 1);
+      setArrows((prev) => [...prev, { from, to }]);
+      setCurrentMoveIndex(currentMoveIndex + 1);
+    }
   }
-}
 
-function handleReplay() {
-  const resetGame = new Chess(initialFEN);
-  setGame(resetGame);
-  setCurrentMoveIndex(0);
-  setShowTestMode(false);
-  setBoardPosition(initialFEN);
-  setArrows([]); // Reset arrows on replay
-}
+  function handleTestMode() {
+    const emptyGame = new Chess();
+    emptyGame.clear();
+    setGame(emptyGame);
+    setBoardPosition(emptyGame.fen());
+    setShowTestMode(true);
+  }
+
+  function handleReplay() {
+    const resetGame = new Chess(initialFEN);
+    setGame(resetGame);
+    setCurrentMoveIndex(0);
+    setShowTestMode(false);
+    setBoardPosition(initialFEN);
+    setArrows([]);
+  }
 
   const renderPieceMenu = () => {
     const playerColor = 'w'; // always test white for now

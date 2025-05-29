@@ -26,12 +26,14 @@ const getSquareCoordinates = (square, boardWidth) => {
   return { x, y };
 };
 
+// Define a constant for the effective length of the arrowhead for line shortening
+const ARROWHEAD_EFFECTIVE_LENGTH = 10; // This value should match the refX of the marker
 
 function App() {
   const [game, setGame] = useState(new Chess(initialFEN));
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [showTestMode, setShowTestMode] = useState(false);
-  const [arrows, setArrows] = useState([]);
+  const [arrows, setArrows] = useState([]); // This will now hold only the current arrow
   const [boardPosition, setBoardPosition] = useState(initialFEN); // Board position remains static for puzzle visualization
   const [isVisible, setIsVisible] = useState(true);
 
@@ -53,17 +55,17 @@ function App() {
           throw new Error(`Invalid 'from' or 'to' square in move: ${move}. From: ${from}, To: ${to}`);
         }
 
-        // IMPORTANT: ONLY add the arrow, DO NOT update game or boardPosition here.
-        // The board should remain at initialFEN for the puzzle visualization.
-        setArrows((prev) => [...prev, { from, to }]);
+        // IMPORTANT CHANGE: ONLY add the current arrow, replacing any previous ones
+        setArrows([{ from, to }]);
 
         // Increment the move index
         setCurrentMoveIndex((prev) => prev + 1);
 
       } else {
         // This block is executed when all puzzle moves have been shown.
-        // The "Next" button will be disabled by the `disabled` prop.
-        console.log("All puzzle moves displayed. Click 'Test' or 'Replay'.");
+        // The "Next" button will be disabled and replaced by the "Test" button.
+        console.log("All puzzle moves displayed. Now in 'Test' mode or ready for 'Replay'.");
+        setArrows([]); // Clear arrows once puzzle is complete
       }
     } catch (error) {
       console.error('Error during handleNextMove:', error);
@@ -180,7 +182,6 @@ function App() {
           onPieceDrop={(source, target) => handleDrop(source, target)}
           arePiecesDraggable={!showTestMode}
           customBoardStyle={{ border: '2px solid #333', marginBottom: '20px', borderRadius: '8px' }}
-          // customArrows={derivedCustomArrows} // Removed this prop
           boardWidth={boardWidth}
         />
         {/* Custom SVG Overlay for Arrows */}
@@ -188,7 +189,7 @@ function App() {
           <svg width={boardWidth} height={boardWidth} viewBox={`0 0 ${boardWidth} ${boardWidth}`}>
             {/* Define arrowhead marker */}
             <defs>
-              <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+              <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
                 <polygon points="0 0, 10 3.5, 0 7" fill="rgba(0, 128, 255, 0.4)" />
               </marker>
             </defs>
@@ -196,13 +197,29 @@ function App() {
               const start = getSquareCoordinates(arrow.from, boardWidth);
               const end = getSquareCoordinates(arrow.to, boardWidth);
 
+              // Calculate vector from start to end
+              const dx = end.x - start.x;
+              const dy = end.y - start.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+
+              // Shorten the line by ARROWHEAD_EFFECTIVE_LENGTH so the arrowhead tip lands at 'end'
+              let adjustedX2 = end.x;
+              let adjustedY2 = end.y;
+
+              if (distance > ARROWHEAD_EFFECTIVE_LENGTH) { // Only shorten if line is long enough
+                const unitDx = dx / distance;
+                const unitDy = dy / distance;
+                adjustedX2 = end.x - unitDx * ARROWHEAD_EFFECTIVE_LENGTH;
+                adjustedY2 = end.y - unitDy * ARROWHEAD_EFFECTIVE_LENGTH;
+              }
+
               return (
                 <line
-                  key={index}
+                  key={index} // Use index as key, safe here as we only show one arrow at a time
                   x1={start.x}
                   y1={start.y}
-                  x2={end.x}
-                  y2={end.y}
+                  x2={adjustedX2}
+                  y2={adjustedY2}
                   stroke="rgba(0, 128, 255, 0.4)" // Use the same color as before
                   strokeWidth="8"
                   markerEnd="url(#arrowhead)" // Add arrowhead
@@ -213,39 +230,43 @@ function App() {
         </div>
       </div>
       <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-        <button
-          onClick={handleNextMove}
-          disabled={showTestMode || currentMoveIndex >= puzzleMoves.length} // Disable if in test mode or puzzle finished
-          style={{
-            padding: '10px 20px',
-            fontSize: '16px',
-            cursor: 'pointer',
-            borderRadius: '8px',
-            border: '1px solid #333',
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            boxShadow: '2px 2px 5px rgba(0,0,0,0.2)',
-            transition: 'background-color 0.3s ease'
-          }}
-        >
-          Next
-        </button>
-        <button
-          onClick={handleTestMode}
-          style={{
-            padding: '10px 20px',
-            fontSize: '16px',
-            cursor: 'pointer',
-            borderRadius: '8px',
-            border: '1px solid #333',
-            backgroundColor: '#008CBA',
-            color: 'white',
-            boxShadow: '2px 2px 5px rgba(0,0,0,0.2)',
-            transition: 'background-color 0.3s ease'
-          }}
-        >
-          Test
-        </button>
+        {/* Conditional rendering for Next/Test button */}
+        {currentMoveIndex < puzzleMoves.length ? (
+          <button
+            onClick={handleNextMove}
+            disabled={showTestMode} // Only disable if in test mode
+            style={{
+              padding: '10px 20px',
+              fontSize: '16px',
+              cursor: 'pointer',
+              borderRadius: '8px',
+              border: '1px solid #333',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              boxShadow: '2px 2px 5px rgba(0,0,0,0.2)',
+              transition: 'background-color 0.3s ease'
+            }}
+          >
+            Next
+          </button>
+        ) : (
+          <button
+            onClick={handleTestMode}
+            style={{
+              padding: '10px 20px',
+              fontSize: '16px',
+              cursor: 'pointer',
+              borderRadius: '8px',
+              border: '1px solid #333',
+              backgroundColor: '#008CBA',
+              color: 'white',
+              boxShadow: '2px 2px 5px rgba(0,0,0,0.2)',
+              transition: 'background-color 0.3s ease'
+            }}
+          >
+            Test
+          </button>
+        )}
         <button
           onClick={handleReplay}
           style={{

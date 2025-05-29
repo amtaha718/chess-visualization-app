@@ -13,7 +13,7 @@ function App() {
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [showTestMode, setShowTestMode] = useState(false);
   const [arrows, setArrows] = useState([]);
-  const [boardPosition, setBoardPosition] = useState(initialFEN);
+  const [boardPosition, setBoardPosition] = useState(initialFEN); // Board position remains static for puzzle visualization
   const [isVisible, setIsVisible] = useState(true);
 
   function handleNextMove() {
@@ -29,21 +29,8 @@ function App() {
         const from = move.slice(0, 2);
         const to = move.slice(2, 4);
 
-        // Create a new Chess instance from the current board position's FEN
-        // This ensures we're working with the latest state of the board
-        const newGame = new Chess(game.fen());
-        const moveResult = newGame.move({ from, to });
-
-        // If the move is illegal according to chess.js, throw an error
-        if (!moveResult) {
-          throw new Error(`Illegal move: ${move} from FEN: ${game.fen()}`);
-        }
-
-        // Update the main game state and the board position FEN
-        setGame(newGame);
-        setBoardPosition(newGame.fen());
-
-        // Add the new arrow for the move
+        // IMPORTANT CHANGE: ONLY add the arrow, DO NOT update game or boardPosition here.
+        // The board should remain at initialFEN for the puzzle visualization.
         setArrows((prev) => [...prev, { from, to }]);
 
         // Increment the move index
@@ -51,17 +38,8 @@ function App() {
 
       } else {
         // This block is executed when all puzzle moves have been shown.
-        // For debugging, we'll temporarily prevent clearing the board
-        // and entering test mode automatically here.
-        // You can re-enable this logic once the core issue is resolved.
+        // The "Next" button will be disabled by the `disabled` prop.
         console.log("All puzzle moves displayed. Click 'Test' or 'Replay'.");
-        // const newGame = new Chess();
-        // newGame.clear();
-        // setGame(newGame);
-        // setBoardPosition(newGame.fen());
-        // setArrows([]);
-        // setShowTestMode(true);
-        // setCurrentMoveIndex((prev) => prev + 1); // Increment one more time to signify end
       }
     } catch (error) {
       console.error('Error during handleNextMove:', error);
@@ -75,7 +53,7 @@ function App() {
     const emptyGame = new Chess();
     emptyGame.clear();
     setGame(emptyGame);
-    setBoardPosition(emptyGame.fen());
+    setBoardPosition(emptyGame.fen()); // Set board to empty FEN for test mode
     // Activate test mode
     setShowTestMode(true);
     // Clear arrows when entering test mode
@@ -89,7 +67,7 @@ function App() {
     // Reset all related states
     setCurrentMoveIndex(0);
     setShowTestMode(false);
-    setBoardPosition(initialFEN);
+    setBoardPosition(initialFEN); // Reset board to initial FEN
     setArrows([]); // Clear all arrows
     setIsVisible(true); // Make the app visible again after an error
   }
@@ -155,6 +133,9 @@ function App() {
     .filter(arrow => arrow && typeof arrow.from === 'string' && typeof arrow.to === 'string')
     .map(({ from, to }) => ({ from, to, color: 'rgba(0, 128, 255, 0.4)' }));
 
+  // Log the customArrows array before passing it to Chessboard for debugging
+  console.log("Custom Arrows being passed to Chessboard:", customArrows);
+
   // If an error occurred, display a simple error message
   if (!isVisible) {
     return (
@@ -177,7 +158,7 @@ function App() {
     <div className="App" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px' }}>
       <h1 style={{ marginBottom: '20px', color: '#333' }}>Chess Visualization Trainer</h1>
       <Chessboard
-        position={boardPosition}
+        position={boardPosition} // This will now remain initialFEN during puzzle display
         onPieceDrop={(source, target) => handleDrop(source, target)}
         arePiecesDraggable={!showTestMode}
         customBoardStyle={{ border: '2px solid #333', marginBottom: '20px', borderRadius: '8px' }}

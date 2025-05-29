@@ -16,7 +16,7 @@ const puzzles = [
   },
   {
     fen: '4rrk1/pp3ppp/3q1n2/2ppn3/8/P1PP1N2/1P1NQPPP/R3K2R w KQ - 0 15',
-    moves: ['f3e5', 'e8e5', 'd2d4', 'c5xd4', 'c3xd4', 'e5e2']
+    moves: ['f3e5', 'e8e5', 'd2d4', 'c5d4', 'c3d4', 'e5e2'] // Corrected: c5xd4 -> c5d4, e5xe2 -> e5e2
   },
   {
     fen: 'r1bq1rk1/ppp1bppp/2n2n2/3pp3/3P4/2P1PN2/PP1N1PPP/R1BQ1RK1 w - - 0 1',
@@ -32,7 +32,7 @@ const puzzles = [
   },
   {
     fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-    moves: ['e2e4', 'e7e5', 'd2d4', 'e5xd4']
+    moves: ['e2e4', 'e7e5', 'd2d4', 'e5d4'] // Corrected: e5xd4 -> e5d4
   },
   {
     fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2',
@@ -40,7 +40,7 @@ const puzzles = [
   },
   {
     fen: 'rnbqkbnr/pppp1ppp/8/8/3pP3/8/PPP2PPP/RNBQKBNR w KQkq - 0 3',
-    moves: ['d1xd4', 'b8c6', 'd4e3', 'g8f6']
+    moves: ['d1d4', 'b8c6', 'd4e3', 'g8f6']
   },
   {
     fen: 'rnbqkbnr/pppp1ppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
@@ -48,7 +48,7 @@ const puzzles = [
   },
   {
     fen: 'rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 2',
-    moves: ['d2d4', 'c5xd4', 'f3xd4', 'g8f6']
+    moves: ['d2d4', 'c5d4', 'f3d4', 'g8f6'] // Corrected: c5xd4 -> c5d4, f3xd4 -> f3d4
   },
   {
     fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
@@ -405,7 +405,7 @@ function App() {
           marginTop: '10px',
           fontSize: '18px',
           fontWeight: 'bold',
-          color: feedbackMessage.includes('Correct') ? 'green' : 'red'
+          color: feedbackMessage.includes('Correct') || feedbackMessage.includes('revealed') ? 'green' : 'red'
         }}>
           {feedbackMessage}
         </p>

@@ -8,24 +8,60 @@ const PIECES = ['p', 'n', 'b', 'r', 'q', 'k'];
 /**
  * @typedef {Object} ChessPuzzle
  * @property {string} fen - The starting FEN for the puzzle.
- * @property {string[]} moves - An array of moves in SAN (Standard Algebraic Notation).
+ * @property {string[]} moves - An array of moves in 'fromto' format (e.g., 'e2e4', 'g1f3').
  */
 
 const puzzles = [
   {
     fen: 'r1bqkbnr/ppp2ppp/2n5/1B1pp3/3PP3/5N2/PPP2PPP/RNBQK2R w KQkq - 0 4',
-    moves: ['exd5', 'Qxd5', 'Nc3', 'Qa5+', 'Bd2', 'Bb4']
+    moves: ['e4d5', 'd8d5', 'b1c3', 'd5a5', 'c1d2', 'f8b4'] // Adjusted to fromto
   },
   {
     fen: '4rrk1/pp3ppp/3q1n2/2ppn3/8/P1PP1N2/1P1NQPPP/R3K2R w KQ - 0 15',
-    moves: ['Nxe5', 'Rxe5', 'd4', 'cxd4', 'cxd4', 'Rxe2+']
+    moves: ['f3xe5', 'f8xe5', 'd2d4', 'c5xd4', 'c3xd4', 'e5xe2'] // Adjusted to fromto
   },
   {
-    fen: 'r1bq1rk1/ppp2ppp/2n2n2/3pp3/3P4/2P1PN2/PP1N1PPP/R1BQ1RK1 w - - 0 1',
-    moves: ['d4e5', 'c6e5', 'f3e5', 'c8e6']
+    fen: 'r1bq1rk1/ppp1bppp/2n2n2/3pp3/3P4/2P1PN2/PP1N1PPP/R1BQ1RK1 w - - 0 1',
+    moves: ['d4e5', 'c6e5', 'f3e5', 'c8e6'] // Already in fromto
   },
-  // Add 7-9 more puzzles here...
+  {
+    fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+    moves: ['g1f3', 'b8c6', 'f1b5', 'a7a6']
+  },
+  {
+    fen: 'rnbqkbnr/pppp1ppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 1',
+    moves: ['c2c4', 'e7e6', 'g1f3', 'g8f6']
+  },
+  {
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+    moves: ['e2e4', 'e7e5', 'd2d4', 'e5xd4']
+  },
+  {
+    fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2',
+    moves: ['b8c6', 'f1b5', 'a7a6', 'b5a4']
+  },
+  {
+    fen: 'rnbqkbnr/pppp1ppp/8/8/3pP3/8/PPP2PPP/RNBQKBNR w KQkq - 0 3',
+    moves: ['d1xd4', 'b8c6', 'd4e3', 'g8f6']
+  },
+  {
+    fen: 'rnbqkbnr/pppp1ppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
+    moves: ['c7c5', 'g1f3', 'd7d6', 'd2d4']
+  },
+  {
+    fen: 'rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 2',
+    moves: ['d2d4', 'c5xd4', 'f3xd4', 'g8f6']
+  },
+  {
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+    moves: ['d2d4', 'd7d5', 'c2c4', 'c7c6']
+  },
+  {
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+    moves: ['g1f3', 'g8f6', 'c2c4', 'e7e6']
+  }
 ];
+
 
 // Helper function to validate if a string is a valid chess square (e.g., 'a1', 'h8')
 const isValidSquare = (square) => {
@@ -38,12 +74,15 @@ const getSquareCoordinates = (square, boardWidth) => {
   const rank = parseInt(square[1], 10) - 1; // '1' -> 0, '2' -> 1, etc.
 
   const squareSize = boardWidth / 8;
+  // Calculate center of the square. 'x' increases from left to right.
+  // 'y' increases from top to bottom, so for rank '1' (bottom), y should be largest.
   const x = file * squareSize + squareSize / 2;
-  const y = (7 - rank) * squareSize + squareSize / 2;
+  const y = (7 - rank) * squareSize + squareSize / 2; // (7 - rank) to invert y-axis for SVG (top is 0)
   return { x, y };
 };
 
-const ARROWHEAD_EFFECTIVE_LENGTH = 10;
+// Define a constant for the effective length of the arrowhead for line shortening
+const ARROWHEAD_EFFECTIVE_LENGTH = 10; // This value should match the refX of the marker
 
 function App() {
   const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
@@ -51,8 +90,8 @@ function App() {
   const [currentPuzzleMoves, setCurrentPuzzleMoves] = useState(puzzles[currentPuzzleIndex].moves);
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [showTestMode, setShowTestMode] = useState(false);
-  const [arrows, setArrows] = useState([]);
-  const [boardPosition, setBoardPosition] = useState(puzzles[currentPuzzleIndex].fen);
+  const [arrows, setArrows] = useState([]); // This will now hold only the current arrow
+  const [boardPosition, setBoardPosition] = useState(puzzles[currentPuzzleIndex].fen); // Board position remains static for puzzle visualization
   const [isVisible, setIsVisible] = useState(true);
 
   function handleNextMove() {

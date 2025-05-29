@@ -5,7 +5,6 @@ import { Chessboard } from 'react-chessboard';
 import './index.css';
 
 const initialGame = new Chess();
-
 const PIECES = ['p', 'n', 'b', 'r', 'q', 'k'];
 
 function App() {
@@ -13,7 +12,7 @@ function App() {
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [showTestMode, setShowTestMode] = useState(false);
 
-  const puzzleMoves = ['e4', 'e5', 'Nf3'];
+  const puzzleMoves = ['e4', 'e5', 'Nf3', 'Nc6'];
 
   function handleNextMove() {
     if (currentMoveIndex < puzzleMoves.length) {
@@ -24,20 +23,15 @@ function App() {
     }
   }
 
-function handleTestMode() {
-  const resetGame = new Chess();
-
-  // Apply opponent’s moves only
-  for (let i = 0; i < puzzleMoves.length - 1; i++) {
-    resetGame.move(puzzleMoves[i]);
+  function handleTestMode() {
+    const resetGame = new Chess();
+    for (let i = 0; i < puzzleMoves.length; i++) {
+      resetGame.move(puzzleMoves[i]);
+    }
+    setGame(resetGame);
+    setCurrentMoveIndex(puzzleMoves.length);
+    setShowTestMode(true);
   }
-
-  setGame(resetGame);
-  setCurrentMoveIndex(puzzleMoves.length - 1);
-  setShowTestMode(true);
-}
-
-
 
   function handleReplay() {
     const resetGame = new Chess();
@@ -74,7 +68,7 @@ function handleTestMode() {
     );
   };
 
-  function handleDrop(sourceSquare, targetSquare, piece) {
+  function handleDrop(sourceSquare, targetSquare) {
     if (showTestMode) {
       const pieceType = window.draggedPiece;
       if (!pieceType) return false;
@@ -82,7 +76,7 @@ function handleTestMode() {
       const squareEl = board.querySelector(`.square-${targetSquare}`);
       if (squareEl) {
         const img = document.createElement('img');
-        img.src = `https://chessboardjs.com/img/chesspieces/wikipedia/${pieceType}.png`;
+        img.src = `https://www.chess.com/chess-themes/pieces/neo/150/${pieceType}.png`;
         img.style.width = '100%';
         img.style.height = '100%';
         squareEl.innerHTML = '';
@@ -97,7 +91,7 @@ function handleTestMode() {
     <div className="App">
       <h1>Chess Visualization Trainer</h1>
       <Chessboard
-        position={showTestMode ? '8/8/8/8/8/8/8/8' : game.fen()}
+        position={showTestMode ? game.fen() : game.fen()}
         onPieceDrop={(source, target) => handleDrop(source, target)}
         customBoardStyle={{ border: '2px solid #333', marginBottom: '20px' }}
       />
@@ -110,4 +104,3 @@ function handleTestMode() {
 }
 
 export default App;
-

@@ -167,31 +167,58 @@ function App() {
     setBoardPosition(puzzles[currentPuzzleIndex].fen);
   }
 
-  // New function to show the correct answer
-  function handleShowAnswer() {
-    const expectedMove = currentPuzzleMoves[currentMoveIndex]; // The correct move for this turn
-    const from = expectedMove.slice(0, 2);
-    const to = expectedMove.slice(2, 4);
-
-    setFeedbackMessage('Correct answer revealed.');
-    setFeedbackArrow({ from, to, color: 'rgba(0, 255, 0, 0.4)' }); // Green arrow for correct answer
-
-    // Temporarily show the correct move on the board
-    const tempGame = new Chess(game.fen());
-    tempGame.move({ from, to });
-    setGame(tempGame);
-    setBoardPosition(tempGame.fen());
-
-    // Disable user interaction after showing answer
+  // New function to reveal the solution by playing out moves on the board
+  function handleRevealSolution() {
+    console.log("handleRevealSolution: Revealing solution for puzzle:", currentPuzzleIndex);
+    // Disable user interaction and clear feedback immediately
     setIsUserTurnToMove(false);
+    setFeedbackMessage('Solution revealed.');
+    setFeedbackArrow(null);
+    setArrows([]); // Clear any existing arrows
 
-    // After a short delay, revert the board and prepare for next action
-    setTimeout(() => {
-      setFeedbackMessage('');
-      setFeedbackArrow(null);
-      // Revert board to initial FEN of the puzzle
-      setBoardPosition(puzzles[currentPuzzleIndex].fen);
-    }, 1500); // Show correct move for 1.5 seconds
+    const puzzle = puzzles[currentPuzzleIndex];
+    let currentSolutionGame = new Chess(puzzle.fen); // Create a fresh Chess instance for playback
+    setBoardPosition(puzzle.fen); // Reset board to initial FEN for the current puzzle
+
+    let delay = 0;
+    // Iterate through the moves up to and including the quizzed move (currentMoveIndex)
+    // currentMoveIndex will be 2 for the quizzed move.
+    for (let i = 0; i <= currentMoveIndex; i++) {
+        const move = puzzle.moves[i];
+        const from = move.slice(0, 2);
+        const to = move.slice(2, 4);
+
+        // Schedule each move and arrow display
+        setTimeout(() => {
+            const moveResult = currentSolutionGame.move({ from, to });
+            if (moveResult) {
+                // Update React state to reflect the move on the board
+                setGame(new Chess(currentSolutionGame.fen())); // Create a new Chess object from FEN for state update
+                setBoardPosition(currentSolutionGame.fen()); // Update board position
+                setArrows([{ from, to }]); // Show arrow for this step
+                console.log(`Solution step ${i}: Move ${move}, new FEN: ${currentSolutionGame.fen()}`);
+
+                // Clear the arrow after a short duration, unless it's the very last move in the sequence
+                if (i < currentMoveIndex) {
+                    setTimeout(() => setArrows([]), 700); // Clear arrow after 0.7s
+                }
+            } else {
+                console.error(`Error during solution playback: Invalid move ${move} in puzzle ${currentPuzzleIndex} at step ${i}`);
+                setFeedbackMessage('Error playing solution. Check console.');
+                setIsVisible(false); // Hide app if critical error
+            }
+
+            // After the final move of the solution sequence, clear feedback and prepare for next actions
+            if (i === currentMoveIndex) {
+                setTimeout(() => {
+                    setFeedbackMessage('');
+                    setFeedbackArrow(null);
+                    // Board remains at the final state of the solution
+                }, 1500); // Clear feedback message and arrow after 1.5s
+            }
+        }, delay);
+        delay += 1000; // 1 second delay between each move in the solution playback
+    }
   }
 
 
@@ -243,7 +270,7 @@ function App() {
         }, 1500); // Show correct move for 1.5 seconds
 
       } else {
-        setFeedbackMessage('Incorrect move. Try again or click Replay Puzzle or Show Answer.'); // Updated message
+        setFeedbackMessage('Incorrect move. Try again or click Replay Puzzle or Reveal Solution.'); // Updated message
         setFeedbackArrow({ from: sourceSquare, to: targetSquare, color: 'rgba(255, 0, 0, 0.4)' }); // Red arrow for incorrect
         console.log("handleDrop: Incorrect move. User move:", userMove, "Expected:", expectedMove);
         // Do NOT update game or boardPosition if incorrect, keep board as is.
@@ -404,13 +431,13 @@ function App() {
           </button>
         ) : null}
 
-        {/* "Show Answer" button appears when it's the user's turn to move */}
+        {/* "Reveal Solution" button appears when it's the user's turn to move */}
         {isUserTurnToMove && (
           <button
-            onClick={handleShowAnswer}
+            onClick={handleRevealSolution}
             style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#ffc107', color: 'black', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
           >
-            Show Answer
+            Reveal Solution
           </button>
         )}
 

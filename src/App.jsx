@@ -216,14 +216,17 @@ function App() {
               setFeedbackMessage(isCorrect ? 'Correct! Well done!' : 'Incorrect move. Try again.');
               if (!isCorrect) {
                 // If incorrect, revert board to initial FEN and allow retry
-                setBoardPosition(puzzles[currentPuzzleIndex].fen);
+                setBoardPosition(puzzles[currentPuzzleIndex].fen); // Ensure board is reset
                 setIsUserTurnToMove(true); // Allow user to try again
+                setFeedbackArrow(null); // Ensure arrow is cleared for retry
               } else {
                 // If correct, stay on this final board state
                 // and enable next/replay buttons by setting isUserTurnToMove to false
+                setIsUserTurnToMove(false); // Exit user turn mode
               }
             } else { // This is for "Reveal Solution"
               setFeedbackMessage('Solution revealed.');
+              setIsUserTurnToMove(false); // Exit user turn mode
             }
           }, 1500); // Clear arrow and show final feedback after 1.5s
         }
@@ -293,7 +296,7 @@ function App() {
       <h1 style={{ marginBottom: '20px', color: '#333' }}>Chess Visualization Trainer</h1>
       <p style={{ marginBottom: '10px' }}>Puzzle {currentPuzzleIndex + 1} of {puzzles.length}</p>
 
-      <div style={{ position: 'relative', width: boardWidth, height: boardWidth }}>
+      <div style={{ position: 'relative', width={boardWidth} height={boardWidth} }}>
         <Chessboard
           position={boardPosition}
           onPieceDrop={(source, target) => handleDrop(source, target)}

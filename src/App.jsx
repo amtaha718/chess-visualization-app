@@ -16,7 +16,7 @@ const puzzles = [
   },
   {
     fen: '4rrk1/pp3ppp/3q1n2/2ppn3/8/P1PP1N2/1P1NQPPP/R3K2R w KQ - 0 15',
-    moves: ['f3e5', 'e8e5', 'd2d4', 'c5d4', 'c3d4', 'e5e2'] // Corrected: c5xd4 -> c5d4, e5xe2 -> e5e2
+    moves: ['f3e5', 'e8e5', 'd2d4', 'c5d4', 'c3d4', 'e5e2']
   },
   {
     fen: 'r1bq1rk1/ppp1bppp/2n2n2/3pp3/3P4/2P1PN2/PP1N1PPP/R1BQ1RK1 w - - 0 1',
@@ -32,7 +32,7 @@ const puzzles = [
   },
   {
     fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-    moves: ['e2e4', 'e7e5', 'd2d4', 'e5d4'] // Corrected: e5xd4 -> e5d4
+    moves: ['e2e4', 'e7e5', 'd2d4', 'e5d4']
   },
   {
     fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2',
@@ -40,7 +40,7 @@ const puzzles = [
   },
   {
     fen: 'rnbqkbnr/pppp1ppp/8/8/3pP3/8/PPP2PPP/RNBQKBNR w KQkq - 0 3',
-    moves: ['d1d4', 'b8c6', 'd4e3', 'g8f6']
+    moves: ['d1xd4', 'b8c6', 'd4e3', 'g8f6']
   },
   {
     fen: 'rnbqkbnr/pppp1ppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
@@ -48,7 +48,7 @@ const puzzles = [
   },
   {
     fen: 'rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 2',
-    moves: ['d2d4', 'c5d4', 'f3d4', 'g8f6'] // Corrected: c5xd4 -> c5d4, f3xd4 -> f3d4
+    moves: ['d2d4', 'c5d4', 'f3d4', 'g8f6']
   },
   {
     fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
@@ -181,9 +181,8 @@ function App() {
     setBoardPosition(puzzle.fen); // Reset board to initial FEN for the current puzzle
 
     let delay = 0;
-    // Iterate through the moves up to and including the quizzed move (currentMoveIndex)
-    // currentMoveIndex will be 2 for the quizzed move.
-    for (let i = 0; i <= currentMoveIndex; i++) {
+    // Iterate through ALL moves in the puzzle, not just up to currentMoveIndex
+    for (let i = 0; i < puzzle.moves.length; i++) { // FIX: Changed loop condition
         const move = puzzle.moves[i];
         const from = move.slice(0, 2);
         const to = move.slice(2, 4);
@@ -199,7 +198,7 @@ function App() {
                 console.log(`Solution step ${i}: Move ${move}, new FEN: ${currentSolutionGame.fen()}`);
 
                 // Clear the arrow after a short duration, unless it's the very last move in the sequence
-                if (i < currentMoveIndex) {
+                if (i < puzzle.moves.length - 1) { // Clear arrow unless it's the very last move of the solution
                     setTimeout(() => setArrows([]), 700); // Clear arrow after 0.7s
                 }
             } else {
@@ -209,7 +208,7 @@ function App() {
             }
 
             // After the final move of the solution sequence, clear feedback and prepare for next actions
-            if (i === currentMoveIndex) {
+            if (i === puzzle.moves.length - 1) { // Check if it's the very last move
                 setTimeout(() => {
                     setFeedbackMessage('');
                     setFeedbackArrow(null);
@@ -223,20 +222,18 @@ function App() {
 
 
   function handleReplayPuzzle() {
+    console.log("handleReplayPuzzle: Replaying puzzle:", currentPuzzleIndex);
     resetCurrentPuzzle(currentPuzzleIndex);
   }
 
   function handleNextPuzzle() {
     console.log("handleNextPuzzle: Advancing from puzzle", currentPuzzleIndex);
-    if (currentPuzzleIndex < puzzles.length - 1) {
-      const nextPuzzleIndex = currentPuzzleIndex + 1;
-      setCurrentPuzzleIndex(nextPuzzleIndex); // This will trigger a re-render
-      resetCurrentPuzzle(nextPuzzleIndex); // Call reset with the new index
-      console.log("handleNextPuzzle: Moved to next puzzle index:", nextPuzzleIndex, "FEN:", puzzles[nextPuzzleIndex].fen);
-    } else {
-      console.log("All puzzles completed! Looping back to the first puzzle.");
-      resetCurrentPuzzle(0); // Loop back to the first puzzle for now
-    }
+    setCurrentPuzzleIndex(prevIndex => {
+        const nextIndex = (prevIndex + 1) % puzzles.length; // Loop back to 0 if at end
+        console.log("handleNextPuzzle: Setting nextPuzzleIndex to:", nextIndex);
+        resetCurrentPuzzle(nextIndex); // Call reset with the newly calculated index
+        return nextIndex;
+    });
   }
 
   // Handles dropping a piece onto a square (only when it's the user's turn)

@@ -13,6 +13,20 @@ const isValidSquare = (square) => {
   return typeof square === 'string' && /^[a-h][1-8]$/.test(square);
 };
 
+// Helper function to convert chess square notation to pixel coordinates for SVG drawing
+const getSquareCoordinates = (square, boardWidth) => {
+  const file = square.charCodeAt(0) - 'a'.charCodeAt(0); // 'a' -> 0, 'b' -> 1, etc.
+  const rank = parseInt(square[1], 10) - 1; // '1' -> 0, '2' -> 1, etc.
+
+  const squareSize = boardWidth / 8;
+  // Calculate center of the square. 'x' increases from left to right.
+  // 'y' increases from top to bottom, so for rank '1' (bottom), y should be largest.
+  const x = file * squareSize + squareSize / 2;
+  const y = (7 - rank) * squareSize + squareSize / 2; // (7 - rank) to invert y-axis for SVG (top is 0)
+  return { x, y };
+};
+
+
 function App() {
   const [game, setGame] = useState(new Chess(initialFEN));
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
@@ -39,7 +53,7 @@ function App() {
           throw new Error(`Invalid 'from' or 'to' square in move: ${move}. From: ${from}, To: ${to}`);
         }
 
-        // IMPORTANT CHANGE: ONLY add the arrow, DO NOT update game or boardPosition here.
+        // IMPORTANT: ONLY add the arrow, DO NOT update game or boardPosition here.
         // The board should remain at initialFEN for the puzzle visualization.
         setArrows((prev) => [...prev, { from, to }]);
 
@@ -137,15 +151,6 @@ function App() {
     return false; // Not in test mode, so don't handle the drop
   }
 
-  // Prepare custom arrows for the Chessboard component
-  // Ensure 'arrows' is an array, filter out invalid entries, and map to the required format
-  const derivedCustomArrows = (Array.isArray(arrows) ? arrows : [])
-    .filter(arrow => arrow && isValidSquare(arrow.from) && isValidSquare(arrow.to)) // Use isValidSquare for filtering
-    .map(({ from, to }) => ({ from, to, color: 'rgba(0, 128, 255, 0.4)' }));
-
-  // Log the customArrows array before passing it to Chessboard for debugging
-  console.log("Custom Arrows being passed to Chessboard:", derivedCustomArrows);
-
   // If an error occurred, display a simple error message
   if (!isVisible) {
     return (
@@ -164,17 +169,49 @@ function App() {
     );
   }
 
+  const boardWidth = 400; // Define board width for coordinate calculation
+
   return (
     <div className="App" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px' }}>
       <h1 style={{ marginBottom: '20px', color: '#333' }}>Chess Visualization Trainer</h1>
-      <Chessboard
-        position={boardPosition} // This will now remain initialFEN during puzzle display
-        onPieceDrop={(source, target) => handleDrop(source, target)}
-        arePiecesDraggable={!showTestMode}
-        customBoardStyle={{ border: '2px solid #333', marginBottom: '20px', borderRadius: '8px' }}
-        customArrows={derivedCustomArrows.length > 0 ? derivedCustomArrows : []} // Use the derived value
-        boardWidth={400}
-      />
+      <div style={{ position: 'relative', width: boardWidth, height: boardWidth }}> {/* Container for board and SVG */}
+        <Chessboard
+          position={boardPosition} // This will now remain initialFEN during puzzle display
+          onPieceDrop={(source, target) => handleDrop(source, target)}
+          arePiecesDraggable={!showTestMode}
+          customBoardStyle={{ border: '2px solid #333', marginBottom: '20px', borderRadius: '8px' }}
+          // customArrows={derivedCustomArrows} // Removed this prop
+          boardWidth={boardWidth}
+        />
+        {/* Custom SVG Overlay for Arrows */}
+        <div style={{ position: 'absolute', top: 0, left: 0, width: boardWidth, height: boardWidth, pointerEvents: 'none' }}>
+          <svg width={boardWidth} height={boardWidth} viewBox={`0 0 ${boardWidth} ${boardWidth}`}>
+            {/* Define arrowhead marker */}
+            <defs>
+              <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="rgba(0, 128, 255, 0.4)" />
+              </marker>
+            </defs>
+            {arrows.map((arrow, index) => {
+              const start = getSquareCoordinates(arrow.from, boardWidth);
+              const end = getSquareCoordinates(arrow.to, boardWidth);
+
+              return (
+                <line
+                  key={index}
+                  x1={start.x}
+                  y1={start.y}
+                  x2={end.x}
+                  y2={end.y}
+                  stroke="rgba(0, 128, 255, 0.4)" // Use the same color as before
+                  strokeWidth="8"
+                  markerEnd="url(#arrowhead)" // Add arrowhead
+                />
+              );
+            })}
+          </svg>
+        </div>
+      </div>
       <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
         <button
           onClick={handleNextMove}

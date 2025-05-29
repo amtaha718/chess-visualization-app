@@ -264,7 +264,7 @@ function App() {
   function handleDrop(sourceSquare, targetSquare) {
     if (isUserTurnToMove) { // Logic for the user's puzzle test move
       const expectedMove = currentPuzzleMoves[currentMoveIndex]; // This should be the 3rd move (index 2)
-      const userGuess = `<span class="math-inline">\{sourceSquare\}</span>{targetSquare}`;
+      const userGuess = `${sourceSquare}${targetSquare}`;
       console.log("handleDrop: User guess:", userGuess, "Expected move:", expectedMove);
 
       const puzzle = puzzles[currentPuzzleIndex];
@@ -291,4 +291,182 @@ function App() {
   const boardWidth = 400;
 
   return (
-    <div className="App
+    <div className="App" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px' }}>
+      <h1 style={{ marginBottom: '20px', color: '#333' }}>Chess Visualization Trainer</h1>
+      <p style={{ marginBottom: '10px' }}>Puzzle {currentPuzzleIndex + 1} of {puzzles.length}</p>
+
+      <div style={{ position: 'relative', width: boardWidth, height: boardWidth }}>
+        <Chessboard
+          position={boardPosition}
+          onPieceDrop={(source, target) => handleDrop(source, target)}
+          // Draggable only if it's the user's turn to make the puzzle move
+          arePiecesDraggable={isUserTurnToMove}
+          customBoardStyle={{
+            border: '2px solid #333',
+            marginBottom: '20px',
+            borderRadius: '8px',
+            // Make board translucent during user's turn
+            opacity: isUserTurnToMove ? 0.6 : 1,
+            transition: 'opacity 0.3s ease-in-out'
+          }}
+          boardWidth={boardWidth}
+        />
+        <div style={{ position: 'absolute', top: 0, left: 0, width: boardWidth, height: boardWidth, pointerEvents: 'none' }}>
+          <svg width={boardWidth} height={boardWidth} viewBox={`0 0 ${boardWidth} ${boardWidth}`}>
+            <defs>
+              {/* Blue arrow for automatic moves */}
+              <marker id="arrowhead-blue" markerWidth={MARKER_WIDTH} markerHeight={MARKER_HEIGHT} refX={MARKER_REF_X} refY={MARKER_REF_Y} orient="auto">
+                <polygon points={MARKER_POLYGON_POINTS} fill="rgba(0, 128, 255, 0.4)" />
+              </marker>
+              {/* Green arrow for correct user moves */}
+              <marker id="arrowhead-green" markerWidth={MARKER_WIDTH} markerHeight={MARKER_HEIGHT} refX={MARKER_REF_X} refY={MARKER_REF_Y} orient="auto">
+                <polygon points={MARKER_POLYGON_POINTS} fill="rgba(0, 255, 0, 0.4)" />
+              </marker>
+              {/* Red arrow for incorrect user moves */}
+              <marker id="arrowhead-red" markerWidth={MARKER_WIDTH} markerHeight={MARKER_HEIGHT} refX={MARKER_REF_X} refY={MARKER_REF_Y} orient="auto">
+                <polygon points={MARKER_POLYGON_POINTS} fill="rgba(255, 0, 0, 0.4)" />
+              </marker>
+            </defs>
+            {/* Render automatic puzzle arrows */}
+            {arrows.map((arrow, index) => {
+              const start = getSquareCoordinates(arrow.from, boardWidth);
+              const end = getSquareCoordinates(arrow.to, boardWidth);
+
+              const dx = end.x - start.x;
+              const dy = end.y - start.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+
+              let adjustedX2 = end.x;
+              let adjustedY2 = end.y;
+
+              if (distance > ARROWHEAD_EFFECTIVE_LENGTH) {
+                const unitDx = dx / distance;
+                const unitDy = dy / distance;
+                adjustedX2 = end.x - unitDx * ARROWHEAD_EFFECTIVE_LENGTH;
+                adjustedY2 = end.y - unitDy * ARROWHEAD_EFFECTIVE_LENGTH;
+              }
+
+              return (
+                <line
+                  key={index}
+                  x1={start.x}
+                  y1={start.y}
+                  x2={adjustedX2}
+                  y2={adjustedY2}
+                  stroke="rgba(0, 128, 255, 0.4)"
+                  strokeWidth={ARROW_STROKE_WIDTH}
+                  markerEnd="url(#arrowhead-blue)"
+                />
+              );
+            })}
+            {/* Render feedback arrow for user's move */}
+            {feedbackArrow && (
+              (() => {
+                const start = getSquareCoordinates(feedbackArrow.from, boardWidth);
+                const end = getSquareCoordinates(feedbackArrow.to, boardWidth);
+
+                const dx = end.x - start.x;
+                const dy = end.y - start.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                let adjustedX2 = end.x;
+                let adjustedY2 = end.y;
+
+                if (distance > ARROWHEAD_EFFECTIVE_LENGTH) {
+                  const unitDx = dx / distance;
+                  const unitDy = dy / distance;
+                  adjustedX2 = end.x - unitDx * ARROWHEAD_EFFECTIVE_LENGTH;
+                  adjustedY2 = end.y - unitDy * ARROWHEAD_EFFECTIVE_LENGTH;
+                }
+
+                return (
+                  <line
+                    key="feedback-arrow"
+                    x1={start.x}
+                    y1={start.y}
+                    x2={adjustedX2}
+                    y2={adjustedY2}
+                    stroke={feedbackArrow.color}
+                    strokeWidth={ARROW_STROKE_WIDTH}
+                    markerEnd={`url(#arrowhead-${feedbackArrow.color.includes('0, 255, 0') ? 'green' : 'red'})`}
+                  />
+                );
+              })()
+            )}
+          </svg>
+        </div>
+      </div>
+      {feedbackMessage && (
+        <p style={{
+          marginTop: '10px',
+          fontSize: '18px',
+          fontWeight: 'bold',
+          color: feedbackMessage.includes('Correct') || feedbackMessage.includes('revealed') ? 'green' : 'red'
+        }}>
+          {feedbackMessage}
+        </p>
+      )}
+      <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+        {/* "Next" button for automatic moves */}
+        {currentMoveIndex < 2 && !isUserTurnToMove ? (
+          <button
+            onClick={handleNextMove}
+            style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#4CAF50', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
+          >
+            Next
+          </button>
+        ) : null}
+
+        {/* "Test" button appears after 2 automatic moves, before user's turn starts */}
+        {currentMoveIndex === 2 && !isUserTurnToMove ? (
+          <button
+            onClick={handleEnterUserTestMode}
+            style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#008CBA', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
+          >
+            Test
+          </button>
+        ) : null}
+
+        {/* "Reveal Solution" button appears when it's the user's turn to move */}
+        {isUserTurnToMove && (
+          <button
+            onClick={handleRevealSolution}
+            style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#ffc107', color: 'black', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
+          >
+            Reveal Solution
+          </button>
+        )}
+
+        {/* Buttons shown after user attempts their move (correct or incorrect) OR after showing answer */}
+        {/* Corrected condition for Replay Puzzle and Next Puzzle buttons */}
+        {((currentMoveIndex >= 2 && !isUserTurnToMove) || (isUserTurnToMove && feedbackMessage.includes('Incorrect'))) && (
+          <>
+            <button
+              onClick={handleReplayPuzzle}
+              style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#f44336', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
+            >
+              Replay Puzzle
+            </button>
+            {currentPuzzleIndex < puzzles.length - 1 ? (
+              <button
+                onClick={handleNextPuzzle}
+                style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#6c757d', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
+              >
+                Next Puzzle
+              </button>
+            ) : (
+              <button
+                onClick={() => resetCurrentPuzzle(0)} // Resets to the first puzzle
+                style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#6c757d', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
+              >
+                Start Over
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default App;

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Chess } from "chess.js";
-import Chessboard from "react-chessboard";
+import { Chessboard } from 'react-chessboard';
 
 const puzzles = [
   {

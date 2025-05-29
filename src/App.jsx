@@ -13,27 +13,20 @@ function App() {
   const [game, setGame] = useState(new Chess(initialFEN));
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [showTestMode, setShowTestMode] = useState(false);
-  const [ghostBoard, setGhostBoard] = useState(null);
+  const [arrows, setArrows] = useState([]);
 
   function handleNextMove() {
     if (currentMoveIndex < puzzleMoves.length) {
-      const newGame = new Chess(game.fen());
-      newGame.move(puzzleMoves[currentMoveIndex]);
-      setGame(newGame);
+      const move = puzzleMoves[currentMoveIndex];
+      const from = move.slice(0, 2);
+      const to = move.slice(2, 4);
+      setArrows([...arrows, { from, to }]);
       setCurrentMoveIndex(currentMoveIndex + 1);
     }
   }
 
   function handleTestMode() {
-    const resetGame = new Chess(initialFEN);
-    for (let i = 0; i < puzzleMoves.length; i++) {
-      resetGame.move(puzzleMoves[i]);
-    }
-    setGhostBoard(resetGame.fen());
-    resetGame.load(initialFEN); // reset to base board
-    setGame(resetGame);
     setShowTestMode(true);
-    setCurrentMoveIndex(puzzleMoves.length);
   }
 
   function handleReplay() {
@@ -41,11 +34,11 @@ function App() {
     setGame(resetGame);
     setCurrentMoveIndex(0);
     setShowTestMode(false);
-    setGhostBoard(null);
+    setArrows([]);
   }
 
   const renderPieceMenu = () => {
-    const playerColor = new Chess(ghostBoard || game.fen()).turn();
+    const playerColor = game.turn();
     return (
       <div className="piece-menu">
         {PIECES.map((p) => {
@@ -91,14 +84,17 @@ function App() {
     return false;
   }
 
+  const customArrows = arrows.map(({ from, to }) => ({ from, to, color: 'rgba(0, 128, 255, 0.4)' }));
+
   return (
     <div className="App">
       <h1>Chess Visualization Trainer</h1>
       <Chessboard
-        position={showTestMode ? '8/8/8/8/8/8/8/8' : game.fen()}
+        position={showTestMode ? '8/8/8/8/8/8/8/8' : initialFEN}
         onPieceDrop={(source, target) => handleDrop(source, target)}
         arePiecesDraggable={!showTestMode}
         customBoardStyle={{ border: '2px solid #333', marginBottom: '20px' }}
+        customArrows={customArrows}
       />
       <button onClick={handleNextMove} disabled={showTestMode}>Next</button>
       <button onClick={handleTestMode}>Test</button>

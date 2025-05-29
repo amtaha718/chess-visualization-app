@@ -63,7 +63,7 @@ function handleTestMode() {
               }}
             >
               <img
-                src={`https://chessboardjs.com/img/chesspieces/wikipedia/${pieceCode}.png`}
+                src={`https://www.chess.com/chess-themes/pieces/neo/150/${pieceCode}.png`}
                 alt={pieceCode}
                 width={40}
               />

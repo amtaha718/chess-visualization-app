@@ -139,12 +139,12 @@ function App() {
 
   // Prepare custom arrows for the Chessboard component
   // Ensure 'arrows' is an array, filter out invalid entries, and map to the required format
-  const customArrows = (Array.isArray(arrows) ? arrows : [])
+  const derivedCustomArrows = (Array.isArray(arrows) ? arrows : [])
     .filter(arrow => arrow && isValidSquare(arrow.from) && isValidSquare(arrow.to)) // Use isValidSquare for filtering
     .map(({ from, to }) => ({ from, to, color: 'rgba(0, 128, 255, 0.4)' }));
 
   // Log the customArrows array before passing it to Chessboard for debugging
-  console.log("Custom Arrows being passed to Chessboard:", customArrows);
+  console.log("Custom Arrows being passed to Chessboard:", derivedCustomArrows);
 
   // If an error occurred, display a simple error message
   if (!isVisible) {
@@ -172,7 +172,7 @@ function App() {
         onPieceDrop={(source, target) => handleDrop(source, target)}
         arePiecesDraggable={!showTestMode}
         customBoardStyle={{ border: '2px solid #333', marginBottom: '20px', borderRadius: '8px' }}
-        customArrows={customArrows} // <-- CHANGED BACK TO ALWAYS PASS THE ARRAY
+        customArrows={derivedCustomArrows.length > 0 ? derivedCustomArrows : []} // Use the derived value
         boardWidth={400}
       />
       <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>

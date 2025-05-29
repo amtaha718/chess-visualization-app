@@ -290,7 +290,3 @@ function App() {
   }
 
   const boardWidth = 400;
-
-  return (
-    <div className="App" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px' }}>
-      <h1 style={{ marginBottom: '2

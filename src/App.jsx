@@ -79,13 +79,13 @@ const getSquareCoordinates = (square, boardWidth) => {
 };
 
 // Adjusted arrowhead length and marker properties for better fit
-const ARROWHEAD_EFFECTIVE_LENGTH = 8; // Reduced length to ensure tip is within square
-const MARKER_WIDTH = 7; // Smaller width for a sharper tip
-const MARKER_HEIGHT = 6; // Height for the arrowhead base
-const MARKER_REF_X = 7; // Should match MARKER_WIDTH for the tip to align with line end
+const ARROWHEAD_EFFECTIVE_LENGTH = 5; // Reduced length
+const MARKER_WIDTH = 5; // Smaller width
+const MARKER_HEIGHT = 4; // Smaller height
+const MARKER_REF_X = 5; // Should match MARKER_WIDTH
 const MARKER_REF_Y = MARKER_HEIGHT / 2; // Center vertically
 const MARKER_POLYGON_POINTS = `0 0, ${MARKER_WIDTH} ${MARKER_REF_Y}, 0 ${MARKER_HEIGHT}`; // Sharper triangle shape
-const ARROW_STROKE_WIDTH = 7; // Slightly reduced line thickness
+const ARROW_STROKE_WIDTH = 5; // Slightly reduced line thickness
 
 
 function App() {

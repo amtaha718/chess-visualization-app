@@ -99,10 +99,6 @@ function App() {
   const [feedbackMessage, setFeedbackMessage] = useState(''); // New state for feedback message
   const [feedbackArrow, setFeedbackArrow] = useState(null); // New state for feedback arrow (green/red)
 
-  // Log state at each render for debugging
-  console.log("Render: Puzzle Index:", currentPuzzleIndex, "Move Index:", currentMoveIndex, "User Turn:", isUserTurnToMove, "Board FEN:", boardPosition);
-
-
   // Function to reset the current puzzle
   const resetCurrentPuzzle = (puzzleIndex) => {
     console.log("resetCurrentPuzzle called for index:", puzzleIndex);
@@ -171,8 +167,35 @@ function App() {
     setBoardPosition(puzzles[currentPuzzleIndex].fen);
   }
 
+  // New function to show the correct answer
+  function handleShowAnswer() {
+    const expectedMove = currentPuzzleMoves[currentMoveIndex]; // The correct move for this turn
+    const from = expectedMove.slice(0, 2);
+    const to = expectedMove.slice(2, 4);
+
+    setFeedbackMessage('Correct answer revealed.');
+    setFeedbackArrow({ from, to, color: 'rgba(0, 255, 0, 0.4)' }); // Green arrow for correct answer
+
+    // Temporarily show the correct move on the board
+    const tempGame = new Chess(game.fen());
+    tempGame.move({ from, to });
+    setGame(tempGame);
+    setBoardPosition(tempGame.fen());
+
+    // Disable user interaction after showing answer
+    setIsUserTurnToMove(false);
+
+    // After a short delay, revert the board and prepare for next action
+    setTimeout(() => {
+      setFeedbackMessage('');
+      setFeedbackArrow(null);
+      // Revert board to initial FEN of the puzzle
+      setBoardPosition(puzzles[currentPuzzleIndex].fen);
+    }, 1500); // Show correct move for 1.5 seconds
+  }
+
+
   function handleReplayPuzzle() {
-    console.log("handleReplayPuzzle: Replaying puzzle:", currentPuzzleIndex);
     resetCurrentPuzzle(currentPuzzleIndex);
   }
 
@@ -181,8 +204,6 @@ function App() {
     if (currentPuzzleIndex < puzzles.length - 1) {
       const nextPuzzleIndex = currentPuzzleIndex + 1;
       setCurrentPuzzleIndex(nextPuzzleIndex); // This will trigger a re-render
-      // The resetCurrentPuzzle will be called in the next render cycle due to state change
-      // For immediate effect, we can call it directly, but ensure state is consistent.
       resetCurrentPuzzle(nextPuzzleIndex); // Call reset with the new index
       console.log("handleNextPuzzle: Moved to next puzzle index:", nextPuzzleIndex, "FEN:", puzzles[nextPuzzleIndex].fen);
     } else {
@@ -219,12 +240,10 @@ function App() {
           // Revert board to initial FEN of the puzzle
           setBoardPosition(puzzles[currentPuzzleIndex].fen);
           console.log("handleDrop: Board reverted to initial FEN for puzzle", currentPuzzleIndex, ":", puzzles[currentPuzzleIndex].fen);
-          // Optionally, advance currentMoveIndex if you want to track user's correct moves
-          // setCurrentMoveIndex((prev) => prev + 1); // Not needed if we only test one move per puzzle
         }, 1500); // Show correct move for 1.5 seconds
 
       } else {
-        setFeedbackMessage('Incorrect move. Try again or click Replay Puzzle.'); // Updated message
+        setFeedbackMessage('Incorrect move. Try again or click Replay Puzzle or Show Answer.'); // Updated message
         setFeedbackArrow({ from: sourceSquare, to: targetSquare, color: 'rgba(255, 0, 0, 0.4)' }); // Red arrow for incorrect
         console.log("handleDrop: Incorrect move. User move:", userMove, "Expected:", expectedMove);
         // Do NOT update game or boardPosition if incorrect, keep board as is.
@@ -385,17 +404,18 @@ function App() {
           </button>
         ) : null}
 
-        {/* Buttons shown after user attempts their move (correct or incorrect) */}
-        {isUserTurnToMove && ( // User is currently trying to make a move
+        {/* "Show Answer" button appears when it's the user's turn to move */}
+        {isUserTurnToMove && (
           <button
-            onClick={handleReplayPuzzle}
-            style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#f44336', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
+            onClick={handleShowAnswer}
+            style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#ffc107', color: 'black', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
           >
-            Replay Puzzle
+            Show Answer
           </button>
         )}
 
-        {!isUserTurnToMove && currentMoveIndex >= 2 && ( // User has finished their turn (correct or incorrect)
+        {/* Buttons shown after user attempts their move (correct or incorrect) OR after showing answer */}
+        {!isUserTurnToMove && currentMoveIndex >= 2 && ( // User has finished their turn (correct or incorrect) or answer shown
           <>
             <button
               onClick={handleReplayPuzzle}

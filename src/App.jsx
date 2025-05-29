@@ -1,58 +1,64 @@
-import React, { useEffect, useState } from "react";
-import { Chess } from "chess.js";
+// src/App.jsx
+
+import React, { useState } from 'react';
+import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 
-const puzzles = [
-  {
-    id: 1,
-    fen: "rnbqkbnr/pppppppp/8/8/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 1",
-    moves: ["e7e5", "f1c4", "g8f6"],
-    solution: "d2d4"
-  }
-];
+const PGN = '[Event "?"]\n[Site "?"]\n[Date "????.??.??"]\n[Round "?"]\n[White "?"]\n[Black "?"]\n[Result "*"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 a6';
 
-export default function App() {
-  const [game] = useState(new Chess());
-  const [puzzle] = useState(puzzles[0]);
-  const [boardFen, setBoardFen] = useState(puzzle.fen);
-  const [status, setStatus] = useState("preview");
+function parsePgnMoves(pgn) {
+  return pgn
+    .split(/\d+\./)
+    .flatMap(move => move.trim().split(/\s+/))
+    .filter(m => m && !/[\[\]*]/.test(m));
+}
 
-  useEffect(() => {
-    const previewMoves = async () => {
-      const tempGame = new Chess(puzzle.fen);
-      for (let move of puzzle.moves) {
-        await new Promise((res) => setTimeout(res, 1000));
-        tempGame.move({ from: move.slice(0, 2), to: move.slice(2, 4) });
-        setBoardFen(tempGame.fen());
+function App() {
+  const moves = parsePgnMoves(PGN);
+  const initialPosition = new Chess();
+
+  const [chess] = useState(initialPosition);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [boardPosition, setBoardPosition] = useState(chess.fen());
+  const [quizActive, setQuizActive] = useState(false);
+
+  const handleNext = () => {
+    if (stepIndex < 3) {
+      chess.move(moves[stepIndex]);
+      setBoardPosition(chess.fen());
+      setStepIndex(stepIndex + 1);
+
+      if (stepIndex + 1 === 3) {
+        setQuizActive(true);
       }
-      await new Promise((res) => setTimeout(res, 1000));
-      setBoardFen(puzzle.fen); // reset
-      setStatus("quiz");
-    };
-
-    if (status === "preview") {
-      previewMoves();
-    }
-  }, [status]);
-
-  const onDrop = (source, target) => {
-    const move = `${source}${target}`;
-    if (move === puzzle.solution) {
-      setStatus("correct");
-      return { from: source, to: target };
-    } else {
-      setStatus("incorrect");
-      return false;
     }
   };
 
+  const onDrop = (sourceSquare, targetSquare) => {
+    if (!quizActive) return false;
+    const move = chess.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
+    if (move) {
+      setBoardPosition(chess.fen());
+      alert('Move registered. You can implement scoring logic here.');
+      return true;
+    }
+    return false;
+  };
+
   return (
-    <div style={{ padding: 20, textAlign: "center" }}>
+    <div style={{ padding: '2rem', textAlign: 'center' }}>
       <h2>Chess Visualization Trainer</h2>
-      <p>Status: {status}</p>
-      <div style={{ margin: "auto", width: 300 }}>
-        <Chessboard position={boardFen} onPieceDrop={onDrop} />
-      </div>
+      <Chessboard position={boardPosition} onPieceDrop={onDrop} arePiecesDraggable={quizActive} />
+
+      {!quizActive && (
+        <button onClick={handleNext} style={{ marginTop: '1rem' }}>
+          Next
+        </button>
+      )}
+
+      {quizActive && <p>What should be move 4? Drag and drop your answer.</p>}
     </div>
   );
 }
+
+export default App;

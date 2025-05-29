@@ -8,6 +8,11 @@ const PIECES = ['p', 'n', 'b', 'r', 'q', 'k'];
 const initialFEN = 'r1bq1rk1/ppp1bppp/2n2n2/3pp3/3P4/2P1PN2/PP1N1PPP/R1BQ1RK1 w - - 0 1';
 const puzzleMoves = ['d4e5', 'c6e5', 'f3e5', 'c8e6'];
 
+// Helper function to validate if a string is a valid chess square (e.g., 'a1', 'h8')
+const isValidSquare = (square) => {
+  return typeof square === 'string' && /^[a-h][1-8]$/.test(square);
+};
+
 function App() {
   const [game, setGame] = useState(new Chess(initialFEN));
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
@@ -23,11 +28,16 @@ function App() {
         const move = puzzleMoves[currentMoveIndex];
         // Basic validation for the move string
         if (!move || move.length < 4) {
-          throw new Error('Invalid move format in puzzleMoves array.');
+          throw new Error('Invalid move format in puzzleMoves array: ' + move);
         }
 
         const from = move.slice(0, 2);
         const to = move.slice(2, 4);
+
+        // EXTRA VALIDATION: Ensure 'from' and 'to' are valid chess squares
+        if (!isValidSquare(from) || !isValidSquare(to)) {
+          throw new Error(`Invalid 'from' or 'to' square in move: ${move}. From: ${from}, To: ${to}`);
+        }
 
         // IMPORTANT CHANGE: ONLY add the arrow, DO NOT update game or boardPosition here.
         // The board should remain at initialFEN for the puzzle visualization.
@@ -130,7 +140,7 @@ function App() {
   // Prepare custom arrows for the Chessboard component
   // Ensure 'arrows' is an array, filter out invalid entries, and map to the required format
   const customArrows = (Array.isArray(arrows) ? arrows : [])
-    .filter(arrow => arrow && typeof arrow.from === 'string' && typeof arrow.to === 'string')
+    .filter(arrow => arrow && isValidSquare(arrow.from) && isValidSquare(arrow.to)) // Use isValidSquare for filtering
     .map(({ from, to }) => ({ from, to, color: 'rgba(0, 128, 255, 0.4)' }));
 
   // Log the customArrows array before passing it to Chessboard for debugging
@@ -162,8 +172,7 @@ function App() {
         onPieceDrop={(source, target) => handleDrop(source, target)}
         arePiecesDraggable={!showTestMode}
         customBoardStyle={{ border: '2px solid #333', marginBottom: '20px', borderRadius: '8px' }}
-        // Only pass customArrows if there are any, otherwise pass undefined
-        customArrows={customArrows.length > 0 ? customArrows : undefined}
+        customArrows={customArrows} // <-- CHANGED BACK TO ALWAYS PASS THE ARRAY
         boardWidth={400}
       />
       <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>

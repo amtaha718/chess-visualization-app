@@ -7,7 +7,7 @@ import './index.css';
 const PIECES = ['p', 'n', 'b', 'r', 'q', 'k'];
 
 const initialFEN = 'r1bq1rk1/ppp1bppp/2n2n2/3pp3/3P4/2P1PN2/PP1N1PPP/R1BQ1RK1 w - - 0 1';
-const puzzleMoves = ['d4e5', 'c6e5', 'f3e5', 'c8e6']; // 4 full moves, testing user's turn after opponent
+const puzzleMoves = ['d4e5', 'c6e5', 'f3e5', 'c8e6'];
 
 function App() {
   const [game, setGame] = useState(new Chess(initialFEN));
@@ -21,18 +21,21 @@ function App() {
     try {
       if (currentMoveIndex < puzzleMoves.length) {
         const move = puzzleMoves[currentMoveIndex];
+        if (!move || move.length < 4) throw new Error('Invalid move format');
+
         const from = move.slice(0, 2);
         const to = move.slice(2, 4);
 
-        const tempGame = new Chess(boardPosition);
-        const moveResult = tempGame.move({ from, to });
+        const newGame = new Chess(game.fen());
+        const moveResult = newGame.move({ from, to });
         if (!moveResult) throw new Error('Invalid move');
 
-        setBoardPosition(tempGame.fen());
+        setGame(newGame);
+        setBoardPosition(newGame.fen());
         setArrows((prev) => [...prev, { from, to }]);
         setCurrentMoveIndex(currentMoveIndex + 1);
       } else if (currentMoveIndex === puzzleMoves.length) {
-        // reset to original position for test
+        setGame(new Chess(initialFEN));
         setBoardPosition(initialFEN);
         setArrows([]);
         setShowTestMode(true);
@@ -63,7 +66,7 @@ function App() {
   }
 
   const renderPieceMenu = () => {
-    const playerColor = 'w'; // always test white for now
+    const playerColor = 'w';
     return (
       <div className="piece-menu">
         {PIECES.map((p) => {

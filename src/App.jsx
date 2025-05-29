@@ -3,9 +3,6 @@ import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import './index.css';
 
-// No longer using PIECES as sandbox mode is removed.
-// const PIECES = ['p', 'n', 'b', 'r', 'q', 'k'];
-
 /**
  * @typedef {Object} ChessPuzzle
  * @property {string} fen - The starting FEN for the puzzle.
@@ -19,7 +16,7 @@ const puzzles = [
   },
   {
     fen: '4rrk1/pp3ppp/3q1n2/2ppn3/8/P1PP1N2/1P1NQPPP/R3K2R w KQ - 0 15',
-    moves: ['f3xe5', 'f8xe5', 'd2d4', 'c5xd4', 'c3xd4', 'e5xe2']
+    moves: ['f3e5', 'e8e5', 'd2d4', 'c5xd4', 'c3xd4', 'e5e2']
   },
   {
     fen: 'r1bq1rk1/ppp1bppp/2n2n2/3pp3/3P4/2P1PN2/PP1N1PPP/R1BQ1RK1 w - - 0 1',
@@ -51,7 +48,7 @@ const puzzles = [
   },
   {
     fen: 'rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 2',
-    moves: ['d2d4', 'c5xd4', 'f3xd4', 'g8f6']
+    moves: ['d2d4', 'c5d4', 'f3d4', 'g8f6']
   },
   {
     fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
@@ -81,12 +78,13 @@ const getSquareCoordinates = (square, boardWidth) => {
 };
 
 // Adjusted arrowhead length and marker properties for better fit
-const ARROWHEAD_EFFECTIVE_LENGTH = 8; // Reduced length
-const MARKER_WIDTH = 8;
-const MARKER_HEIGHT = 6;
-const MARKER_REF_X = 8; // Should match markerWidth for tip to align with line end
-const MARKER_REF_Y = MARKER_HEIGHT / 2;
-const MARKER_POLYGON_POINTS = `0 0, ${MARKER_WIDTH} ${MARKER_REF_Y}, 0 ${MARKER_HEIGHT}`;
+const ARROWHEAD_EFFECTIVE_LENGTH = 8; // Reduced length to ensure tip is within square
+const MARKER_WIDTH = 7; // Smaller width for a sharper tip
+const MARKER_HEIGHT = 6; // Height for the arrowhead base
+const MARKER_REF_X = 7; // Should match MARKER_WIDTH for the tip to align with line end
+const MARKER_REF_Y = MARKER_HEIGHT / 2; // Center vertically
+const MARKER_POLYGON_POINTS = `0 0, ${MARKER_WIDTH} ${MARKER_REF_Y}, 0 ${MARKER_HEIGHT}`; // Sharper triangle shape
+const ARROW_STROKE_WIDTH = 7; // Slightly reduced line thickness
 
 
 function App() {
@@ -295,7 +293,7 @@ function App() {
                   x2={adjustedX2}
                   y2={adjustedY2}
                   stroke="rgba(0, 128, 255, 0.4)"
-                  strokeWidth="8"
+                  strokeWidth={ARROW_STROKE_WIDTH}
                   markerEnd="url(#arrowhead-blue)"
                 />
               );
@@ -328,7 +326,7 @@ function App() {
                     x2={adjustedX2}
                     y2={adjustedY2}
                     stroke={feedbackArrow.color}
-                    strokeWidth="8"
+                    strokeWidth={ARROW_STROKE_WIDTH}
                     markerEnd={`url(#arrowhead-${feedbackArrow.color.includes('0, 255, 0') ? 'green' : 'red'})`}
                   />
                 );

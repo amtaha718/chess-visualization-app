@@ -226,6 +226,8 @@ function App() {
           boardWidth={boardSize}
           arePiecesDraggable={false}
           customSquareStyles={highlightedSquares}
+          customDarkSquareStyle={{ backgroundColor: '#4caf50' }}
+          customLightSquareStyle={{ backgroundColor: '#f1f1e6' }}
         />
         {renderArrows()}
       </div>

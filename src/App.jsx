@@ -198,10 +198,10 @@ const App = () => {
   alt="Visualize 3 Logo"
   style={{
     height: boardSize > 360 ? '200px' : '120px',
-    marginBottom: '10px'
+    marginBottom: '0px'
   }}
 />
-      <h2 style={{ fontSize: '20px' }}>Chess Visualization Trainer 3</h2>
+      <h2 style={{ fontSize: '20px' }}>Chess Visualization Trainer</h2>
       <p style={{ maxWidth: '600px', textAlign: 'center' }}>
         Strengthen your chess memory and tactical foresight. Watch the first two moves play out, then use your recall skills to find the best third move without any visual aids.
       </p>

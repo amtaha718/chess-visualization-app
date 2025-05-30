@@ -143,4 +143,180 @@ function App() {
     if (isValidUserMove) {
       if (isCorrectMove) {
         setFeedbackMessage('Correct! Well done!');
-        const fullPlaybackMoves = [...puzzles[currentPuzzleIndex].moves.slice(0, currentMove
+        const fullPlaybackMoves = [...puzzles[currentPuzzleIndex].moves.slice(0, currentMoveIndex), userGuess];
+        playMoveSequence(fullPlaybackMoves, true, userGuess);
+      } else {
+        setFeedbackMessage('Incorrect move. Try again.');
+        setIsUserTurnToMove(true); // Allow another attempt
+      }
+    } else {
+      setFeedbackMessage('Illegal move.');
+      setIsUserTurnToMove(true); // Allow another attempt
+      setSelectedSquares([]); // Clear selection
+    }
+  };
+
+  const playMoveSequence = (movesToPlay, finalMoveIsUserGuess = false, userGuess = null) => {
+    setIsUserTurnToMove(false);
+    setArrows([]);
+    const puzzle = puzzles[currentPuzzleIndex];
+    let playbackGame = new Chess(puzzle.fen);
+    setBoardPosition(puzzle.fen);
+    let delay = 0;
+    const movePlaybackDelay = 1000;
+    const arrowClearDelay = 700;
+
+    if (finalMoveIsUserGuess) {
+      delay += 1000;
+    }
+
+    movesToPlay.forEach((move, i) => {
+      setTimeout(() => {
+        const moveResult = playbackGame.move({ from: move.slice(0, 2), to: move.slice(2, 4) });
+        if (moveResult) {
+          setGame(new Chess(playbackGame.fen()));
+          setBoardPosition(playbackGame.fen());
+          setArrows([{ from: move.slice(0, 2), to: move.slice(2, 4) }]);
+          if (i < movesToPlay.length - 1) {
+            setTimeout(() => setArrows([]), arrowClearDelay);
+          }
+        } else {
+          console.error(`Error during playback: Invalid move ${move}`);
+          setIsVisible(false);
+        }
+
+        if (i === movesToPlay.length - 1) {
+          setTimeout(() => {
+            setFeedbackArrow(null);
+            if (finalMoveIsUserGuess) {
+              const isCorrect = (userGuess === currentPuzzleMoves[currentMoveIndex]) && moveResult !== null;
+              setFeedbackMessage(isCorrect ? 'Correct! Well done!' : 'Incorrect move. Try again.');
+              if (!isCorrect) {
+                setBoardPosition(puzzles[currentPuzzleIndex].fen);
+                setIsUserTurnToMove(true);
+              } else {
+                setIsUserTurnToMove(false);
+              }
+            } else {
+              setFeedbackMessage('Solution revealed.');
+              setIsUserTurnToMove(false);
+            }
+          }, 1500);
+        }
+      }, delay);
+      delay += movePlaybackDelay;
+    });
+  };
+
+  const handleRevealSolution = () => {
+    setIsUserTurnToMove(false);
+    setArrows([]);
+    const solutionMoves = currentPuzzleMoves.slice(0, currentMoveIndex + 1);
+    playMoveSequence(solutionMoves, false);
+  };
+
+  const handleReplayPuzzle = () => {
+    resetCurrentPuzzle(currentPuzzleIndex);
+  };
+
+  const handleNextPuzzle = () => {
+    setCurrentPuzzleIndex((prevIndex) => (prevIndex + 1) % puzzles.length);
+  };
+
+  const getButtonText = () => {
+    if (currentMoveIndex === 0) return "Show Move 1";
+    if (currentMoveIndex === 1) return "Show Move 2";
+    if (currentMoveIndex === 2) return "Find Move 3";
+    return "Next"; // Fallback
+  };
+
+  const boardWidth = 400;
+  const buttonStyle = { padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#4CAF50', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' };
+  const buttonStyleRed = { ...buttonStyle, backgroundColor: '#f44336' };
+  const buttonStyleYellow = { ...buttonStyle, backgroundColor: '#ffc107', color: 'black' };
+  const buttonStyleGray = { ...buttonStyle, backgroundColor: '#6c757d' };
+
+  return (
+    <div className="App" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px' }}>
+      <h1 style={{ marginBottom: '20px', color: '#333' }}>Chess Visualization Trainer</h1>
+      <p style={{ marginBottom: '10px' }}>Puzzle {currentPuzzleIndex + 1} of {puzzles.length}</p>
+
+      <div style={{ position: 'relative', width: boardWidth, height: boardWidth }}>
+        <Chessboard
+          ref={boardRef}
+          position={boardPosition}
+          onSquareClick={handleSquareClick}
+          customSquareStyles={highlightedSquares}
+          customBoardStyle={{
+            border: '2px solid #333',
+            marginBottom: '20px',
+            borderRadius: '8px',
+            cursor: isUserTurnToMove ? 'pointer' : 'default',
+          }}
+          boardWidth={boardWidth}
+        />
+        <div style={{ position: 'absolute', top: 0, left: 0, width: boardWidth, height: boardWidth, pointerEvents: 'none' }}>
+          <svg width={boardWidth} height={boardWidth} viewBox={`0 0 ${boardWidth} ${boardWidth}`}>
+            <defs>
+              <marker id="arrowhead-blue" markerWidth={MARKER_WIDTH} markerHeight={MARKER_HEIGHT} refX={MARKER_REF_X} refY={MARKER_REF_Y} orient="auto">
+                <polygon points={MARKER_POLYGON_POINTS} fill="rgba(0, 128, 255, 0.4)" />
+              </marker>
+              <marker id="arrowhead-green" markerWidth={MARKER_WIDTH} markerHeight={MARKER_HEIGHT} refX={MARKER_REF_X} refY={MARKER_REF_Y} orient="auto">
+                <polygon points={MARKER_POLYGON_POINTS} fill="rgba(0, 255, 0, 0.4)" />
+              </marker>
+              <marker id="arrowhead-red" markerWidth={MARKER_WIDTH} markerHeight={MARKER_HEIGHT} refX={MARKER_REF_X} refY={MARKER_REF_Y} orient="auto">
+                <polygon points={MARKER_POLYGON_POINTS} fill="rgba(255, 0, 0, 0.4)" />
+              </marker>
+              <marker id="arrowhead-orange" markerWidth={MARKER_WIDTH} markerHeight={MARKER_HEIGHT} refX={MARKER_REF_X} refY={MARKER_REF_Y} orient="auto">
+                <polygon points={MARKER_POLYGON_POINTS} fill="rgba(255, 165, 0, 0.4)" />
+              </marker>
+            </defs>
+            {arrows.map((arrow, index) => {
+              const start = getSquareCoordinates(arrow.from, boardWidth);
+              const end = getSquareCoordinates(arrow.to, boardWidth);
+
+              // Calculate adjusted end point for the arrow
+              const dx = end.x - start.x;
+              const dy = end.y - start.y;
+              const angle = Math.atan2(dy, dx);
+              const adjustedEndX = end.x - ARROWHEAD_LENGTH * Math.cos(angle);
+              const adjustedEndY = end.y - ARROWHEAD_LENGTH * Math.sin(angle);
+
+              return (
+                <line
+                  key={index}
+                  x1={start.x}
+                  y1={start.y}
+                  x2={adjustedEndX}
+                  y2={adjustedEndY}
+                  stroke="rgba(0, 128, 255, 0.4)"
+                  strokeWidth={ARROW_STROKE_WIDTH}
+                  markerEnd="url(#arrowhead-blue)"
+                />
+              );
+            })}
+            {feedbackArrow && (
+              () => {
+                const start = getSquareCoordinates(feedbackArrow.from, boardWidth);
+                const end = getSquareCoordinates(feedbackArrow.to, boardWidth);
+                const dx = end.x - start.x;
+                const dy = end.y - start.y;
+                const angle = Math.atan2(dy, dx);
+                const adjustedEndX = end.x - ARROWHEAD_LENGTH * Math.cos(angle);
+                const adjustedEndY = end.y - ARROWHEAD_LENGTH * Math.sin(angle);
+                const color = feedbackArrow.color.includes('0, 255, 0') ? 'green' : (feedbackArrow.color.includes('255, 0, 0') ? 'red' : 'orange');
+                return (
+                  <line
+                    key="feedback-arrow"
+                    x1={start.x}
+                    y1={start.y}
+                    x2={adjustedEndX}
+                    y2={adjustedEndY}
+                    stroke={feedbackArrow.color}
+                    strokeWidth={ARROW_STROKE_WIDTH}
+                    markerEnd={`url(#arrowhead-${color})`}
+                  />
+                );
+              })()
+            )}
+          </svg>

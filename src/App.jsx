@@ -1,4 +1,4 @@
-// Updated and cleaned-up Chess Visualization Trainer
+// Updated Chess Visualization Trainer with visual-only arrows and reset before user move
 import React, { useState, useRef, useEffect } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
@@ -9,7 +9,6 @@ const puzzles = [
     fen: 'r1bqkbnr/ppp2ppp/2n5/1B1pp3/3PP3/5N2/PPP2PPP/RNBQK2R w KQkq - 0 4',
     moves: ['e4d5', 'd8d5', 'b1c3', 'd5a5', 'c1d2', 'f8b4']
   },
-  // ... other puzzles truncated for brevity
 ];
 
 const isValidSquare = (square) => typeof square === 'string' && /^[a-h][1-8]$/.test(square);
@@ -52,14 +51,13 @@ function App() {
     const move = currentPuzzleMoves[currentMoveIndex];
     const from = move.slice(0, 2);
     const to = move.slice(2, 4);
-    internalGameRef.current.move({ from, to });
-    setBoardPosition(internalGameRef.current.fen());
     setArrows([{ from, to }]);
     setHighlightedSquares({ [from]: true, [to]: true });
     if (currentMoveIndex < 2) {
       setCurrentMoveIndex((i) => i + 1);
     } else {
       setIsUserTurnToMove(true);
+      setBoardPosition(puzzles[currentPuzzleIndex].fen); // Reset to starting FEN
       setFeedbackMessage('Select the starting square of your move.');
     }
   };
@@ -73,34 +71,55 @@ function App() {
       const [from] = selectedSquares;
       const to = square;
       setSelectedSquares([]);
-      handleUserMove(from, to);
+      evaluateUserMove(from, to);
     }
   };
 
-  const handleUserMove = (from, to) => {
+  const evaluateUserMove = (from, to) => {
     const userGuess = from + to;
-    const expectedMove = currentPuzzleMoves[currentMoveIndex];
-    const tempGame = new Chess(internalGameRef.current.fen());
-    const isValid = tempGame.move({ from, to });
+    const expectedMove = currentPuzzleMoves[2];
+    const tempGame = new Chess(puzzles[currentPuzzleIndex].fen);
 
-    if (!isValid) {
+    if (!tempGame.move({ from, to })) {
       setFeedbackMessage('Illegal move.');
       setFeedbackArrow({ from, to, color: 'rgba(255, 0, 0, 0.4)' });
       return;
     }
 
-    const isCorrect = userGuess === expectedMove;
-    setFeedbackArrow({ from, to, color: isCorrect ? 'rgba(0,255,0,0.4)' : 'rgba(255,165,0,0.4)' });
+    setFeedbackArrow({ from, to, color: userGuess === expectedMove ? 'rgba(0,255,0,0.4)' : 'rgba(255,165,0,0.4)' });
+    setIsUserTurnToMove(false);
 
-    if (isCorrect) {
-      internalGameRef.current.move({ from, to });
-      setCurrentMoveIndex((i) => i + 1);
-      setBoardPosition(internalGameRef.current.fen());
-      setFeedbackMessage('Correct! Well done!');
-      setIsUserTurnToMove(false);
-    } else {
-      setFeedbackMessage('Incorrect move. Try again.');
-    }
+    setTimeout(() => {
+      const sequence = [...currentPuzzleMoves.slice(0, 2), userGuess];
+      playMoveSequence(sequence, userGuess === expectedMove);
+    }, 1000);
+  };
+
+  const playMoveSequence = (moves, isCorrect) => {
+    const puzzle = puzzles[currentPuzzleIndex];
+    const game = new Chess(puzzle.fen);
+    setBoardPosition(puzzle.fen);
+    setArrows([]);
+    setHighlightedSquares({});
+
+    moves.forEach((move, i) => {
+      setTimeout(() => {
+        const from = move.slice(0, 2);
+        const to = move.slice(2, 4);
+        game.move({ from, to });
+        setBoardPosition(game.fen());
+        setArrows([{ from, to }]);
+        setHighlightedSquares({ [from]: true, [to]: true });
+      }, i * 1000);
+    });
+
+    setTimeout(() => {
+      setFeedbackMessage(isCorrect ? 'Correct! Well done!' : 'Incorrect move. Try again.');
+      if (!isCorrect) {
+        setIsUserTurnToMove(true);
+        setBoardPosition(puzzles[currentPuzzleIndex].fen);
+      }
+    }, moves.length * 1000 + 500);
   };
 
   const getHighlightStyles = () => {
@@ -126,7 +145,7 @@ function App() {
         <p style={{ color: feedbackArrow.color }}>Arrow: {feedbackArrow.from} → {feedbackArrow.to}</p>
       )}
       <div style={{ marginTop: 10 }}>
-        <button onClick={handleShowMove}> {currentMoveIndex < 2 ? `Show Move ${currentMoveIndex + 1}` : 'Your Turn'} </button>
+        <button onClick={handleShowMove}> {currentMoveIndex < 2 ? `Show Move ${currentMoveIndex + 1}` : 'Your Move'} </button>
         <button onClick={() => resetCurrentPuzzle(currentPuzzleIndex)}>Replay</button>
         <button onClick={() => setCurrentPuzzleIndex((i) => (i + 1) % puzzles.length)}>Next Puzzle</button>
       </div>

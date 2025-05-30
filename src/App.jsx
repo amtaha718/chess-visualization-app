@@ -1,4 +1,94 @@
-import React, { useState } => {
+import React, { useState } from 'react';
+import { Chess } from 'chess.js';
+import { Chessboard } from 'react-chessboard';
+import './index.css';
+
+/**
+ * @typedef {Object} ChessPuzzle
+ * @property {string} fen - The starting FEN for the puzzle.
+ * @property {string[]} moves - An array of moves in 'fromto' format (e.g., 'e2e4', 'g1f3').
+ */
+
+const puzzles = [
+  {
+    fen: 'r1bqkbnr/ppp2ppp/2n5/1B1pp3/3PP3/5N2/PPP2PPP/RNBQK2R w KQkq - 0 4',
+    moves: ['e4d5', 'd8d5', 'b1c3', 'd5a5', 'c1d2', 'f8b4']
+  },
+  {
+    // Simplified Puzzle 2 for debugging solution playback
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+    moves: ['e2e4', 'e7e5', 'g1f3']
+  },
+  {
+    fen: 'r1bq1rk1/ppp1bppp/2n2n2/3pp3/3P4/2P1PN2/PP1N1PPP/R1BQ1RK1 w - - 0 1',
+    moves: ['d4e5', 'c6e5', 'f3e5', 'c8e6']
+  },
+  {
+    fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
+    moves: ['g1f3', 'b8c6', 'f1b5', 'a7a6']
+  },
+  {
+    fen: 'rnbqkbnr/pppp1ppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 1',
+    moves: ['c2c4', 'e7e6', 'g1f3', 'g8f6']
+  },
+  {
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+    moves: ['e2e4', 'e7e5', 'd2d4', 'e5d4']
+  },
+  {
+    fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2',
+    moves: ['b8c6', 'f1b5', 'a7a6', 'b5a4']
+  },
+  {
+    fen: 'rnbqkbnr/pppp1ppp/8/8/3pP3/8/PPP2PPP/RNBQKBNR w KQkq - 0 3',
+    moves: ['d1xd4', 'b8c6', 'd4e3', 'g8f6']
+  },
+  {
+    fen: 'rnbqkbnr/pppp1ppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
+    moves: ['c7c5', 'g1f3', 'd7d6', 'd2d4']
+  },
+  {
+    fen: 'rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 2',
+    moves: ['d2d4', 'c5d4', 'f3d4', 'g8f6']
+  },
+  {
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+    moves: ['d2d4', 'd7d5', 'c2c4', 'c7c6']
+  },
+  {
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+    moves: ['g1f3', 'g8f6', 'c2c4', 'e7e6']
+  }
+];
+
+
+// Helper function to validate if a string is a valid chess square (e.g., 'a1', 'h8')
+const isValidSquare = (square) => {
+  return typeof square === 'string' && /^[a-h][1-8]$/.test(square);
+};
+
+// Helper function to convert chess square notation to pixel coordinates for SVG drawing
+const getSquareCoordinates = (square, boardWidth) => {
+  const file = square.charCodeAt(0) - 'a'.charCodeAt(0); // 'a' -> 0, 'b' -> 1, etc.
+  const rank = parseInt(square[1], 10) - 1; // '1' -> 0, '2' -> 1, etc.
+
+  const squareSize = boardWidth / 8;
+  const x = file * squareSize + squareSize / 2;
+  const y = (7 - rank) * squareSize + squareSize / 2; // (7 - rank) to invert y-axis for SVG (top is 0)
+  return { x, y };
+};
+
+// Adjusted arrowhead length and marker properties for better fit
+const ARROWHEAD_EFFECTIVE_LENGTH = 5; // Reduced length
+const MARKER_WIDTH = 5; // Smaller width
+const MARKER_HEIGHT = 4; // Smaller height
+const MARKER_REF_X = 5; // Should match MARKER_WIDTH
+const MARKER_REF_Y = MARKER_HEIGHT / 2; // Center vertically
+const MARKER_POLYGON_POINTS = `0 0, ${MARKER_WIDTH} ${MARKER_REF_Y}, 0 ${MARKER_HEIGHT}`; // Sharper triangle shape
+const ARROW_STROKE_WIDTH = 5; // Slightly reduced line thickness
+
+
+function App() { // Corrected function declaration here
   const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
   const [game, setGame] = useState(new Chess(puzzles[currentPuzzleIndex].fen));
   const [currentPuzzleMoves, setCurrentPuzzleMoves] = useState(puzzles[currentPuzzleIndex].moves);

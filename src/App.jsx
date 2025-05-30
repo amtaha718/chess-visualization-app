@@ -132,7 +132,7 @@ function App() {
 
   const handleUserMove = (sourceSquare, targetSquare) => {
     const expectedMove = currentPuzzleMoves[currentMoveIndex];
-    const userGuess = `${sourceSquare}${targetSquare}`;
+    const userGuess = `<span class="math-inline">\{sourceSquare\}</span>{targetSquare}`;
 
     const tempGameForUserMove = new Chess(internalGameForAutoMoves.fen());
     const isValidUserMove = tempGameForUserMove.move({ from: sourceSquare, to: targetSquare }) !== null;
@@ -226,7 +226,7 @@ function App() {
   const getButtonText = () => {
     if (currentMoveIndex === 0) return "Show Move 1";
     if (currentMoveIndex === 1) return "Show Move 2";
-    if (currentMoveIndex === 2) return "Guess Move 3";
+    if (currentMoveIndex === 2) return "Find Move 3";
     return "Next"; // Fallback
   };
 
@@ -314,4 +314,9 @@ function App() {
                     y2={adjustedEndY}
                     stroke={feedbackArrow.color}
                     strokeWidth={ARROW_STROKE_WIDTH}
-                    markerEnd={`url(#arrowhead
+                    markerEnd={`url(#arrowhead-${color})`}
+                  />
+                );
+              })()
+            )}
+          </svg

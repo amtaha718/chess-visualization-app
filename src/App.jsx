@@ -64,7 +64,7 @@ function App() {
     } else {
       setIsUserTurnToMove(true);
       setBoardPosition(puzzles[currentPuzzleIndex].fen);
-      setFeedbackMessage('Select the starting square of your move.');
+      setFeedbackMessage('Picture moves 1 and 2 in your mind—then choose the squares for the strongest move 3.');
       setArrows([]);
     }
   };
@@ -178,6 +178,9 @@ function App() {
   return (
     <div className="App" style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <h2>Chess Visualization Trainer</h2>
+      <p style={{ maxWidth: '600px', textAlign: 'center', marginBottom: '20px' }}>
+        Strengthen your chess memory and tactical foresight. Watch the first two moves play out, then use your recall skills to find the best third move without any visual aids.
+      </p>
       <p>Puzzle {currentPuzzleIndex + 1} of {puzzles.length}</p>
       <div style={{ position: 'relative', width: boardSize, height: boardSize }}>
         <Chessboard

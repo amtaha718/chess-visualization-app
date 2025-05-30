@@ -317,6 +317,3 @@ function App() {
                     markerEnd={`url(#arrowhead-${color})`}
                   />
                 );
-              })()
-            )}
-          </svg

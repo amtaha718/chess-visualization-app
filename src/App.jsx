@@ -193,6 +193,14 @@ const App = () => {
 
   return (
     <div className="App" style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <img
+  src="/logo.png"
+  alt="Visualize 3 Logo"
+  style={{
+    height: boardSize > 360 ? '200px' : '120px',
+    marginBottom: '10px'
+  }}
+/>
       <h1 style={{ fontSize: '28px' }}>Visualize 3</h1>
       <p style={{ maxWidth: '600px', textAlign: 'center' }}>
         Strengthen your chess memory and tactical foresight. Watch the first two moves play out, then use your recall skills to find the best third move without any visual aids.

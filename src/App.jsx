@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import './index.css';
@@ -11,266 +11,230 @@ import './index.css';
 
 const puzzles = [
   {
-    // Puzzle 1: Simple Fork
+    // Puzzle 1: Simple Fork (White to play)
     fen: 'r1bqkb1r/pp3ppp/2n2n2/3pp3/3PP3/2P2N2/PP1N1PPP/R1BQKB1R w KQkq - 0 5',
-    moves: ['e4d5', 'f6d5', 'c3c4'] // White takes pawn, Black recaptures, User plays c3-c4 forking knight and pawn
+    moves: ['e4d5', 'f6d5', 'c3c4']
   },
   {
-    // Puzzle 2: Back Rank Mate Defense
+    // Puzzle 2: Back Rank Mate Defense (White to play)
     fen: 'r4rk1/pp3ppp/3q1n2/2ppn3/8/P1PP1N2/1P1NQPPP/R3K2R w KQ - 0 15',
-    moves: ['f3e5', 'e8e5', 'd2f3'] // White takes knight, Black recaptures rook, User plays d2-f3 blocking back rank mate threat
+    moves: ['f3e5', 'e8e5', 'd2f3']
   },
   {
-    // Puzzle 3: Discovered Attack
-    fen: 'rnbqk1nr/ppp2ppp/3p4/8/2B1P3/5N2/PP3PPP/RNBQK2R b KQkq - 0 5',
-    moves: ['g8f6', 'e1g1', 'f6e4'] // Black plays Nf6, White castles, User plays Nxe4 winning a pawn with discovered attack on the Bishop
+    // Puzzle 3: Pin (White to play)
+    fen: 'rnbqk2r/ppp2ppp/4pn2/3p4/1b1P4/2N2N2/PPP1PPPP/R1BQKB1R w KQkq - 2 4',
+    moves: ['c1g5', 'b8d7', 'e2e3']
   },
   {
-    // Puzzle 4: Pawn Break
-    fen: 'rnbqkb1r/pp3ppp/4pn2/2pp4/3P4/2P2N2/PP1NPPPP/R1BQKB1R w KQkq - 0 5',
-    moves: ['e2e3', 'b8c6', 'd4c5'] // White plays e3, Black plays Nc6, User plays dxc5 opening the position
+    // Puzzle 4: Developing Attack (White to play)
+    fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 2',
+    moves: ['f3e5', 'd7d6', 'e5f7']
   },
   {
-    // Puzzle 5: King Safety / Development
-    fen: 'rnbqkb1r/ppp2ppp/5n2/3pp3/3P4/P1P2N2/1P1NPPPP/R1BQKB1R w KQkq - 0 5',
-    moves: ['e2e4', 'e7e5', 'f1d3'] // White plays e4, Black plays e5, User plays Bd3 developing and eyeing king side
+    // Puzzle 5: Open File Advantage (White to play)
+    fen: 'r1bqk2r/ppp2ppp/2n2n2/3p4/1b1P4/2N5/PPP1PPPP/R1BQKBNR w KQkq - 0 6',
+    moves: ['c1g5', 'd5e4', 'g5f6']
   }
 ];
 
+// Helper function to validate if a string is a valid chess square
+const isValidSquare = (square) => typeof square === 'string' && /^[a-h][1-8]$/.test(square);
 
-// Helper function to validate if a string is a valid chess square (e.g., 'a1', 'h8')
-const isValidSquare = (square) => {
-  return typeof square === 'string' && /^[a-h][1-8]$/.test(square);
-};
-
-// Helper function to convert chess square notation to pixel coordinates for SVG drawing
+// Helper function to get square coordinates for SVG drawing
 const getSquareCoordinates = (square, boardWidth) => {
-  const file = square.charCodeAt(0) - 'a'.charCodeAt(0); // 'a' -> 0, 'b' -> 1, etc.
-  const rank = parseInt(square[1], 10) - 1; // '1' -> 0, '2' -> 1, etc.
-
+  const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
+  const rank = parseInt(square[1], 10) - 1;
   const squareSize = boardWidth / 8;
   const x = file * squareSize + squareSize / 2;
-  const y = (7 - rank) * squareSize + squareSize / 2; // (7 - rank) to invert y-axis for SVG (top is 0)
+  const y = (7 - rank) * squareSize + squareSize / 2;
   return { x, y };
 };
 
-// Adjusted arrowhead length and marker properties for better fit
-const ARROWHEAD_EFFECTIVE_LENGTH = 5; // Reduced length
-const MARKER_WIDTH = 5; // Smaller width
-const MARKER_HEIGHT = 4; // Smaller height
-const MARKER_REF_X = 5; // Should match MARKER_WIDTH
-const MARKER_REF_Y = MARKER_HEIGHT / 2; // Center vertically
-const MARKER_POLYGON_POINTS = `0 0, ${MARKER_WIDTH} ${MARKER_REF_Y}, 0 ${MARKER_HEIGHT}`; // Sharper triangle shape
-const ARROW_STROKE_WIDTH = 5; // Slightly reduced line thickness
-
+// Arrow marker constants
+const MARKER_WIDTH = 5;
+const MARKER_HEIGHT = 4;
+const MARKER_REF_X = 0; // Tail starts at the marker base
+const MARKER_REF_Y = MARKER_HEIGHT / 2;
+const MARKER_POLYGON_POINTS = `${MARKER_REF_X + MARKER_WIDTH} ${MARKER_REF_Y}, ${MARKER_REF_X} 0, ${MARKER_REF_X} ${MARKER_HEIGHT}`;
+const ARROW_STROKE_WIDTH = 5;
+const ARROWHEAD_LENGTH = 8; // Adjust as needed
 
 function App() {
   const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
   const [game, setGame] = useState(new Chess(puzzles[currentPuzzleIndex].fen));
   const [currentPuzzleMoves, setCurrentPuzzleMoves] = useState(puzzles[currentPuzzleIndex].moves);
-  const [currentMoveIndex, setCurrentMoveIndex] = useState(0); // Tracks moves within the current puzzle
-  const [arrows, setArrows] = useState([]); // This will now hold only the current automatic arrow
+  const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
+  const [arrows, setArrows] = useState([]);
   const [boardPosition, setBoardPosition] = useState(puzzles[currentPuzzleIndex].fen);
   const [isVisible, setIsVisible] = useState(true);
-  const [isUserTurnToMove, setIsUserTurnToMove] = useState(false); // New state for user's test move
-  const [feedbackMessage, setFeedbackMessage] = useState(''); // New state for feedback message
-  const [feedbackArrow, setFeedbackArrow] = useState(null); // New state for feedback arrow (green/red)
+  const [isUserTurnToMove, setIsUserTurnToMove] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackArrow, setFeedbackArrow] = useState(null);
+  const [highlightedSquares, setHighlightedSquares] = useState({});
+  const [selectedSquares, setSelectedSquares] = useState([]);
+  const boardRef = useRef(null);
+  const [internalGameForAutoMoves, setInternalGameForAutoMoves] = useState(new Chess(puzzles[currentPuzzleIndex].fen));
 
-  // Function to reset the current puzzle
+  useEffect(() => {
+    resetCurrentPuzzle(currentPuzzleIndex);
+  }, [currentPuzzleIndex]);
+
   const resetCurrentPuzzle = (puzzleIndex) => {
-    console.log("resetCurrentPuzzle called for index:", puzzleIndex);
     const newPuzzle = puzzles[puzzleIndex];
     setGame(new Chess(newPuzzle.fen));
+    setInternalGameForAutoMoves(new Chess(newPuzzle.fen));
     setCurrentPuzzleMoves(newPuzzle.moves);
     setCurrentMoveIndex(0);
     setArrows([]);
-    setBoardPosition(newPuzzle.fen); // Reset board to initial FEN for the new puzzle
+    setBoardPosition(newPuzzle.fen);
     setIsVisible(true);
     setIsUserTurnToMove(false);
     setFeedbackMessage('');
-    setFeedbackArrow(null); // Ensure feedback arrow is cleared on puzzle reset
+    setFeedbackArrow(null);
+    setHighlightedSquares({});
+    setSelectedSquares([]);
   };
 
-  function handleNextMove() {
-    try {
-      console.log("handleNextMove: before update, currentMoveIndex:", currentMoveIndex, "currentPuzzleIndex:", currentPuzzleIndex);
-      setFeedbackMessage(''); // Clear any previous feedback
-      setFeedbackArrow(null); // Clear any previous feedback arrow
+  const handleShowMove = () => {
+    setFeedbackMessage('');
+    setFeedbackArrow(null);
+    setHighlightedSquares({});
 
-      // Automatic moves (0 and 1)
-      if (currentMoveIndex < 2 && currentMoveIndex < currentPuzzleMoves.length) {
-        const move = currentPuzzleMoves[currentMoveIndex];
-        if (!move || move.length < 4) {
-          throw new Error('Invalid move format in currentPuzzleMoves array: ' + move);
-        }
-
-        const from = move.slice(0, 2);
-        const to = move.slice(2, 4);
-
-        if (!isValidSquare(from) || !isValidSquare(to)) {
-          throw new Error(`Invalid 'from' or 'to' square in move: ${move}. From: ${from}, To: ${to}`);
-        }
-
-        // IMPORTANT: ONLY display the arrow, DO NOT move pieces on the board in this phase.
-        setArrows([{ from, to }]);
-        setCurrentMoveIndex((prev) => prev + 1); // Increment for the next click
-        console.log("handleNextMove: after arrow display, new Move Index will be:", currentMoveIndex + 1);
-
-      } else {
-        // This block is reached if currentMoveIndex is 2 or more,
-        // meaning the two automatic moves have been played.
-        // Now it's time to prompt the user for their move.
-        console.log("handleNextMove: Two automatic moves played. Transitioning to user test mode.");
-        setArrows([]); // Clear automatic arrows
-        setIsUserTurnToMove(true); // Activate user's turn
-        // Revert board to initial FEN for the user to make their move
-        setBoardPosition(puzzles[currentPuzzleIndex].fen);
-        console.log("handleNextMove: Board reset to initial FEN for puzzle", currentPuzzleIndex, ":", puzzles[currentPuzzleIndex].fen);
-      }
-    } catch (error) {
-      console.error('Error in handleNextMove:', error);
-      setIsVisible(false);
-    }
-  }
-
-  // This function is called when the "Test" button (after auto-moves) is clicked.
-  function handleEnterUserTestMode() {
-    console.log("handleEnterUserTestMode: currentPuzzleIndex at test start:", currentPuzzleIndex, "FEN for test:", puzzles[currentPuzzleIndex].fen);
-    setArrows([]); // Clear any lingering arrows
-    setIsUserTurnToMove(true); // Set state to enable user interaction for the puzzle move
-    setFeedbackMessage(''); // Clear previous feedback
-    setFeedbackArrow(null); // Clear previous feedback arrow
-    // Ensure board is reset to initial FEN for user's turn
-    setBoardPosition(puzzles[currentPuzzleIndex].fen);
-  }
-
-  // Function to play a sequence of moves on the board
-  const playMoveSequence = (movesToPlay, finalMoveIsUserGuess = false, userGuess = null) => {
-    setIsUserTurnToMove(false); // Disable interaction during playback
-    setArrows([]); // Clear any existing arrows (except the one set by handleDrop for immediate feedback)
-
-    const puzzle = puzzles[currentPuzzleIndex];
-    let playbackGame = new Chess(puzzle.fen); // Start with the initial puzzle FEN
-    setBoardPosition(puzzle.fen); // Ensure board is at initial state for playback
-
-    let delay = 0;
-    const movePlaybackDelay = 1000; // 1 second delay between moves
-    const arrowClearDelay = 700; // Clear arrow after 0.7 seconds
-
-    // Add a 1-second pause before starting the loop if it's a user guess playback
-    if (finalMoveIsUserGuess) {
-      delay += 1000; // Initial 1-second pause
-    }
-
-    for (let i = 0; i < movesToPlay.length; i++) {
-      const move = movesToPlay[i];
+    if (currentMoveIndex < 2) {
+      const move = currentPuzzleMoves[currentMoveIndex];
       const from = move.slice(0, 2);
       const to = move.slice(2, 4);
+      setArrows([{ from, to }]);
+      setHighlightedSquares({ [from]: true, [to]: true });
+      internalGameForAutoMoves.move({ from, to });
+      setCurrentMoveIndex((prev) => prev + 1);
+    } else if (currentMoveIndex === 2) {
+      setIsUserTurnToMove(true);
+      setArrows([]);
+      setHighlightedSquares({});
+      setFeedbackMessage("Select the starting square of your move.");
+    }
+  };
 
+  const handleSquareClick = (square) => {
+    if (isUserTurnToMove) {
+      if (selectedSquares.length === 0) {
+        setSelectedSquares([square]);
+        setFeedbackMessage("Select the destination square of your move.");
+      } else if (selectedSquares.length === 1) {
+        const sourceSquare = selectedSquares[0];
+        const targetSquare = square;
+        setSelectedSquares([]);
+        handleUserMove(sourceSquare, targetSquare);
+      }
+    }
+  };
+
+  const handleUserMove = (sourceSquare, targetSquare) => {
+    const expectedMove = currentPuzzleMoves[currentMoveIndex];
+    const userGuess = `${sourceSquare}${targetSquare}`;
+
+    const tempGameForUserMove = new Chess(internalGameForAutoMoves.fen());
+    const isValidUserMove = tempGameForUserMove.move({ from: sourceSquare, to: targetSquare }) !== null;
+    const isCorrectMove = userGuess === expectedMove;
+
+    setFeedbackArrow({ from: sourceSquare, to: targetSquare, color: isValidUserMove ? (isCorrectMove ? 'rgba(0, 255, 0, 0.4)' : 'rgba(255, 165, 0, 0.4)') : 'rgba(255, 0, 0, 0.4)' });
+
+    if (isValidUserMove) {
+      if (isCorrectMove) {
+        setFeedbackMessage('Correct! Well done!');
+        const fullPlaybackMoves = [...puzzles[currentPuzzleIndex].moves.slice(0, currentMoveIndex), userGuess];
+        playMoveSequence(fullPlaybackMoves, true, userGuess);
+      } else {
+        setFeedbackMessage('Incorrect move. Try again.');
+        setIsUserTurnToMove(true); // Allow another attempt
+      }
+    } else {
+      setFeedbackMessage('Illegal move.');
+      setIsUserTurnToMove(true); // Allow another attempt
+      setSelectedSquares([]); // Clear selection
+    }
+  };
+
+  const playMoveSequence = (movesToPlay, finalMoveIsUserGuess = false, userGuess = null) => {
+    setIsUserTurnToMove(false);
+    setArrows([]);
+    const puzzle = puzzles[currentPuzzleIndex];
+    let playbackGame = new Chess(puzzle.fen);
+    setBoardPosition(puzzle.fen);
+    let delay = 0;
+    const movePlaybackDelay = 1000;
+    const arrowClearDelay = 700;
+
+    if (finalMoveIsUserGuess) {
+      delay += 1000;
+    }
+
+    movesToPlay.forEach((move, i) => {
       setTimeout(() => {
-        console.log(`playMoveSequence: Attempting move ${move} for puzzle ${currentPuzzleIndex} at step ${i}`);
-        const moveResult = playbackGame.move({ from, to });
+        const moveResult = playbackGame.move({ from: move.slice(0, 2), to: move.slice(2, 4) });
         if (moveResult) {
-          console.log(`playMoveSequence: Move ${move} successful. New FEN: ${playbackGame.fen()}`);
-          setGame(new Chess(playbackGame.fen())); // Update game state
-          setBoardPosition(playbackGame.fen()); // Update board position
-          setArrows([{ from, to }]); // Show arrow for this move
-
-          if (i < movesToPlay.length - 1) { // Clear arrow unless it's the very last move in the sequence
+          setGame(new Chess(playbackGame.fen()));
+          setBoardPosition(playbackGame.fen());
+          setArrows([{ from: move.slice(0, 2), to: move.slice(2, 4) }]);
+          if (i < movesToPlay.length - 1) {
             setTimeout(() => setArrows([]), arrowClearDelay);
           }
         } else {
-          console.error(`playMoveSequence: Error during playback: Invalid move ${move} in puzzle ${currentPuzzleIndex} at step ${i}. Current FEN: ${playbackGame.fen()}`);
-          setFeedbackMessage('Error during playback. Check console.');
-          setIsVisible(false); // Consider more graceful error handling here
+          console.error(`Error during playback: Invalid move ${move}`);
+          setIsVisible(false);
         }
 
-        // After the very last move in the sequence
         if (i === movesToPlay.length - 1) {
           setTimeout(() => {
-            setFeedbackArrow(null); // Explicitly clear the feedback arrow after the entire sequence
+            setFeedbackArrow(null);
             if (finalMoveIsUserGuess) {
-              const isCorrect = (userGuess === currentPuzzleMoves[currentMoveIndex]);
+              const isCorrect = (userGuess === currentPuzzleMoves[currentMoveIndex]) && moveResult !== null;
               setFeedbackMessage(isCorrect ? 'Correct! Well done!' : 'Incorrect move. Try again.');
               if (!isCorrect) {
-                // If incorrect, revert board to initial FEN and allow retry
-                setBoardPosition(puzzles[currentPuzzleIndex].fen); // Ensure board is reset
-                setIsUserTurnToMove(true); // Allow user to try again
+                setBoardPosition(puzzles[currentPuzzleIndex].fen);
+                setIsUserTurnToMove(true);
               } else {
-                // If correct, stay on this final board state
-                setIsUserTurnToMove(false); // Exit user turn mode
+                setIsUserTurnToMove(false);
               }
-            } else { // This is for "Reveal Solution"
+            } else {
               setFeedbackMessage('Solution revealed.');
-              setIsUserTurnToMove(false); // Exit user turn mode
+              setIsUserTurnToMove(false);
             }
-          }, 1500); // Clear feedback message and arrow after 1.5s
+          }, 1500);
         }
       }, delay);
       delay += movePlaybackDelay;
-    }
+    });
   };
 
-  // New function to reveal the solution by playing out moves on the board
-  function handleRevealSolution() {
-    console.log("handleRevealSolution: Revealing solution for puzzle:", currentPuzzleIndex);
-    const puzzle = puzzles[currentPuzzleIndex];
-    // Play the full puzzle sequence up to the quizzed move (currentMoveIndex which is 2)
-    // This will play moves at index 0, 1, and 2.
-    const movesToReveal = puzzle.moves.slice(0, currentMoveIndex + 1);
-    console.log("handleRevealSolution: Moves to reveal:", movesToReveal);
-    playMoveSequence(movesToReveal, false); // Not a user guess
-  }
+  const handleRevealSolution = () => {
+    setIsUserTurnToMove(false);
+    setArrows([]);
+    const solutionMoves = currentPuzzleMoves.slice(0, currentMoveIndex + 1);
+    playMoveSequence(solutionMoves, false);
+  };
 
-
-  function handleReplayPuzzle() {
-    console.log("handleReplayPuzzle: Replaying puzzle:", currentPuzzleIndex);
+  const handleReplayPuzzle = () => {
     resetCurrentPuzzle(currentPuzzleIndex);
-  }
+  };
 
-  function handleNextPuzzle() {
-    console.log("handleNextPuzzle: Called. Current puzzle index BEFORE update:", currentPuzzleIndex); // Added log
-    setCurrentPuzzleIndex(prevIndex => {
-        const nextIndex = (prevIndex + 1) % puzzles.length; // Loop back to 0 if at end
-        console.log("handleNextPuzzle: Inside setState callback. prevIndex:", prevIndex, "nextIndex:", nextIndex); // Existing log, now more descriptive
-        resetCurrentPuzzle(nextIndex); // Call reset with the newly calculated index
-        return nextIndex;
-    });
-  }
+  const handleNextPuzzle = () => {
+    setCurrentPuzzleIndex((prevIndex) => (prevIndex + 1) % puzzles.length);
+  };
 
-  // Handles dropping a piece onto a square (only when it's the user's turn)
-  function handleDrop(sourceSquare, targetSquare) {
-    if (isUserTurnToMove) { // Logic for the user's puzzle test move
-      const expectedMove = currentPuzzleMoves[currentMoveIndex]; // This should be the 3rd move (index 2)
-      const userGuess = `${sourceSquare}${targetSquare}`;
-      console.log("handleDrop: User guess:", userGuess, "Expected move:", expectedMove);
-
-      // Immediately set the feedback arrow based on the guess
-      const isCorrectGuess = (userGuess === expectedMove);
-      setFeedbackArrow({ from: sourceSquare, to: targetSquare, color: isCorrectGuess ? 'rgba(0, 255, 0, 0.4)' : 'rgba(255, 0, 0, 0.4)' });
-
-      const puzzle = puzzles[currentPuzzleIndex];
-      // Create the sequence to play: first two auto moves + user's guess
-      const movesToPlay = [...puzzle.moves.slice(0, currentMoveIndex), userGuess];
-
-      // Play the sequence with the user's guess as the final move
-      playMoveSequence(movesToPlay, true, userGuess); // true for finalMoveIsUserGuess, pass userGuess
-      return true; // Indicate that the drop was handled
-    }
-    return false; // Not user's turn to make a puzzle move
-  }
-
-  if (!isVisible) {
-    return (
-      <div style={{ padding: 20, color: 'red', textAlign: 'center' }}>
-        <p>An error occurred. Please click 'Replay Puzzle' or 'Next Puzzle'.</p>
-        <button onClick={handleReplayPuzzle} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #ccc', backgroundColor: '#f0f0f0', marginTop: '10px', marginRight: '10px' }}>Replay Puzzle</button>
-        <button onClick={handleNextPuzzle} style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #ccc', backgroundColor: '#f0f0f0', marginTop: '10px' }}>Next Puzzle</button>
-      </div>
-    );
-  }
+  const getButtonText = () => {
+    if (currentMoveIndex === 0) return "Show Move 1";
+    if (currentMoveIndex === 1) return "Show Move 2";
+    if (currentMoveIndex === 2) return "Guess Move 3";
+    return "Next"; // Fallback
+  };
 
   const boardWidth = 400;
+  const buttonStyle = { padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#4CAF50', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' };
+  const buttonStyleRed = { ...buttonStyle, backgroundColor: '#f44336' };
+  const buttonStyleYellow = { ...buttonStyle, backgroundColor: '#ffc107', color: 'black' };
+  const buttonStyleGray = { ...buttonStyle, backgroundColor: '#6c757d' };
 
   return (
     <div className="App" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px' }}>
@@ -279,179 +243,75 @@ function App() {
 
       <div style={{ position: 'relative', width: boardWidth, height: boardWidth }}>
         <Chessboard
+          ref={boardRef}
           position={boardPosition}
-          onPieceDrop={(source, target) => handleDrop(source, target)}
-          // Draggable only if it's the user's turn to make the puzzle move
-          arePiecesDraggable={isUserTurnToMove}
+          onSquareClick={handleSquareClick}
+          customSquareStyles={highlightedSquares}
           customBoardStyle={{
             border: '2px solid #333',
             marginBottom: '20px',
             borderRadius: '8px',
-            // Make board translucent during user's turn
-            opacity: isUserTurnToMove ? 0.6 : 1,
-            transition: 'opacity 0.3s ease-in-out'
+            cursor: isUserTurnToMove ? 'pointer' : 'default',
           }}
           boardWidth={boardWidth}
         />
         <div style={{ position: 'absolute', top: 0, left: 0, width: boardWidth, height: boardWidth, pointerEvents: 'none' }}>
           <svg width={boardWidth} height={boardWidth} viewBox={`0 0 ${boardWidth} ${boardWidth}`}>
             <defs>
-              {/* Blue arrow for automatic moves */}
               <marker id="arrowhead-blue" markerWidth={MARKER_WIDTH} markerHeight={MARKER_HEIGHT} refX={MARKER_REF_X} refY={MARKER_REF_Y} orient="auto">
                 <polygon points={MARKER_POLYGON_POINTS} fill="rgba(0, 128, 255, 0.4)" />
               </marker>
-              {/* Green arrow for correct user moves */}
               <marker id="arrowhead-green" markerWidth={MARKER_WIDTH} markerHeight={MARKER_HEIGHT} refX={MARKER_REF_X} refY={MARKER_REF_Y} orient="auto">
                 <polygon points={MARKER_POLYGON_POINTS} fill="rgba(0, 255, 0, 0.4)" />
               </marker>
-              {/* Red arrow for incorrect user moves */}
               <marker id="arrowhead-red" markerWidth={MARKER_WIDTH} markerHeight={MARKER_HEIGHT} refX={MARKER_REF_X} refY={MARKER_REF_Y} orient="auto">
                 <polygon points={MARKER_POLYGON_POINTS} fill="rgba(255, 0, 0, 0.4)" />
               </marker>
+              <marker id="arrowhead-orange" markerWidth={MARKER_WIDTH} markerHeight={MARKER_HEIGHT} refX={MARKER_REF_X} refY={MARKER_REF_Y} orient="auto">
+                <polygon points={MARKER_POLYGON_POINTS} fill="rgba(255, 165, 0, 0.4)" />
+              </marker>
             </defs>
-            {/* Render automatic puzzle arrows */}
             {arrows.map((arrow, index) => {
               const start = getSquareCoordinates(arrow.from, boardWidth);
               const end = getSquareCoordinates(arrow.to, boardWidth);
 
+              // Calculate adjusted end point for the arrow
               const dx = end.x - start.x;
               const dy = end.y - start.y;
-              const distance = Math.sqrt(dx * dx + dy * dy);
-
-              let adjustedX2 = end.x;
-              let adjustedY2 = end.y;
-
-              if (distance > ARROWHEAD_EFFECTIVE_LENGTH) {
-                const unitDx = dx / distance;
-                const unitDy = dy / distance;
-                adjustedX2 = end.x - unitDx * ARROWHEAD_EFFECTIVE_LENGTH;
-                adjustedY2 = end.y - unitDy * ARROWHEAD_EFFECTIVE_LENGTH;
-              }
+              const angle = Math.atan2(dy, dx);
+              const adjustedEndX = end.x - ARROWHEAD_LENGTH * Math.cos(angle);
+              const adjustedEndY = end.y - ARROWHEAD_LENGTH * Math.sin(angle);
 
               return (
                 <line
                   key={index}
                   x1={start.x}
                   y1={start.y}
-                  x2={adjustedX2}
-                  y2={adjustedY2}
+                  x2={adjustedEndX}
+                  y2={adjustedEndY}
                   stroke="rgba(0, 128, 255, 0.4)"
                   strokeWidth={ARROW_STROKE_WIDTH}
                   markerEnd="url(#arrowhead-blue)"
                 />
               );
             })}
-            {/* Render feedback arrow for user's move */}
             {feedbackArrow && (
               (() => {
                 const start = getSquareCoordinates(feedbackArrow.from, boardWidth);
                 const end = getSquareCoordinates(feedbackArrow.to, boardWidth);
-
                 const dx = end.x - start.x;
                 const dy = end.y - start.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-
-                let adjustedX2 = end.x;
-                let adjustedY2 = end.y;
-
-                if (distance > ARROWHEAD_EFFECTIVE_LENGTH) {
-                  const unitDx = dx / distance;
-                  const unitDy = dy / distance;
-                  adjustedX2 = end.x - unitDx * ARROWHEAD_EFFECTIVE_LENGTH;
-                  adjustedY2 = end.y - unitDy * ARROWHEAD_EFFECTIVE_LENGTH;
-                }
-
+                const angle = Math.atan2(dy, dx);
+                const adjustedEndX = end.x - ARROWHEAD_LENGTH * Math.cos(angle);
+                const adjustedEndY = end.y - ARROWHEAD_LENGTH * Math.sin(angle);
+                const color = feedbackArrow.color.includes('0, 255, 0') ? 'green' : (feedbackArrow.color.includes('255, 0, 0') ? 'red' : 'orange');
                 return (
                   <line
                     key="feedback-arrow"
                     x1={start.x}
                     y1={start.y}
-                    x2={adjustedX2}
-                    y2={adjustedY2}
+                    x2={adjustedEndX}
+                    y2={adjustedEndY}
                     stroke={feedbackArrow.color}
                     strokeWidth={ARROW_STROKE_WIDTH}
-                    markerEnd={`url(#arrowhead-${feedbackArrow.color.includes('0, 255, 0') ? 'green' : 'red'})`}
-                  />
-                );
-              })()
-            )}
-          </svg>
-        </div>
-      </div>
-      {feedbackMessage && (
-        <p style={{
-          marginTop: '10px',
-          fontSize: '18px',
-          fontWeight: 'bold',
-          color: feedbackMessage.includes('Correct') || feedbackMessage.includes('revealed') ? 'green' : 'red'
-        }}>
-          {feedbackMessage}
-        </p>
-      )}
-      <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-        {/* "Next" button for automatic moves */}
-        {currentMoveIndex < 2 && !isUserTurnToMove ? (
-          <button
-            onClick={handleNextMove}
-            style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#4CAF50', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
-          >
-            Next
-          </button>
-        ) : null}
-
-        {/* "Test" button appears after 2 automatic moves, before user's turn starts */}
-        {currentMoveIndex === 2 && !isUserTurnToMove ? (
-          <button
-            onClick={handleEnterUserTestMode}
-            style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#008CBA', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
-          >
-            Test
-          </button>
-        ) : null}
-
-        {/* "Reveal Solution" button appears when it's the user's turn to move */}
-        {isUserTurnToMove && (
-          <button
-            onClick={handleRevealSolution}
-            style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#ffc107', color: 'black', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
-          >
-            Reveal Solution
-          </button>
-        )}
-
-        {/* Buttons shown after user attempts their move (correct or incorrect) OR after showing answer */}
-        {/* The Replay Puzzle button should be available once we are past the initial auto moves (currentMoveIndex >= 2) */}
-        {currentMoveIndex >= 2 && (
-          <>
-            <button
-              onClick={handleReplayPuzzle}
-              style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#f44336', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
-            >
-              Replay Puzzle
-            </button>
-            {/* Next Puzzle / Start Over buttons only appear if it's NOT the user's turn to guess */}
-            {!isUserTurnToMove && (
-              currentPuzzleIndex < puzzles.length - 1 ? (
-                <button
-                  onClick={handleNextPuzzle}
-                  style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#6c757d', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
-                >
-                  Next Puzzle
-                </button>
-              ) : (
-                <button
-                  onClick={() => resetCurrentPuzzle(0)} // Resets to the first puzzle
-                  style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', borderRadius: '8px', border: '1px solid #333', backgroundColor: '#6c757d', color: 'white', boxShadow: '2px 2px 5px rgba(0,0,0,0.2)', transition: 'background-color 0.3s ease' }}
-                >
-                  Start Over
-                </button>
-              )
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export default App;
+                    markerEnd={`url(#arrowhead

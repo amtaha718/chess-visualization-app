@@ -45,7 +45,7 @@ const puzzles = [
     moves: ['e2e4', 'e7e5', 'd2d4', 'e5d4']
   },
   {
-    fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2',
+    fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKBNR b KQkq - 1 2',
     moves: ['b8c6', 'f1b5', 'a7a6', 'b5a4']
   },
   {
@@ -296,4 +296,6 @@ function App() {
           <svg width={boardWidth} height={boardWidth} viewBox={`0 0 ${boardWidth} ${boardWidth}`}>
             <defs>
               <marker id="arrowhead-blue" markerWidth={MARKER_WIDTH} markerHeight={MARKER_HEIGHT} refX={MARKER_REF_X} refY={MARKER_REF_Y} orient="auto">
-                <polygon points={MARKER_POLYGON_POINTS} fill="rgba(0, 128, 255, 0.4
+                <polygon points={MARKER_POLYGON_POINTS} fill="rgba(0, 128, 255, 0.4)" />
+              </marker>
+              <marker id="arrowhead-green" markerWidth={MARKER_WIDTH}

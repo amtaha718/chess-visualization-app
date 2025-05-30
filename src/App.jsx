@@ -131,7 +131,7 @@ function App() {
   };
 
   return (
-    <div className="App" style={{ padding: 20, textAlign: 'center' }}>
+    <div className="App" style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <h2>Chess Visualization Trainer</h2>
       <p>Puzzle {currentPuzzleIndex + 1} of {puzzles.length}</p>
       <Chessboard

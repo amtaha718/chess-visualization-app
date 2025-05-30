@@ -1,4 +1,4 @@
-// Updated Chess Visualization Trainer with SVG arrows and fixed user interaction
+// Chess Visualization Trainer with SVG arrows, proper centering, and quiz interaction fixes
 import React, { useState, useRef, useEffect } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
@@ -31,7 +31,7 @@ function App() {
   const [boardPosition, setBoardPosition] = useState(puzzles[0].fen);
   const [isUserTurnToMove, setIsUserTurnToMove] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
-  const [feedbackArrow, setFeedbackArrow] = useState(null);
+  const [highlightedSquares, setHighlightedSquares] = useState({});
   const [selectedSquares, setSelectedSquares] = useState([]);
   const internalGameRef = useRef(new Chess(puzzles[0].fen));
 
@@ -49,8 +49,8 @@ function App() {
     setCurrentMoveIndex(0);
     setIsUserTurnToMove(false);
     setFeedbackMessage('');
-    setFeedbackArrow(null);
     setSelectedSquares([]);
+    setHighlightedSquares({});
     setArrows([]);
   };
 
@@ -63,8 +63,9 @@ function App() {
       setCurrentMoveIndex((i) => i + 1);
     } else {
       setIsUserTurnToMove(true);
-      setBoardPosition(puzzles[currentPuzzleIndex].fen); // Reset to starting FEN
+      setBoardPosition(puzzles[currentPuzzleIndex].fen);
       setFeedbackMessage('Select the starting square of your move.');
+      setArrows([]); // Remove arrows before user input
     }
   };
 
@@ -72,12 +73,21 @@ function App() {
     if (!isUserTurnToMove) return;
     if (selectedSquares.length === 0) {
       setSelectedSquares([square]);
+      setHighlightedSquares({ [square]: { backgroundColor: 'rgba(173, 216, 230, 0.6)' } });
       setFeedbackMessage('Select the destination square of your move.');
     } else if (selectedSquares.length === 1) {
       const [from] = selectedSquares;
       const to = square;
       setSelectedSquares([]);
-      evaluateUserMove(from, to);
+      setHighlightedSquares({
+        [from]: { backgroundColor: 'rgba(173, 216, 230, 0.6)' },
+        [to]: { backgroundColor: 'rgba(173, 216, 230, 0.6)' },
+      });
+
+      setTimeout(() => {
+        setHighlightedSquares({});
+        evaluateUserMove(from, to);
+      }, 1000);
     }
   };
 
@@ -89,17 +99,15 @@ function App() {
 
     if (!isValid) {
       setFeedbackMessage('Illegal move.');
-      setFeedbackArrow({ from, to, color: 'red' });
       return;
     }
 
-    setFeedbackArrow({ from, to, color: userGuess === expectedMove ? 'green' : 'orange' });
     setIsUserTurnToMove(false);
 
     setTimeout(() => {
       const sequence = [...currentPuzzleMoves.slice(0, 2), userGuess];
       playMoveSequence(sequence, userGuess === expectedMove);
-    }, 1000);
+    }, 500);
   };
 
   const playMoveSequence = (moves, isCorrect) => {
@@ -123,6 +131,7 @@ function App() {
       if (!isCorrect) {
         setIsUserTurnToMove(true);
         setBoardPosition(puzzles[currentPuzzleIndex].fen);
+        setArrows([]);
       }
     }, moves.length * 1000 + 500);
   };
@@ -130,8 +139,8 @@ function App() {
   const renderArrows = () => (
     <svg width={boardSize} height={boardSize} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
       <defs>
-        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
-          <polygon points="0 0, 10 3.5, 0 7" fill="black" />
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="rgba(30, 144, 255, 0.7)" />
         </marker>
       </defs>
       {arrows.map(({ from, to }, i) => {
@@ -144,8 +153,8 @@ function App() {
             y1={start.y}
             x2={end.x}
             y2={end.y}
-            stroke="black"
-            strokeWidth="3"
+            stroke="rgba(30, 144, 255, 0.7)"
+            strokeWidth="5"
             markerEnd="url(#arrowhead)"
           />
         );
@@ -163,6 +172,7 @@ function App() {
           onSquareClick={handleSquareClick}
           boardWidth={boardSize}
           arePiecesDraggable={false}
+          customSquareStyles={highlightedSquares}
         />
         {renderArrows()}
       </div>

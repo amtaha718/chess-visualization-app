@@ -314,4 +314,4 @@ function App() {
                     y2={adjustedEndY}
                     stroke={feedbackArrow.color}
                     strokeWidth={ARROW_STROKE_WIDTH}
-                    markerEnd={`
+                    marker

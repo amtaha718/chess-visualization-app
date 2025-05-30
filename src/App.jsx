@@ -213,7 +213,8 @@ function App() {
 
   return (
     <div className="App" style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <h2>Chess Visualization Trainer</h2>
+      <img src="/logo.png" alt="Visualize 3 Logo" style={{ height: '60px', marginBottom: '10px' }} />
+      <h3 style={{ margin: 0 }}>Chess Visualization Trainer</h3>
       <p style={{ maxWidth: '600px', textAlign: 'center', marginBottom: '20px' }}>
         Strengthen your chess memory and tactical foresight. Watch the first two moves play out, then use your recall skills to find the best third move without any visual aids.
       </p>

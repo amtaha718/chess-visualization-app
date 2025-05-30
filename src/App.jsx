@@ -8,14 +8,12 @@ const puzzles = [
   {
     fen: 'r1bqkbnr/ppp2ppp/2n5/1B1pp3/3PP3/5N2/PPP2PPP/RNBQK2R w KQkq - 0 4',
     moves: ['e4d5', 'd8d5', 'b1c3', 'd5a5'],
-    explanation: 'This sequence helps White develop quickly and gain tempo by targeting the black queen with Nc3, forcing her to a passive square.',
-    explanation: 'This move sequence wins time by developing with tempo, forcing the queen to an awkward square and preparing kingside castling.'
+    explanation: 'This sequence helps White develop quickly and gain tempo by targeting the black queen with Nc3, forcing her to a passive square.'
   },
   {
     fen: 'r1bqkbnr/pp3ppp/2n1p3/2pp4/3PP3/2N2N2/PPP2PPP/R1BQKB1R w KQkq - 0 5',
     moves: ['e4d5', 'e6d5', 'f1b5', 'g8f6'],
     explanation: 'White exchanges center pawns and develops the bishop to b5, pinning the knight and building pressure on Black’s position.'
-    moves: ['e4d5', 'e6d5', 'f1b5', 'g8f6']
   },
   {
     fen: 'rnbqkb1r/pp1ppppp/5n2/2p5/2P5/5NP1/PP1PPP1P/RNBQKB1R w KQkq - 0 3',
@@ -56,7 +54,7 @@ const puzzles = [
     fen: 'r1bqkb1r/pp2pppp/2n2n2/2pp4/3P4/2N1PN2/PP3PPP/R1BQKB1R w KQkq - 0 5',
     moves: ['f1d3', 'c8g4', 'd1b3', 'c5c4'],
     explanation: 'White develops with threats while preparing queenside pressure. Black responds by gaining space with ...c4 to blunt the b3 queen’s scope.'
-  },
+  }
 ];
 
 const getSquareCoordinates = (square, boardSize = 400) => {

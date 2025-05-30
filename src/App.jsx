@@ -1,4 +1,4 @@
-// Chess Visualization Trainer with SVG arrows, proper centering, and quiz interaction fixes
+// Chess Visualization Trainer with styled buttons and SVG arrows
 import React, { useState, useRef, useEffect } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
@@ -65,7 +65,7 @@ function App() {
       setIsUserTurnToMove(true);
       setBoardPosition(puzzles[currentPuzzleIndex].fen);
       setFeedbackMessage('Select the starting square of your move.');
-      setArrows([]); // Remove arrows before user input
+      setArrows([]);
     }
   };
 
@@ -139,8 +139,8 @@ function App() {
   const renderArrows = () => (
     <svg width={boardSize} height={boardSize} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
       <defs>
-        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-          <polygon points="0 0, 10 3.5, 0 7" fill="rgba(30, 144, 255, 0.7)" />
+        <marker id="arrowhead" markerWidth="5" markerHeight="3.5" refX="5" refY="1.75" orient="auto">
+          <polygon points="0 0, 5 1.75, 0 3.5" fill="rgba(30, 144, 255, 0.7)" />
         </marker>
       </defs>
       {arrows.map(({ from, to }, i) => {
@@ -162,6 +162,19 @@ function App() {
     </svg>
   );
 
+  const buttonStyle = {
+    margin: '5px',
+    padding: '10px 20px',
+    fontSize: '16px',
+    border: 'none',
+    borderRadius: '8px',
+    backgroundColor: '#4CAF50',
+    color: 'white',
+    cursor: 'pointer',
+    boxShadow: '2px 2px 6px rgba(0,0,0,0.2)',
+    transition: 'background-color 0.3s ease',
+  };
+
   return (
     <div className="App" style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <h2>Chess Visualization Trainer</h2>
@@ -178,9 +191,9 @@ function App() {
       </div>
       <p>{feedbackMessage}</p>
       <div style={{ marginTop: 10 }}>
-        <button onClick={handleShowMove}> {currentMoveIndex < 2 ? `Show Move ${currentMoveIndex + 1}` : 'Your Move'} </button>
-        <button onClick={() => resetCurrentPuzzle(currentPuzzleIndex)}>Replay</button>
-        <button onClick={() => setCurrentPuzzleIndex((i) => (i + 1) % puzzles.length)}>Next Puzzle</button>
+        <button style={buttonStyle} onClick={handleShowMove}> {currentMoveIndex < 2 ? `Show Move ${currentMoveIndex + 1}` : 'Your Move'} </button>
+        <button style={buttonStyle} onClick={() => resetCurrentPuzzle(currentPuzzleIndex)}>Replay</button>
+        <button style={buttonStyle} onClick={() => setCurrentPuzzleIndex((i) => (i + 1) % puzzles.length)}>Next Puzzle</button>
       </div>
     </div>
   );

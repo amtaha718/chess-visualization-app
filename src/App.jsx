@@ -110,7 +110,7 @@ function App() {
     } else {
       setIsUserTurnToMove(true);
       setBoardPosition(puzzles[currentPuzzleIndex].fen);
-      setFeedbackMessage('Picture moves 1 and 2 in your mind—then choose the squares for the strongest move 3.');
+      setFeedbackMessage('Recall moves 1 and 2 in your mind—then choose the squares for the strongest move 3.');
       setArrows([]);
     }
   };

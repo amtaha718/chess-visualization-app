@@ -296,7 +296,7 @@ function App() {
               );
             })}
             {feedbackArrow && (
-              () => {
+              (() => {
                 const start = getSquareCoordinates(feedbackArrow.from, boardWidth);
                 const end = getSquareCoordinates(feedbackArrow.to, boardWidth);
                 const dx = end.x - start.x;
@@ -314,9 +314,4 @@ function App() {
                     y2={adjustedEndY}
                     stroke={feedbackArrow.color}
                     strokeWidth={ARROW_STROKE_WIDTH}
-                    markerEnd={`url(#arrowhead-${color})`}
-                  />
-                );
-              })()
-            )}
-          </svg>
+                    markerEnd={`

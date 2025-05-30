@@ -201,7 +201,7 @@ const App = () => {
     marginBottom: '10px'
   }}
 />
-      <h1 style={{ fontSize: '28px' }}>Visualize 3</h1>
+      <h2 style={{ fontSize: '20px' }}>Chess Visualization Trainer 3</h2>
       <p style={{ maxWidth: '600px', textAlign: 'center' }}>
         Strengthen your chess memory and tactical foresight. Watch the first two moves play out, then use your recall skills to find the best third move without any visual aids.
       </p>

@@ -11,53 +11,29 @@ import './index.css';
 
 const puzzles = [
   {
-    fen: 'r1bqkbnr/ppp2ppp/2n5/1B1pp3/3PP3/5N2/PPP2PPP/RNBQK2R w KQkq - 0 4',
-    moves: ['e4d5', 'd8d5', 'b1c3', 'd5a5', 'c1d2', 'f8b4']
+    // Puzzle 1: Simple Fork
+    fen: 'r1bqkb1r/pp3ppp/2n2n2/3pp3/3PP3/2P2N2/PP1N1PPP/R1BQKB1R w KQkq - 0 5',
+    moves: ['e4d5', 'f6d5', 'c3c4'] // White takes pawn, Black recaptures, User plays c3-c4 forking knight and pawn
   },
   {
-    // Simplified Puzzle 2 for debugging solution playback
-    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-    moves: ['e2e4', 'e7e5', 'g1f3']
+    // Puzzle 2: Back Rank Mate Defense
+    fen: 'r4rk1/pp3ppp/3q1n2/2ppn3/8/P1PP1N2/1P1NQPPP/R3K2R w KQ - 0 15',
+    moves: ['f3e5', 'e8e5', 'd2f3'] // White takes knight, Black recaptures rook, User plays d2-f3 blocking back rank mate threat
   },
   {
-    fen: 'r1bq1rk1/ppp1bppp/2n2n2/3pp3/3P4/2P1PN2/PP1N1PPP/R1BQ1RK1 w - - 0 1',
-    moves: ['d4e5', 'c6e5', 'f3e5', 'c8e6']
+    // Puzzle 3: Discovered Attack
+    fen: 'rnbqk1nr/ppp2ppp/3p4/8/2B1P3/5N2/PP3PPP/RNBQK2R b KQkq - 0 5',
+    moves: ['g8f6', 'e1g1', 'f6e4'] // Black plays Nf6, White castles, User plays Nxe4 winning a pawn with discovered attack on the Bishop
   },
   {
-    fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2',
-    moves: ['g1f3', 'b8c6', 'f1b5', 'a7a6']
+    // Puzzle 4: Pawn Break
+    fen: 'rnbqkb1r/pp3ppp/4pn2/2pp4/3P4/2P2N2/PP1NPPPP/R1BQKB1R w KQkq - 0 5',
+    moves: ['e2e3', 'b8c6', 'd4c5'] // White plays e3, Black plays Nc6, User plays dxc5 opening the position
   },
   {
-    fen: 'rnbqkbnr/pppp1ppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 1',
-    moves: ['c2c4', 'e7e6', 'g1f3', 'g8f6']
-  },
-  {
-    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-    moves: ['e2e4', 'e7e5', 'd2d4', 'e5d4']
-  },
-  {
-    fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2',
-    moves: ['b8c6', 'f1b5', 'a7a6', 'b5a4']
-  },
-  {
-    fen: 'rnbqkbnr/pppp1ppp/8/8/3pP3/8/PPP2PPP/RNBQKBNR w KQkq - 0 3',
-    moves: ['d1xd4', 'b8c6', 'd4e3', 'g8f6']
-  },
-  {
-    fen: 'rnbqkbnr/pppp1ppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
-    moves: ['c7c5', 'g1f3', 'd7d6', 'd2d4']
-  },
-  {
-    fen: 'rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 2',
-    moves: ['d2d4', 'c5d4', 'f3d4', 'g8f6']
-  },
-  {
-    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-    moves: ['d2d4', 'd7d5', 'c2c4', 'c7c6']
-  },
-  {
-    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-    moves: ['g1f3', 'g8f6', 'c2c4', 'e7e6']
+    // Puzzle 5: King Safety / Development
+    fen: 'rnbqkb1r/ppp2ppp/5n2/3pp3/3P4/P1P2N2/1P1NPPPP/R1BQKB1R w KQkq - 0 5',
+    moves: ['e2e4', 'e7e5', 'f1d3'] // White plays e4, Black plays e5, User plays Bd3 developing and eyeing king side
   }
 ];
 
@@ -88,7 +64,7 @@ const MARKER_POLYGON_POINTS = `0 0, ${MARKER_WIDTH} ${MARKER_REF_Y}, 0 ${MARKER_
 const ARROW_STROKE_WIDTH = 5; // Slightly reduced line thickness
 
 
-function App() { // Corrected function declaration here
+function App() {
   const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
   const [game, setGame] = useState(new Chess(puzzles[currentPuzzleIndex].fen));
   const [currentPuzzleMoves, setCurrentPuzzleMoves] = useState(puzzles[currentPuzzleIndex].moves);

@@ -148,11 +148,20 @@ const App = () => {
         flexDirection: 'column',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '12px',
+        padding: '4px 12px 12px 12px',
         boxSizing: 'border-box',
       }}
     >
-      <img src="/logo.png" alt="Visualize 3 Logo" style={{ height: '100px', marginBottom: '4px' }} />
+      <img
+  src="/logo.png"
+  alt="Visualize 3 Logo"
+  style={{
+    height: boardSize > 360 ? '200px' : '120px',
+    marginBottom: '0px',
+    marginTop: '0px',
+    paddingTop: '0px',
+  }}
+/>
       <h3 style={{ margin: '0 0 8px 0' }}>Chess Visualization Trainer</h3>
       <p style={{ textAlign: 'center', margin: 0 }}>
         Strengthen memory and tactics by recalling visualized moves before choosing your own.

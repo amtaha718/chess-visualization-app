@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 // ─────────────────────────────────────────────────────────────────────────────
 // Force-load the CommonJS build of chess.js (no raw `n`-literal BigInts):
-import { Chess } from 'chess.js';
+import { Chess } from 'chess.js/dist/cjs/chess.js';  // <-- forces the CommonJS build
 import { Chessboard } from 'react-chessboard';
 import { getIncorrectMoveExplanation } from './ai';
 import './index.css';

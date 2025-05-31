@@ -355,33 +355,56 @@ function App() {
         {renderArrows()}
       </div>
 
-      <p style={{ minHeight: '24px', margin: '10px 0' }}>{feedbackMessage}</p>
+      <p
+  style={{
+    minHeight: '24px',
+    margin: '10px 0',
+    maxWidth: '600px',
+    textAlign: 'center',
+    whiteSpace: 'normal',
+    wordWrap: 'break-word',
+    lineHeight: 1.4,
+  }}
+>
+  {feedbackMessage}
+</p>
 
-      <div
-        style={{
-          marginTop: 10,
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-        }}
-      >
-        <button style={buttonStyle} onClick={handleShowMove}>
-          {currentMoveIndex < 2 ? `Show Move ${currentMoveIndex + 1}` : 'Your Move'}
-        </button>
-        <button style={buttonStyle} onClick={handleRevealSolution}>
-          Reveal Solution
-        </button>
-        <button style={buttonStyle} onClick={() => resetCurrentPuzzle(currentPuzzleIndex)}>
-          Replay
-        </button>
-        <button style={buttonStyle} onClick={handlePrevPuzzle}>
-          Previous Puzzle
-        </button>
-        <button style={buttonStyle} onClick={handleNextPuzzle}>
-          Next Puzzle
-        </button>
-      </div>
-    </div>
+
+      <div style={{ marginTop: 10 }}>
+  <div
+    style={{
+      display: 'flex',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      marginBottom: 10,
+    }}
+  >
+    <button style={buttonStyle} onClick={handleShowMove}>
+      {currentMoveIndex < 2 ? `Show Move ${currentMoveIndex + 1}` : 'Your Move'}
+    </button>
+    <button style={buttonStyle} onClick={() => resetCurrentPuzzle(currentPuzzleIndex)}>
+      Replay
+    </button>
+    <button style={buttonStyle} onClick={handleRevealSolution}>
+      Reveal Solution
+    </button>
+  </div>
+  <div
+    style={{
+      display: 'flex',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+    }}
+  >
+    <button style={buttonStyle} onClick={handlePrevPuzzle}>
+      Previous Puzzle
+    </button>
+    <button style={buttonStyle} onClick={handleNextPuzzle}>
+      Next Puzzle
+    </button>
+  </div>
+</div>
+
   );
 }
 

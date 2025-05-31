@@ -113,12 +113,17 @@ function App() {
     if (currentMoveIndex < 2) {
       setCurrentMoveIndex((i) => i + 1);
     } else {
-      setIsUserTurnToMove(true);
-      setBoardPosition(puzzles[currentPuzzleIndex].fen);
-      setFeedbackMessage(
-        'Recall moves 1 and 2 in your mind—then choose the squares for the strongest move 3.'
-      );
-      setArrows([]);
+      const game = new Chess(puzzles[currentPuzzleIndex].fen);
+game.move(puzzles[currentPuzzleIndex].moves[0]);
+game.move(puzzles[currentPuzzleIndex].moves[1]);
+internalGameRef.current = game;
+setBoardPosition(game.fen());
+setIsUserTurnToMove(true);
+setFeedbackMessage(
+  'Recall moves 1 and 2 in your mind—then choose the squares for the strongest move 3.'
+);
+setArrows([]);
+
     }
   };
 

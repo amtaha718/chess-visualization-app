@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 // ─────────────────────────────────────────────────────────────────────────────
-// Force Load the CommonJS build of chess.js (no raw `n` literals):
-import { Chess } from 'chess.js/dist/chess.js';
+// Force-load the CommonJS build of chess.js (no raw `n`-literal BigInts):
+import { Chess } from 'chess.js/dist/cjs/chess.js';
 import { Chessboard } from 'react-chessboard';
 import { getIncorrectMoveExplanation } from './ai';
 import './index.css';
@@ -340,9 +340,7 @@ function App() {
         moves play out, then use your recall skills to find the best third move
         without any visual aids.
       </p>
-      <p style={{ marginBottom: '8px' }}>
-        Puzzle {currentPuzzleIndex + 1} of {puzzles.length}
-      </p>
+      <p style={{ marginBottom: '8px' }}>Puzzle {currentPuzzleIndex + 1} of {puzzles.length}</p>
 
       <div style={{ position: 'relative', width: boardSize, height: boardSize }}>
         <Chessboard

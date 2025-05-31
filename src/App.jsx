@@ -1,7 +1,10 @@
 // src/App.js
 
 import React, { useState, useEffect, useRef } from 'react';
-import  Chess  from 'chess.js';
+// ─────────────────────────────────────────────────────────────────────────────
+// Change this line to import the CommonJS build of chess.js.
+// That way, Create React App doesn’t try to parse raw BigInt literals in the ESM build.
+import Chess from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { getIncorrectMoveExplanation } from './ai';
 import './index.css';
@@ -67,7 +70,7 @@ const puzzles = [
     fen: 'r1bqkb1r/pp2pppp/2n2n2/2pp4/3P4/2N1PN2/PP3PPP/R1BQKB1R w KQkq - 0 5',
     moves: ['f1d3', 'c8g4', 'd1b3', 'c5c4'],
     explanation:
-      'White develops with threats while preparing queenside pressure. Black responds by gaining space with ...c4 to blunt the b3 queen’s scope.',
+      'White develops with threats while preparing queenside pressure. Black responds by gaining space with …c4 to blunt the b3 queen’s scope.',
   },
 ];
 
@@ -337,7 +340,7 @@ function App() {
         Strengthen your chess memory and tactical foresight. Watch the first two
         moves play out, then use your recall skills to find the best third move
         without any visual aids.
-      </p>
+      </p>  
       <p style={{ marginBottom: '8px' }}>
         Puzzle {currentPuzzleIndex + 1} of {puzzles.length}
       </p>

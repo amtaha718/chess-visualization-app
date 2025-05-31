@@ -370,7 +370,7 @@ function App() {
 </p>
 
 
-      <div style={{ marginTop: 10 }}>
+     <div style={{ marginTop: 10 }}>
   <div
     style={{
       display: 'flex',
@@ -389,6 +389,7 @@ function App() {
       Reveal Solution
     </button>
   </div>
+
   <div
     style={{
       display: 'flex',

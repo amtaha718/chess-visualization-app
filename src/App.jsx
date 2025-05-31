@@ -1,7 +1,7 @@
 // src/App.js
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Chess } from 'chess.js';
+import  Chess  from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { getIncorrectMoveExplanation } from './ai';
 import './index.css';

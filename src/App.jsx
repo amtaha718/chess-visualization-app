@@ -124,7 +124,9 @@ const App = () => {
       setCurrentMoveIndex((i) => i + 1);
     } else {
       setIsUserTurnToMove(true);
-      setFeedbackMessage('Recall moves 1 and 2 in your mind—then choose the squares for the strongest move 3.');
+      setFeedbackMessage(
+        'Recall moves 1 and 2 in your mind—then choose the squares for the strongest move 3.'
+      );
       setArrows([]);
     }
   };
@@ -294,7 +296,18 @@ const App = () => {
         <button style={buttonStyle} onClick={() => resetCurrentPuzzle(currentPuzzleIndex)}>
           Replay
         </button>
-        <button style={buttonStyle} onClick={() => setCurrentPuzzleIndex((i) => (i + 1) % puzzles.length)}>
+        <button
+          style={buttonStyle}
+          onClick={() =>
+            setCurrentPuzzleIndex((i) => (i - 1 + puzzles.length) % puzzles.length)
+          }
+        >
+          Previous Puzzle
+        </button>
+        <button
+          style={buttonStyle}
+          onClick={() => setCurrentPuzzleIndex((i) => (i + 1) % puzzles.length)}
+        >
           Next Puzzle
         </button>
         <button style={buttonStyle} onClick={handleRevealSolution}>

@@ -60,32 +60,34 @@ const puzzles = [
 
 const App = () => {
   const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
-  const [game, setGame] = useState(new Chess(puzzles[0].fen));
-  const [boardPosition, setBoardPosition] = useState(puzzles[0].fen);
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
-  const [userTurn, setUserTurn] = useState(false);
-  const [selectedSquares, setSelectedSquares] = useState([]);
-  const [highlightedSquares, setHighlightedSquares] = useState({});
-  const [feedback, setFeedback] = useState('');
+  const [boardPosition, setBoardPosition] = useState(puzzles[0].fen);
   const [arrows, setArrows] = useState([]);
-
+  const [highlightedSquares, setHighlightedSquares] = useState({});
+  const [selectedSquares, setSelectedSquares] = useState([]);
+  const [isUserTurnToMove, setIsUserTurnToMove] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
   const boardSize = getBoardSize();
 
-  useEffect(() => {
-    resetPuzzle(currentPuzzleIndex);
-  }, [currentPuzzleIndex]);
-
-  const resetPuzzle = (index) => {
-    const puzzle = puzzles[index];
-    const newGame = new Chess(puzzle.fen);
-    setGame(newGame);
-    setBoardPosition(puzzle.fen);
+  const resetPuzzle = () => {
+    const puzzle = puzzles[currentPuzzleIndex];
     setCurrentMoveIndex(0);
-    setUserTurn(false);
-    setSelectedSquares([]);
-    setHighlightedSquares({});
-    setFeedback('');
+    setBoardPosition(puzzle.fen);
     setArrows([]);
+    setHighlightedSquares({});
+    setSelectedSquares([]);
+    setIsUserTurnToMove(false);
+    setFeedbackMessage('');
+  };
+
+  const getSquareCoordinates = (square) => {
+    const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
+    const rank = 8 - parseInt(square[1]);
+    const squareSize = boardSize / 8;
+    return {
+      x: file * squareSize + squareSize / 2,
+      y: rank * squareSize + squareSize / 2,
+    };
   };
 
   const handleShowMove = () => {
@@ -93,129 +95,117 @@ const App = () => {
     const from = move.slice(0, 2);
     const to = move.slice(2, 4);
     setArrows([{ from, to }]);
+
     if (currentMoveIndex < 2) {
-      const newGame = new Chess(game.fen());
-      newGame.move({ from, to });
-      setGame(newGame);
-      setBoardPosition(newGame.fen());
-      setCurrentMoveIndex((prev) => prev + 1);
+      setCurrentMoveIndex((i) => i + 1);
     } else {
-      setUserTurn(true);
+      setIsUserTurnToMove(true);
+      setFeedbackMessage('Recall moves 1 and 2 in your mind—then choose the squares for the strongest move 3.');
       setArrows([]);
-      setFeedback('Recall moves 1 and 2 in your mind—then choose the squares for the strongest move 3.');
     }
   };
 
   const handleSquareClick = (square) => {
-    if (!userTurn) return;
+    if (!isUserTurnToMove) return;
 
     if (selectedSquares.length === 0) {
       setSelectedSquares([square]);
-      setHighlightedSquares({ [square]: { backgroundColor: 'rgba(173, 216, 230, 0.6)' } });
-      return;
-    }
-
-    if (selectedSquares.length === 1) {
-      const from = selectedSquares[0];
+      setHighlightedSquares({ [square]: { backgroundColor: 'lightblue' } });
+      setFeedbackMessage('Select the destination square of your move.');
+    } else {
+      const [from] = selectedSquares;
       const to = square;
       const userMove = from + to;
-      const expected = puzzles[currentPuzzleIndex].moves[2];
+      const correctMove = puzzles[currentPuzzleIndex].moves[2];
 
       setHighlightedSquares({
-        [from]: { backgroundColor: 'rgba(173, 216, 230, 0.6)' },
-        [to]: { backgroundColor: 'rgba(173, 216, 230, 0.6)' }
+        [from]: { backgroundColor: 'lightblue' },
+        [to]: { backgroundColor: 'lightblue' },
       });
 
       setTimeout(() => {
-        const isCorrect = userMove === expected;
-        playSequence([...puzzles[currentPuzzleIndex].moves.slice(0, 2), userMove], isCorrect);
-      }, 800);
+        if (userMove === correctMove) {
+          setFeedbackMessage('Correct! ' + puzzles[currentPuzzleIndex].explanation);
+        } else {
+          setFeedbackMessage('Incorrect. Try again.');
+        }
+        setIsUserTurnToMove(false);
+      }, 500);
+
+      setSelectedSquares([]);
     }
   };
 
-  const playSequence = (moves, isCorrect) => {
-    const newGame = new Chess(puzzles[currentPuzzleIndex].fen);
-    setArrows([]);
-    let i = 0;
-
-    const interval = setInterval(() => {
-      const move = moves[i];
-      if (!move) {
-        clearInterval(interval);
-        setFeedback(isCorrect
-          ? `Correct! ${puzzles[currentPuzzleIndex].explanation}`
-          : 'Incorrect move. Try again.');
-        if (!isCorrect) setUserTurn(true);
-        return;
-      }
+  const handleRevealSolution = () => {
+    const moves = puzzles[currentPuzzleIndex].moves;
+    const lines = moves.map((move) => {
       const from = move.slice(0, 2);
       const to = move.slice(2, 4);
-      newGame.move({ from, to });
-      setBoardPosition(newGame.fen());
-      setArrows([{ from, to }]);
-      i++;
-    }, 1000);
+      return { from, to };
+    });
+    setArrows(lines);
+    setFeedbackMessage('Solution revealed: ' + puzzles[currentPuzzleIndex].explanation);
+    setIsUserTurnToMove(false);
   };
 
-  const handleRevealSolution = () => {
-    playSequence(puzzles[currentPuzzleIndex].moves, true);
-  };
+  const renderArrows = () => (
+    <svg width={boardSize} height={boardSize} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
+      <defs>
+        <marker id="arrowhead" markerWidth="5" markerHeight="3.5" refX="5" refY="1.75" orient="auto">
+          <polygon points="0 0, 5 1.75, 0 3.5" fill="rgba(30, 144, 255, 0.7)" />
+        </marker>
+      </defs>
+      {arrows.map(({ from, to }, i) => {
+        const start = getSquareCoordinates(from);
+        const end = getSquareCoordinates(to);
+        return (
+          <line
+            key={i}
+            x1={start.x}
+            y1={start.y}
+            x2={end.x}
+            y2={end.y}
+            stroke="rgba(30, 144, 255, 0.7)"
+            strokeWidth="4"
+            markerEnd="url(#arrowhead)"
+          />
+        );
+      })}
+    </svg>
+  );
 
   const buttonStyle = {
-    margin: '5px',
+    margin: '6px',
     padding: '8px 16px',
     fontSize: '14px',
-    border: 'none',
-    borderRadius: '8px',
+    borderRadius: '6px',
     backgroundColor: '#4CAF50',
-    color: 'white',
-    cursor: 'pointer',
-    boxShadow: '2px 2px 6px rgba(0,0,0,0.2)',
+    color: '#fff',
+    border: 'none',
+    cursor: 'pointer'
   };
 
   return (
-    <div style={{ padding: 10, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <img src="/logo.png" alt="Visualize 3" style={{ height: boardSize > 360 ? '100px' : '60px', margin: '4px 0' }} />
-      <h1 style={{ margin: '4px 0' }}>Chess Visualization Trainer</h1>
-      <p style={{ maxWidth: 500, textAlign: 'center' }}>
-        Strengthen your chess memory and tactical foresight. Watch the first two moves play out, then use your recall skills to find the best third move.
-      </p>
-      <p>Puzzle {currentPuzzleIndex + 1} of {puzzles.length}</p>
-      <div style={{ position: 'relative', width: boardSize }}>
+    <div style={{ padding: 10, textAlign: 'center' }}>
+      <img src="/logo.png" alt="Visualize 3 Logo" style={{ height: boardSize > 360 ? '100px' : '70px', marginBottom: '4px', marginTop: 0 }} />
+      <h2 style={{ margin: '4px 0' }}>Chess Visualization Trainer</h2>
+      <p style={{ margin: '8px 0' }}>Puzzle {currentPuzzleIndex + 1} of {puzzles.length}</p>
+      <div style={{ position: 'relative', width: boardSize, height: boardSize, margin: '0 auto' }}>
         <Chessboard
-          boardWidth={boardSize}
           position={boardPosition}
           onSquareClick={handleSquareClick}
+          boardWidth={boardSize}
           customSquareStyles={highlightedSquares}
-          customDarkSquareStyle={{ backgroundColor: '#4caf50' }}
-          customLightSquareStyle={{ backgroundColor: '#f1f1e6' }}
           arePiecesDraggable={false}
         />
-        <svg width={boardSize} height={boardSize} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
-          <defs>
-            <marker id="arrowhead" markerWidth="5" markerHeight="3.5" refX="5" refY="1.75" orient="auto">
-              <polygon points="0 0, 5 1.75, 0 3.5" fill="rgba(30, 144, 255, 0.7)" />
-            </marker>
-          </defs>
-          {arrows.map(({ from, to }, i) => {
-            const getXY = (sq) => {
-              const file = sq.charCodeAt(0) - 97;
-              const rank = 8 - parseInt(sq[1]);
-              const size = boardSize / 8;
-              return { x: file * size + size / 2, y: rank * size + size / 2 };
-            };
-            const s = getXY(from);
-            const e = getXY(to);
-            return <line key={i} x1={s.x} y1={s.y} x2={e.x} y2={e.y} stroke="rgba(30, 144, 255, 0.7)" strokeWidth="5" markerEnd="url(#arrowhead)" />;
-          })}
-        </svg>
+        {renderArrows()}
       </div>
-      <p>{feedback}</p>
-      <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
+      <p>{feedbackMessage}</p>
+      <div style={{ marginTop: 12 }}>
         <button style={buttonStyle} onClick={handleShowMove}>
           {currentMoveIndex < 2 ? `Show Move ${currentMoveIndex + 1}` : 'Your Move'}
         </button>
-        <button style={buttonStyle} onClick={() => resetPuzzle(currentPuzzleIndex)}>Replay</button>
+        <button style={buttonStyle} onClick={resetPuzzle}>Replay</button>
         <button style={buttonStyle} onClick={() => setCurrentPuzzleIndex((i) => (i + 1) % puzzles.length)}>Next Puzzle</button>
         <button style={buttonStyle} onClick={handleRevealSolution}>Reveal Solution</button>
       </div>

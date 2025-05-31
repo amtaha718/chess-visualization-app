@@ -39,14 +39,17 @@ export default async function handler(req, res) {
   const openai = new OpenAI({ apiKey });
 
   // Construct the chat prompt
-  const prompt = `
-You are a strong chess coach. Here is the position (in FEN):
+const prompt = `
+You are a strong chess coach. Here is the board position in FEN:
 ${fen}
 
-It is the side to move (according to the FEN). The student played "${userMove}" as their third move, but the best move was "${correctMove}". 
+The student guessed the move "${userMove}", but the best move was "${correctMove}".
 
-In 2–3 clear sentences, explain why "${userMove}" is a poor choice compared to "${correctMove}". Mention any tactical or strategic reasons (e.g., material loss, hanging a piece, weakening squares, loss of tempo). Be concise.
+In 1–2 clear sentences, explain why the move "${userMove}" is a poor choice, without revealing or hinting at the correct move. Do not say what the right move is. Do not give a variation. Just explain what is weak or risky about the guessed move — for example: loss of tempo, hanging a piece, weak square, etc.
+
+Finish your explanation with: "Try again."
 `.trim();
+
 
   try {
     // Call OpenAI’s chat completion

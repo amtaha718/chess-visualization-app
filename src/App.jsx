@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 // ─────────────────────────────────────────────────────────────────────────────
-// Change this line to import the CommonJS build of chess.js.
-// That way, Create React App doesn’t try to parse raw BigInt literals in the ESM build.
-import Chess from 'chess.js';
+// Force Load the CommonJS build of chess.js (no raw `n` literals):
+import { Chess } from 'chess.js/dist/chess.js';
 import { Chessboard } from 'react-chessboard';
 import { getIncorrectMoveExplanation } from './ai';
 import './index.css';
@@ -340,7 +339,7 @@ function App() {
         Strengthen your chess memory and tactical foresight. Watch the first two
         moves play out, then use your recall skills to find the best third move
         without any visual aids.
-      </p>  
+      </p>
       <p style={{ marginBottom: '8px' }}>
         Puzzle {currentPuzzleIndex + 1} of {puzzles.length}
       </p>
@@ -360,7 +359,14 @@ function App() {
 
       <p style={{ minHeight: '24px', margin: '10px 0' }}>{feedbackMessage}</p>
 
-      <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
+      <div
+        style={{
+          marginTop: 10,
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+        }}
+      >
         <button style={buttonStyle} onClick={handleShowMove}>
           {currentMoveIndex < 2 ? `Show Move ${currentMoveIndex + 1}` : 'Your Move'}
         </button>

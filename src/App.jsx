@@ -58,11 +58,11 @@ const puzzles = [
     'White pressures the kingside with Bg5, and when Black plays h6, captures the knight on f6 to damage Blacks kingside pawn structure and gain the bishop pair.'
 },
   {
-    fen: 'r2qk2r/ppp2ppp/2n2n2/2bp4/4P3/1NN2P2/PPP3PP/R1BQ1RK1 w kq - 0 9',
-    moves: ['e4d5', 'f6d5', 'c1g5', 'd8g5'],
-    explanation:
-      'The central exchange clears lines and the Bg5 attempt tries to seize the initiative. Black finds the resource Qxg5 to maintain balance.'
-  },
+  fen: 'r1bq1rk1/ppp2ppp/2n2n2/3p4/3P4/2N1PN2/PPP2PPP/R1BQKB1R w KQ - 0 8',
+  moves: ['c1g5', 'h7h6', 'g5f6', 'd8f6'],
+  explanation:
+    'White develops the bishop with tempo, attacking the knight. After Black plays h6, White captures the knight to damage the kingside pawn structure and maintain the initiative.'
+},
   {
     fen: 'r1bqkb1r/pp2pppp/2n2n2/2pp4/3P4/2N1PN2/PP3PPP/R1BQKB1R w KQkq - 0 5',
     moves: ['f1d3', 'c8g4', 'd1b3', 'c5c4'],

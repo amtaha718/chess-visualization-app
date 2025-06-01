@@ -137,7 +137,6 @@ const move2 = puzzle.moves[1]; // 'f8e7'
 game.move({ from: move1.slice(0, 2), to: move1.slice(2, 4) }); // c1 -> g5
 game.move({ from: move2.slice(0, 2), to: move2.slice(2, 4) }); // f8 -> e7
       internalGameRef.current = game;
-      setBoardPosition(game.fen());
       console.log('After applying moves 1&2:', game.fen());
 console.log('Bishop should be on g5, available moves:', game.moves());
 

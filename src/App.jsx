@@ -174,6 +174,9 @@ const App = () => {
   };
 
   const evaluateUserMove = async (from, to, userGuess, correctMove) => {
+    console.log('Current FEN:', internalGameRef.current.fen());
+  console.log('Attempting move from', from, 'to', to);
+  console.log('Available moves:', internalGameRef.current.moves());
     // Validate on internalGameRef (already after Move 1 & 2)
     const tempGame = new Chess(internalGameRef.current.fen());
     const moveResult = tempGame.move({ from, to });

@@ -181,9 +181,12 @@ console.log('Bishop should be on g5, available moves:', game.moves());
     console.log('Current FEN:', internalGameRef.current.fen());
   console.log('Attempting move from', from, 'to', to);
   console.log('Available moves:', internalGameRef.current.moves());
+    console.log('User guess as coordinate:', userGuess);
+  console.log('from square:', from, 'to square:', to);
     // Validate on internalGameRef (already after Move 1 & 2)
     const tempGame = new Chess(internalGameRef.current.fen());
     const moveResult = tempGame.move({ from, to });
+    console.log('Chess.js move result:', moveResult);
 
     if (!moveResult) {
       setFeedbackMessage('Illegal move.');

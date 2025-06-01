@@ -345,38 +345,62 @@ console.log('Bishop should be on g5, available moves:', game.moves());
         />
         {renderArrows()}
       </div>
-      <p>{feedbackMessage}</p>
+      <p style={{ 
+          maxWidth: '600px', 
+          textAlign: 'center', 
+          wordWrap: 'break-word',
+          padding: '0 10px'
+        }}>
+        {feedbackMessage}
+      </p>
       <div
         style={{
           marginTop: 10,
           display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'center'
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '10px'
         }}
       >
-        <button style={buttonStyle} onClick={handleShowMove}>
-          {currentMoveIndex < 2 ? `Show Move ${currentMoveIndex + 1}` : 'Your Move'}
-        </button>
-        <button style={buttonStyle} onClick={() => resetCurrentPuzzle(currentPuzzleIndex)}>
-          Replay
-        </button>
-        <button
-          style={buttonStyle}
-          onClick={() =>
-            setCurrentPuzzleIndex((i) => (i - 1 + puzzles.length) % puzzles.length)
-          }
-        >
-          Previous Puzzle
-        </button>
-        <button
-          style={buttonStyle}
-          onClick={() => setCurrentPuzzleIndex((i) => (i + 1) % puzzles.length)}
-        >
-          Next Puzzle
-        </button>
-        <button style={buttonStyle} onClick={handleRevealSolution}>
-          Reveal Solution
-        </button>
+        {/* Top row: Main action buttons */}
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          gap: '5px'
+        }}>
+          <button style={buttonStyle} onClick={handleShowMove}>
+            {currentMoveIndex < 2 ? `Show Move ${currentMoveIndex + 1}` : 'Your Move'}
+          </button>
+          <button style={buttonStyle} onClick={() => resetCurrentPuzzle(currentPuzzleIndex)}>
+            Replay
+          </button>
+          <button style={buttonStyle} onClick={handleRevealSolution}>
+            Reveal Solution
+          </button>
+        </div>
+        
+        {/* Bottom row: Navigation buttons */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '5px'
+        }}>
+          <button
+            style={buttonStyle}
+            onClick={() =>
+              setCurrentPuzzleIndex((i) => (i - 1 + puzzles.length) % puzzles.length)
+            }
+          >
+            Previous Puzzle
+          </button>
+          <button
+            style={buttonStyle}
+            onClick={() => setCurrentPuzzleIndex((i) => (i + 1) % puzzles.length)}
+          >
+            Next Puzzle
+          </button>
+        </div>
       </div>
     </div>
   );

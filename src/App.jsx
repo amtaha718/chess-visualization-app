@@ -204,10 +204,10 @@ console.log('Bishop should be on g5, available moves:', game.moves());
     if (userGuess !== correctMove) {
       try {
         const explanation = await getIncorrectMoveExplanation(
-          puzzles[currentPuzzleIndex].fen,
-          userGuess,
-          correctMove
-        );
+  internalGameRef.current.fen(),
+  userGuess,
+  correctMove
+);
         setFeedbackMessage(`Incorrect. ${explanation}`);
       } catch (err) {
         console.error(err);

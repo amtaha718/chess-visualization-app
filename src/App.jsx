@@ -134,11 +134,17 @@ const App = () => {
       const move1 = puzzle.moves[0]; // 'c1g5'
 const move2 = puzzle.moves[1]; // 'f8e7'
 
-game.move({ from: move1.slice(0, 2), to: move1.slice(2, 4) }); // c1 -> g5
-game.move({ from: move2.slice(0, 2), to: move2.slice(2, 4) }); // f8 -> e7
-      internalGameRef.current = game;
-      console.log('After applying moves 1&2:', game.fen());
-console.log('Bishop should be on g5, available moves:', game.moves());
+game.move({ from: move1.slice(0, 2), to: move1.slice(2, 4) });
+game.move({ from: move2.slice(0, 2), to: move2.slice(2, 4) });
+
+// NEW DEBUGGING LOGS:
+console.log('Move 1 being applied:', move1);
+console.log('Move 2 being applied:', move2);
+console.log('Game history after moves 1&2:', game.history());
+
+internalGameRef.current = game;
+console.log('After applying moves 1&2:', game.fen());
+console.log('Available moves after 1&2:', game.moves());
 
       setIsUserTurnToMove(true);
       setFeedbackMessage(

@@ -55,7 +55,7 @@ const puzzles = [
   fen: 'r1bq1rk1/pppp1ppp/2n2n2/4p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 6',
   moves: ['c1g5', 'h7h6', 'g5f6', 'd8f6'],
   explanation:
-    'White pressures the kingside with Bg5, and when Black plays h6, captures the knight on f6 to damage Black's kingside pawn structure and gain the bishop pair.'
+    'White pressures the kingside with Bg5, and when Black plays h6, captures the knight on f6 to damage Blacks kingside pawn structure and gain the bishop pair.'
 },
   {
     fen: 'r2qk2r/ppp2ppp/2n2n2/2bp4/4P3/1NN2P2/PPP3PP/R1BQ1RK1 w kq - 0 9',

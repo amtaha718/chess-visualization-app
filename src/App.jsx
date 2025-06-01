@@ -37,7 +37,7 @@ const puzzles = [
   fen: 'r2qkbnr/ppp2ppp/2n1b3/3p4/3P4/2P2N2/PP2PPPP/RNBQKB1R w KQkq - 2 5',
   moves: ['c1g5', 'f8e7', 'g5e7', 'c6e7'],
   explanation:
-    'White trades bishop for bishop to remove a key defender and weaken Black's kingside control, preparing to develop quickly.'
+    'White trades bishop for bishop to remove a key defender and weaken Blacks kingside control, preparing to develop quickly.'
 },
   {
     fen: 'rnbqkb1r/pp3ppp/2p1pn2/3p4/3P4/2N1PN2/PP3PPP/R1BQKB1R w KQkq - 0 5',

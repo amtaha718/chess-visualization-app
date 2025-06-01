@@ -135,6 +135,8 @@ const App = () => {
       game.move(puzzle.moves[1]);
       internalGameRef.current = game;
       setBoardPosition(game.fen());
+      console.log('After applying moves 1&2:', game.fen());
+console.log('Bishop should be on g5, available moves:', game.moves());
 
       setIsUserTurnToMove(true);
       setFeedbackMessage(

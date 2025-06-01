@@ -131,8 +131,11 @@ const App = () => {
       // After showing Move 1 & 2, play them on internal game & update board
       const puzzle = puzzles[currentPuzzleIndex];
       const game = new Chess(puzzle.fen);
-      game.move(puzzle.moves[0]);
-      game.move(puzzle.moves[1]);
+      const move1 = puzzle.moves[0]; // 'c1g5'
+const move2 = puzzle.moves[1]; // 'f8e7'
+
+game.move({ from: move1.slice(0, 2), to: move1.slice(2, 4) }); // c1 -> g5
+game.move({ from: move2.slice(0, 2), to: move2.slice(2, 4) }); // f8 -> e7
       internalGameRef.current = game;
       setBoardPosition(game.fen());
       console.log('After applying moves 1&2:', game.fen());

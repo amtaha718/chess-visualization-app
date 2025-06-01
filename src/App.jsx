@@ -34,11 +34,11 @@ const puzzles = [
       'By capturing and recapturing in the center, White opens lines and clarifies central tension, with Ne5 aiming to provoke weaknesses or exchanges.'
   },
   {
-    fen: 'r2qkbnr/ppp2ppp/2n1b3/3p4/3P4/2P2N2/PP2PPPP/RNBQKB1R w KQkq - 2 5',
-    moves: ['c1g5', 'f8e7', 'g5e7', 'c6e7'],
-    explanation:
-      'White trades bishop for bishop to remove a key defender and weaken Black’s kingside control, preparing to develop quickly.'
-  },
+  fen: 'r2qkbnr/ppp2ppp/2n1b3/3p4/3P4/2P2N2/PP2PPPP/RNBQKB1R w KQkq - 2 5',
+  moves: ['c1g5', 'f8e7', 'g5e7', 'c6e7'],
+  explanation:
+    'White trades bishop for bishop to remove a key defender and weaken Black's kingside control, preparing to develop quickly.'
+},
   {
     fen: 'rnbqkb1r/pp3ppp/2p1pn2/3p4/3P4/2N1PN2/PP3PPP/R1BQKB1R w KQkq - 0 5',
     moves: ['f1d3', 'f8d6', 'e3e4', 'd5e4'],
@@ -46,17 +46,17 @@ const puzzles = [
       'White builds up with classical development and prepares a central break. The e4 push is thematic, challenging Black’s center directly.'
   },
   {
-    fen: 'rnbqkbnr/pp3ppp/4p3/2ppP3/8/5N2/PPP2PPP/RNBQKB1R w KQkq - 0 5',
-    moves: ['c2c3', 'b8c6', 'd2d4', 'c5d4'],
-    explanation:
-      'White reinforces the center with c3 and then strikes with d4, creating tension and inviting central exchanges.'
-  },
+  fen: 'rnbqkbnr/pp3ppp/4p3/2ppP3/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 0 4',
+  moves: ['d2d4', 'c5d4', 'c2c3', 'd4c3'],
+  explanation:
+    'White strikes at the center with d4, and after the exchange, recaptures with the c-pawn to maintain central control and open lines for development.'
+},
   {
-    fen: 'r1bq1rk1/pppp1ppp/2n2n2/4p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 6',
-    moves: ['c1g5', 'h7h6', 'g5h4', 'd7d6'],
-    explanation:
-      'White pressures the kingside with Bg5–h4, anticipating weaknesses like g5 or f6, while Black shores up the center with d6.'
-  },
+  fen: 'r1bq1rk1/pppp1ppp/2n2n2/4p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 6',
+  moves: ['c1g5', 'h7h6', 'g5f6', 'd8f6'],
+  explanation:
+    'White pressures the kingside with Bg5, and when Black plays h6, captures the knight on f6 to damage Black's kingside pawn structure and gain the bishop pair.'
+},
   {
     fen: 'r2qk2r/ppp2ppp/2n2n2/2bp4/4P3/1NN2P2/PPP3PP/R1BQ1RK1 w kq - 0 9',
     moves: ['e4d5', 'f6d5', 'c1g5', 'd8g5'],

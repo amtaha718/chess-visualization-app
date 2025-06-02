@@ -33,33 +33,37 @@ const App = () => {
   const [isUserTurnToMove, setIsUserTurnToMove] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const internalGameRef = useRef(null);
+  const [difficulty, setDifficulty] = useState('all');
 
-  // ALL USEEFFECTS GO HERE (INSIDE THE COMPONENT)
-  useEffect(() => {
-    async function loadGeneratedPuzzles() {
-      try {
-        console.log('Starting puzzle generation...');
-        const generator = new PuzzleGenerator();
-        const generatedPuzzles = await generator.generatePuzzleBatch(8);
-        
-        if (generatedPuzzles.length > 0) {
-          setPuzzles(generatedPuzzles);
-          console.log(`Generated ${generatedPuzzles.length} puzzles`);
-        } else {
-          // Fallback to original puzzles
-          setPuzzles([
-            // ... your original puzzles as backup
-          ]);
-        }
-      } catch (error) {
-        console.error('Failed to generate puzzles:', error);
-      } finally {
-        setIsLoadingPuzzles(false);
+  import LichessPuzzleFetcher from './lichess-puzzles'; // Add this import at the top
+
+useEffect(() => {
+  async function loadLichessPuzzles() {
+    try {
+      console.log('Loading puzzles from Lichess database...');
+      const fetcher = new LichessPuzzleFetcher();
+      const lichessPuzzles = await fetcher.getPuzzlesForApp('all', 15);
+      
+      if (lichessPuzzles.length > 0) {
+        setPuzzles(lichessPuzzles);
+        console.log(`Loaded ${lichessPuzzles.length} Lichess puzzles`);
+      } else {
+        // Fallback to curated puzzles
+        const curatedPuzzles = fetcher.getCuratedPuzzles(10);
+        setPuzzles(curatedPuzzles);
+        console.log('Using curated backup puzzles');
       }
+    } catch (error) {
+      console.error('Failed to load puzzles:', error);
+      // Use minimal fallback
+      setPuzzles([]);
+    } finally {
+      setIsLoadingPuzzles(false);
     }
-    
-    loadGeneratedPuzzles();
-  }, []);
+  }
+  
+  loadLichessPuzzles();
+}, []);
 
   // Update board size on resize
   useEffect(() => {
@@ -84,6 +88,22 @@ const App = () => {
     setIsUserTurnToMove(false);
     setFeedbackMessage('');
   };
+
+  const handleDifficultyChange = async (newDifficulty) => {
+  setDifficulty(newDifficulty);
+  setIsLoadingPuzzles(true);
+  
+  try {
+    const fetcher = new LichessPuzzleFetcher();
+    const newPuzzles = await fetcher.getPuzzlesForApp(newDifficulty, 15);
+    setPuzzles(newPuzzles);
+    setCurrentPuzzleIndex(0); // Reset to first puzzle
+  } catch (error) {
+    console.error('Failed to load new difficulty:', error);
+  } finally {
+    setIsLoadingPuzzles(false);
+  }
+};
 
   const handleShowMove = () => {
     const move = puzzles[currentPuzzleIndex].moves[currentMoveIndex];
@@ -351,6 +371,22 @@ if (isLoadingPuzzles) {
           alignItems: 'center',
           gap: '10px'
         }}
+        <div style={{ marginBottom: '10px' }}>
+  <span style={{ marginRight: '10px' }}>Difficulty: </span>
+  {['beginner', 'intermediate', 'advanced', 'all'].map(diff => (
+    <button
+      key={diff}
+      style={{
+        ...buttonStyle,
+        backgroundColor: difficulty === diff ? '#2196F3' : '#4CAF50',
+        margin: '2px'
+      }}
+      onClick={() => handleDifficultyChange(diff)}
+    >
+      {diff.charAt(0).toUpperCase() + diff.slice(1)}
+    </button>
+  ))}
+</div>
       >
         {/* Top row: Main action buttons */}
         <div style={{

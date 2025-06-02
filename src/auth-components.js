@@ -53,25 +53,25 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, userSystem }) => {
 
   return (
     <div 
-  onClick={(e) => {
-    if (e.target === e.currentTarget) {
-      console.log('🔍 Clicked outside modal - closing');
-      onClose();
-    }
-  }}
-  style={{
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000
-  }}
->
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          console.log('🔍 Clicked outside modal - closing');
+          onClose();
+        }
+      }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000
+      }}
+    >
       <div style={{
         backgroundColor: 'white',
         padding: '2rem',
@@ -226,23 +226,31 @@ const AuthModal = ({ isOpen, onClose, onAuthSuccess, userSystem }) => {
   );
 };
 
-// User Profile Component
-const UserProfile = ({ user, profile, onSignOut, onClose }) => {
-  if (!user || !profile) return null;
+// User Profile Component - FIXED WITH isOpen PROP
+const UserProfile = ({ isOpen, user, profile, onSignOut, onClose }) => {
+  // Check isOpen prop first
+  if (!isOpen || !user || !profile) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.7)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000
-    }}>
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000
+      }}
+    >
       <div style={{
         backgroundColor: 'white',
         padding: '2rem',

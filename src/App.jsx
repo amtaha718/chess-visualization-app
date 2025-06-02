@@ -9,91 +9,6 @@ import UserSystem from './user-system';
 import { AuthModal, UserProfile, AuthHeader } from './auth-components';
 
 const getBoardSize = () => (window.innerWidth < 500 ? window.innerWidth - 40 : 400);
-
-// FALLBACK PUZZLES (your working puzzles with added solved/attempted properties)
-const FALLBACK_PUZZLES = [
-{
-fen: 'r1bqkbnr/ppp2ppp/2n5/1B1pp3/3PP3/5N2/PPP2PPP/RNBQK2R w KQkq - 0 4',
-moves: ['e4d5', 'd8d5', 'b1c3', 'd5a5'],
-explanation:
-'This sequence helps White develop quickly and gain tempo by targeting the black queen with Nc3, forcing her to a passive square.',
-solved: false,
-attempted: false
-},
-{
-fen: 'r1bqkbnr/pp3ppp/2n1p3/2pp4/3PP3/2N2N2/PPP2PPP/R1BQKB1R w KQkq - 0 5',
-moves: ['e4d5', 'e6d5', 'f1b5', 'g8f6'],
-explanation:
-'White exchanges center pawns and develops the bishop to b5, pinning the knight and building pressure on Blacks position.',
-solved: false,
-attempted: false
-},
-{
-fen: 'rnbqkb1r/pp1ppppp/5n2/2p5/2P5/5NP1/PP1PPP1P/RNBQKB1R w KQkq - 0 3',
-moves: ['f1g2', 'b8c6', 'd2d4', 'c5d4'],
-explanation:
-'White aims for kingside fianchetto and central control. Playing d4 strikes at the center to open lines and challenge Blacks setup.',
-solved: false,
-attempted: false
-},
-{
-fen: 'r1bqk1nr/pppp1ppp/2n5/4p3/1b1PP3/5N2/PPPN1PPP/R1BQKB1R w KQkq - 0 4',
-moves: ['d4e5', 'c6e5', 'f3e5', 'd7d6'],
-explanation:
-'By capturing and recapturing in the center, White opens lines and clarifies central tension, with Ne5 aiming to provoke weaknesses or exchanges.',
-solved: false,
-attempted: false
-},
-{
-fen: 'r2qkbnr/ppp2ppp/2n1b3/3p4/3P4/2P2N2/PP2PPPP/RNBQKB1R w KQkq - 2 5',
-moves: ['c1g5', 'f8e7', 'g5e7', 'c6e7'],
-explanation:
-'White trades bishop for bishop to remove a key defender and weaken Blacks kingside control, preparing to develop quickly.',
-solved: false,
-attempted: false
-},
-{
-fen: 'rnbqkb1r/pp3ppp/2p1pn2/3p4/3P4/2N1PN2/PP3PPP/R1BQKB1R w KQkq - 0 5',
-moves: ['f1d3', 'f8d6', 'e3e4', 'd5e4'],
-explanation:
-'White builds up with classical development and prepares a central break. The e4 push is thematic, challenging Blacks center directly.',
-solved: false,
-attempted: false
-},
-{
-fen: 'rnbqkbnr/pp3ppp/4p3/2ppP3/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 0 4',
-moves: ['d2d4', 'c5d4', 'c2c3', 'd4c3'],
-explanation:
-'White strikes at the center with d4, and after the exchange, recaptures with the c-pawn to maintain central control and open lines for development.',
-solved: false,
-attempted: false
-},
-{
-fen: 'r1bq1rk1/pppp1ppp/2n2n2/4p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 6',
-moves: ['c1g5', 'h7h6', 'g5f6', 'd8f6'],
-explanation:
-'White pressures the kingside with Bg5, and when Black plays h6, captures the knight on f6 to damage Blacks kingside pawn structure and gain the bishop pair.',
-solved: false,
-attempted: false
-},
-{
-fen: 'r1bq1rk1/ppp2ppp/2n2n2/3p4/3P4/2N2N2/PPP2PPP/R1BQKB1R w KQ - 0 8',
-moves: ['c1g5', 'h7h6', 'g5f6', 'd8f6'],
-explanation:
-'White develops the bishop with tempo, attacking the knight. After Black plays h6, White captures the knight to damage the kingside pawn structure and maintain the initiative.',
-solved: false,
-attempted: false
-},
-{
-fen: 'r1bqkb1r/pp2pppp/2n2n2/2pp4/3P4/2N1PN2/PP3PPP/R1BQKB1R w KQkq - 0 5',
-moves: ['f1d3', 'c8g4', 'd1b3', 'c5c4'],
-explanation:
-'White develops with threats while preparing queenside pressure. Black responds by gaining space with ...c4 to blunt the b3 queens scope.',
-solved: false,
-attempted: false
-}
-];
-
 const getSquareCoordinates = (square, boardSize) => {
 const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
 const rank = 8 - parseInt(square[1], 10);
@@ -173,33 +88,43 @@ useEffect(() => {
   };
 }, [userSystem]);
 
-// PUZZLE LOADING USEEFFECT
+// PUZZLE LOADING USEEFFECT - Updated to only use Supabase
 useEffect(() => {
   async function loadPuzzles() {
     try {
-      console.log('Loading puzzles...');
+      console.log('Loading puzzles from Supabase...');
+      
+      let fetchedPuzzles = [];
       
       if (user) {
         // Get puzzles with user progress if logged in
-        const fetchedPuzzles = await userSystem.getPuzzlesForUser('all', 20);
-        if (fetchedPuzzles.length > 0) {
-          setPuzzles(fetchedPuzzles);
-          console.log(`✅ Loaded ${fetchedPuzzles.length} puzzles`);
-          return;
-        }
+        fetchedPuzzles = await userSystem.getPuzzlesForUser('all', 50); // Increased from 20 to 50
+      } else {
+        // Guest user - get puzzles without progress tracking
+        fetchedPuzzles = await userSystem.getPublicPuzzles('all', 50);
       }
       
-      // Fallback to your original working puzzles
-      console.log('Using fallback puzzles');
-      setPuzzles(FALLBACK_PUZZLES);
+      if (fetchedPuzzles.length > 0) {
+        setPuzzles(fetchedPuzzles);
+        console.log(`✅ Loaded ${fetchedPuzzles.length} puzzles from Supabase`);
+      } else {
+        console.error('❌ No puzzles found in database');
+        setFeedbackMessage('No puzzles available. Please check your connection.');
+      }
       
     } catch (error) {
       console.error('Failed to load puzzles:', error);
-      setPuzzles(FALLBACK_PUZZLES);
+      setFeedbackMessage('Failed to load puzzles. Please refresh the page.');
     } finally {
       setIsLoadingPuzzles(false);
     }
   }
+
+  // Only load puzzles after auth state is determined
+  if (!isLoadingAuth) {
+    loadPuzzles();
+  }
+}, [isLoadingAuth, user, userSystem]);
 
   // Only load puzzles after auth state is determined
   if (!isLoadingAuth) {

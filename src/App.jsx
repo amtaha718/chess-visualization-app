@@ -88,7 +88,7 @@ attempted: false
 fen: 'r1bqkb1r/pp2pppp/2n2n2/2pp4/3P4/2N1PN2/PP3PPP/R1BQKB1R w KQkq - 0 5',
 moves: ['f1d3', 'c8g4', 'd1b3', 'c5c4'],
 explanation:
-'White develops with threats while preparing queenside pressure. Black responds by gaining space with ...c4 to blunt the b3 queen's scope.',
+'White develops with threats while preparing queenside pressure. Black responds by gaining space with ...c4 to blunt the b3 queens scope.',
 solved: false,
 attempted: false
 }

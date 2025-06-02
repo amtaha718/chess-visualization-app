@@ -105,20 +105,20 @@ y: rank * squareSize + squareSize / 2
 };
 
 const App = () => {
-// EXISTING STATE VARIABLES (keeping all your original ones)
+// EXISTING STATE VARIABLES
 const [boardSize, setBoardSize] = useState(getBoardSize());
 const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
 const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
-const [boardPosition, setBoardPosition] = useState(''); // Changed to empty string initially
+const [boardPosition, setBoardPosition] = useState('');
 const [arrows, setArrows] = useState([]);
 const [highlightedSquares, setHighlightedSquares] = useState({});
 const [selectedSquares, setSelectedSquares] = useState([]);
 const [isUserTurnToMove, setIsUserTurnToMove] = useState(false);
 const [feedbackMessage, setFeedbackMessage] = useState('');
-const internalGameRef = useRef(null); // Changed to null initially
+const internalGameRef = useRef(null);
 
 // NEW USER SYSTEM STATE VARIABLES
-const [puzzles, setPuzzles] = useState([]); // Now dynamic instead of const
+const [puzzles, setPuzzles] = useState([]);
 const [isLoadingPuzzles, setIsLoadingPuzzles] = useState(true);
 const [user, setUser] = useState(null);
 const [userProfile, setUserProfile] = useState(null);
@@ -128,46 +128,70 @@ const [showProfileModal, setShowProfileModal] = useState(false);
 const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 const [puzzleStartTime, setPuzzleStartTime] = useState(null);
 
-// AUTHENTICATION USEEFFECT
+// AUTHENTICATION USEEFFECT - FIXED VERSION
 useEffect(() => {
-  // Set up auth state listener
-  const { data: { subscription } } = userSystem.onAuthStateChange(async (event, user) => {
-    setUser(user);
-    
-    if (user) {
-      // User signed in - load their profile
-      const profile = await userSystem.getUserProfile();
-      setUserProfile(profile);
-    } else {
-      // User signed out
-      setUserProfile(null);
+  let subscription;
+  
+  const setupAuth = async () => {
+    try {
+      // Get current user first
+      const currentUser = await userSystem.getCurrentUser();
+      setUser(currentUser);
+      
+      if (currentUser) {
+        const profile = await userSystem.getUserProfile();
+        setUserProfile(profile);
+      }
+      
+      // Set up auth state listener
+      subscription = userSystem.onAuthStateChange(async (event, user) => {
+        setUser(user);
+        
+        if (user) {
+          const profile = await userSystem.getUserProfile();
+          setUserProfile(profile);
+        } else {
+          setUserProfile(null);
+        }
+      });
+      
+    } catch (error) {
+      console.error('Auth setup error:', error);
+    } finally {
+      setIsLoadingAuth(false);
     }
-    
-    setIsLoadingAuth(false);
-  });
-
-  // Cleanup subscription
+  };
+  
+  setupAuth();
+  
+  // Cleanup function
   return () => {
-    subscription?.unsubscribe();
+    if (subscription && subscription.data && subscription.data.subscription) {
+      subscription.data.subscription.unsubscribe();
+    }
   };
 }, [userSystem]);
+
 // PUZZLE LOADING USEEFFECT
 useEffect(() => {
   async function loadPuzzles() {
     try {
       console.log('Loading puzzles...');
       
-      // Get puzzles with user progress if logged in
-      const fetchedPuzzles = await userSystem.getPuzzlesForUser('all', 20);
-      
-      if (fetchedPuzzles.length > 0) {
-        setPuzzles(fetchedPuzzles);
-        console.log(`✅ Loaded ${fetchedPuzzles.length} puzzles`);
-      } else {
-        // Fallback to your original working puzzles
-        console.log('No puzzles in database, using fallback');
-        setPuzzles(FALLBACK_PUZZLES);
+      if (user) {
+        // Get puzzles with user progress if logged in
+        const fetchedPuzzles = await userSystem.getPuzzlesForUser('all', 20);
+        if (fetchedPuzzles.length > 0) {
+          setPuzzles(fetchedPuzzles);
+          console.log(`✅ Loaded ${fetchedPuzzles.length} puzzles`);
+          return;
+        }
       }
+      
+      // Fallback to your original working puzzles
+      console.log('Using fallback puzzles');
+      setPuzzles(FALLBACK_PUZZLES);
+      
     } catch (error) {
       console.error('Failed to load puzzles:', error);
       setPuzzles(FALLBACK_PUZZLES);
@@ -182,21 +206,21 @@ useEffect(() => {
   }
 }, [isLoadingAuth, user, userSystem]);
 
-// Update board size on resize (KEEPING YOUR EXACT CODE)
+// Update board size on resize
 useEffect(() => {
 const handleResize = () => setBoardSize(getBoardSize());
 window.addEventListener('resize', handleResize);
 return () => window.removeEventListener('resize', handleResize);
 }, []);
 
-// Whenever puzzle changes, reset state (KEEPING YOUR EXACT CODE)
+// Whenever puzzle changes, reset state
 useEffect(() => {
 if (puzzles.length > 0) {
   resetCurrentPuzzle(currentPuzzleIndex);
 }
 }, [currentPuzzleIndex, puzzles]);
 
-// ENHANCED RESET FUNCTION (with safety check)
+// RESET FUNCTION with safety check
 const resetCurrentPuzzle = (index) => {
 if (!puzzles || puzzles.length === 0 || !puzzles[index]) {
   console.log('No puzzles available yet');
@@ -214,23 +238,19 @@ setIsUserTurnToMove(false);
 setFeedbackMessage('');
 };
 
-// ENHANCED HANDLESHOWMOVE (just adds puzzle start time tracking)
+// ENHANCED HANDLESHOWMOVE
 const handleShowMove = () => {
-// Track puzzle start time for the first move
 if (currentMoveIndex === 0) setPuzzleStartTime(Date.now());
 
-// KEEPING ALL YOUR EXISTING LOGIC EXACTLY THE SAME
 const move = puzzles[currentPuzzleIndex].moves[currentMoveIndex];
 const from = move.slice(0, 2);
 const to = move.slice(2, 4);
 
-// Show arrow only; do not relocate pieces
 setArrows([{ from, to }]);
 
 if (currentMoveIndex < 2) {
 setCurrentMoveIndex((i) => i + 1);
 } else {
-// After showing Move 1 & 2, play them on internal game & update board
 const puzzle = puzzles[currentPuzzleIndex];
 const game = new Chess(puzzle.fen);
 const move1 = puzzle.moves[0];
@@ -239,7 +259,6 @@ const move2 = puzzle.moves[1];
 game.move({ from: move1.slice(0, 2), to: move1.slice(2, 4) });
 game.move({ from: move2.slice(0, 2), to: move2.slice(2, 4) });
 
-// NEW DEBUGGING LOGS:
 console.log('Move 1 being applied:', move1);
 console.log('Move 2 being applied:', move2);
 console.log('Game history after moves 1&2:', game.history());
@@ -256,7 +275,7 @@ setArrows([]);
 }
 };
 
-// KEEPING YOUR EXACT HANDLESQUARECLICK
+// EXISTING HANDLESQUARECLICK - unchanged
 const handleSquareClick = (square) => {
 if (!isUserTurnToMove) return;
 
@@ -286,7 +305,7 @@ setSelectedSquares([]);
 }
 };
 
-// ENHANCED EVALUATEUSERMOVE (adds user progress tracking)
+// ENHANCED EVALUATEUSERMOVE
 const evaluateUserMove = async (from, to, userGuess, correctMove) => {
 console.log('Current FEN:', internalGameRef.current.fen());
 console.log('Attempting move from', from, 'to', to);
@@ -294,7 +313,6 @@ console.log('Available moves:', internalGameRef.current.moves());
 console.log('User guess as coordinate:', userGuess);
 console.log('from square:', from, 'to square:', to);
 
-// KEEPING YOUR EXACT VALIDATION LOGIC
 const tempGame = new Chess(internalGameRef.current.fen());
 const moveResult = tempGame.move({ from, to });
 console.log('Chess.js move result:', moveResult);
@@ -307,7 +325,6 @@ return;
 setIsUserTurnToMove(false);
 setFeedbackMessage('Analyzing your move…');
 
-// Calculate time taken and check if solved
 const timeTaken = puzzleStartTime ? Math.round((Date.now() - puzzleStartTime) / 1000) : null;
 const solved = userGuess === correctMove;
 
@@ -322,11 +339,9 @@ if (user && puzzles[currentPuzzleIndex].id) {
     );
     
     if (result && solved) {
-      // Update user profile with new rating
       const updatedProfile = await userSystem.getUserProfile();
       setUserProfile(updatedProfile);
       
-      // Show rating change in feedback
       const ratingChange = result.ratingChange;
       const ratingText = ratingChange > 0 ? `(+${ratingChange})` : `(${ratingChange})`;
       setFeedbackMessage(`Correct! Rating: ${result.newRating} ${ratingText}. ${puzzles[currentPuzzleIndex].explanation}`);
@@ -336,7 +351,6 @@ if (user && puzzles[currentPuzzleIndex].id) {
   }
 }
 
-// KEEPING YOUR EXACT SEQUENCE LOGIC
 const sequence = [
 puzzles[currentPuzzleIndex].moves[0],
 puzzles[currentPuzzleIndex].moves[1],
@@ -359,12 +373,11 @@ setFeedbackMessage(
 );
 }
 } else if (!user) {
-// Show success message for non-logged-in users
 setFeedbackMessage(`Correct! ${puzzles[currentPuzzleIndex].explanation}`);
 }
 };
 
-// KEEPING YOUR EXACT PLAYMOVESEQUENCE
+// EXISTING PLAYMOVESEQUENCE - unchanged
 const playMoveSequence = (moves, isCorrect) => {
 const puzzle = puzzles[currentPuzzleIndex];
 const game = new Chess(puzzle.fen);
@@ -389,20 +402,19 @@ setTimeout(() => setArrows([]), 700);
 }, moves.length * 1000 + 300);
 };
 
-// KEEPING YOUR EXACT HANDLEREVEALSOLUTION
+// EXISTING HANDLEREVEALSOLUTION - unchanged
 const handleRevealSolution = () => {
 const puzzle = puzzles[currentPuzzleIndex];
 playMoveSequence(puzzle.moves, true);
 };
 
-// NEW AUTH HANDLER FUNCTIONS
+// AUTH HANDLER FUNCTIONS
 const handleAuthSuccess = async (user) => {
   setUser(user);
   const profile = await userSystem.getUserProfile();
   setUserProfile(profile);
   setShowAuthModal(false);
   
-  // Reload puzzles with user progress
   const userPuzzles = await userSystem.getPuzzlesForUser('all', 20);
   if (userPuzzles.length > 0) {
     setPuzzles(userPuzzles);
@@ -415,14 +427,10 @@ const handleSignOut = async () => {
   setUserProfile(null);
   setShowProfileModal(false);
   
-  // Reload puzzles without user progress
-  const publicPuzzles = await userSystem.getPublicPuzzles('all', 20);
-  if (publicPuzzles.length > 0) {
-    setPuzzles(publicPuzzles);
-  }
+  setPuzzles(FALLBACK_PUZZLES);
 };
 
-// KEEPING YOUR EXACT STYLES
+// EXISTING STYLES - unchanged
 const buttonStyle = {
 margin: '5px',
 padding: '8px 16px',
@@ -436,7 +444,7 @@ boxShadow: '2px 2px 6px rgba(0,0,0,0.2)',
 transition: 'background-color 0.3s ease'
 };
 
-// KEEPING YOUR EXACT RENDERARROWS
+// EXISTING RENDERARROWS - unchanged
 const renderArrows = () => (
 <svg
 width={boardSize}
@@ -501,7 +509,6 @@ alignItems: 'center',
 position: 'relative'
 }}
 >
-{/* AUTH HEADER */}
 <AuthHeader
   user={user}
   profile={userProfile}
@@ -510,7 +517,6 @@ position: 'relative'
   onSignOut={handleSignOut}
 />
 
-{/* KEEPING ALL YOUR EXISTING JSX EXACTLY THE SAME */}
 <img
 src="/logo.png"
 alt="Visualize 3 Logo"
@@ -572,7 +578,6 @@ alignItems: 'center',
 gap: '10px'
 }}
 >
-{/* Top row: Main action buttons */}
 <div style={{
 display: 'flex',
 flexWrap: 'wrap',
@@ -590,7 +595,6 @@ Reveal Solution
 </button>
 </div>
 
-{/* Bottom row: Navigation buttons */}
 <div style={{
 display: 'flex',
 justifyContent: 'center',
@@ -613,7 +617,6 @@ Next Puzzle
 </div>
 </div>
 
-{/* AUTH MODALS */}
 <AuthModal
   isOpen={showAuthModal}
   onClose={() => setShowAuthModal(false)}

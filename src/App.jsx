@@ -151,7 +151,6 @@ useEffect(() => {
     subscription?.unsubscribe();
   };
 }, [userSystem]);
-
 // PUZZLE LOADING USEEFFECT
 useEffect(() => {
   async function loadPuzzles() {

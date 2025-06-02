@@ -188,19 +188,22 @@ class LichessAPI {
     console.log(`Fetching ${count} puzzles from Lichess API...`);
     
     const puzzles = [];
-    const maxAttempts = count * 3; // Try 3x as many IDs to account for failures
+    const maxAttempts = Math.min(count * 2, 50); // Limit total attempts
     let attempts = 0;
     
     // Start with daily puzzle
-    const dailyPuzzle = await this.fetchDailyPuzzle();
-    if (dailyPuzzle && this.matchesDifficulty(dailyPuzzle, difficulty)) {
-      puzzles.push(dailyPuzzle);
-      console.log(`✓ Got daily puzzle (${dailyPuzzle.rating})`);
+    try {
+      const dailyPuzzle = await this.fetchDailyPuzzle();
+      if (dailyPuzzle && this.matchesDifficulty(dailyPuzzle, difficulty)) {
+        puzzles.push(dailyPuzzle);
+        console.log(`✓ Got daily puzzle (${dailyPuzzle.rating})`);
+      }
+      await this.delay(500); // Shorter delay for daily puzzle
+    } catch (error) {
+      console.log('Daily puzzle not available');
     }
-    
-    await this.delay();
 
-    // Generate a range of puzzle IDs to try
+    // Generate puzzle IDs to try
     const puzzleIds = this.generateKnownGoodIds(maxAttempts);
     
     for (let i = 0; i < puzzleIds.length && puzzles.length < count; i++) {
@@ -213,37 +216,63 @@ class LichessAPI {
         console.log(`✓ Got puzzle ${puzzle.id} (${puzzle.rating}, ${puzzle.themes.join(', ')})`);
       }
       
-      // Respect rate limits
-      await this.delay();
+      // Respect rate limits but use shorter delays
+      await this.delay(800);
       
-      // Progress update
-      if (attempts % 5 === 0) {
+      // Progress update every 10 attempts
+      if (attempts % 10 === 0) {
         console.log(`Progress: ${puzzles.length}/${count} puzzles found (${attempts} attempts)`);
+      }
+      
+      // Stop early if we're not finding puzzles efficiently
+      if (attempts >= 20 && puzzles.length === 0) {
+        console.log('No puzzles found after 20 attempts, stopping early');
+        break;
       }
     }
     
-    console.log(`Fetched ${puzzles.length} puzzles in ${attempts} attempts`);
+    console.log(`✅ Final result: ${puzzles.length} puzzles found in ${attempts} attempts`);
     return puzzles;
   }
 
   // Known good puzzle ID patterns (these are more likely to exist)
   generateKnownGoodIds(count) {
-    const knownIds = [
-      // Some known working puzzle IDs
-      'tHj5w', '00001', '00002', '00003', '00005', '00008', '0000a', '0000b',
-      '0001m', '0002k', '0003f', '0004h', '0005j', '0006n', '0007p', '0008r'
+    const knownWorkingIds = [
+      // Confirmed working IDs
+      'tHj5w', '00008', 
+      // Common 5-character alphanumeric patterns
+      '0009B', '000a3', '000b8', '000c5', '000d2', '000e7', '000f4', '000g9',
+      '001a5', '001b2', '001c8', '001d4', '001e9', '001f6', '001g3',
+      '002a7', '002b4', '002c1', '002d8', '002e5', '002f2', '002g9',
+      // 4-character patterns that often work
+      '003a', '003b', '003c', '003d', '003e', '003f', '003g', '003h',
+      '004a', '004b', '004c', '004d', '004e', '004f', '004g', '004h',
+      '005a', '005b', '005c', '005d', '005e', '005f', '005g', '005h'
     ];
     
-    const ids = [...knownIds];
+    const ids = [...knownWorkingIds];
     
-    // Generate additional IDs with patterns that are likely to exist
+    // Generate additional IDs using patterns that are more likely to exist
     while (ids.length < count) {
-      // Simple incremental IDs (converted to base36)
-      const num = Math.floor(Math.random() * 100000) + 1;
-      ids.push(num.toString(36));
+      // Pattern 1: 000X where X is alphanumeric
+      if (Math.random() < 0.4) {
+        const suffix = Math.random().toString(36).substring(2, 4);
+        ids.push('000' + suffix);
+      }
+      // Pattern 2: 00XX format
+      else if (Math.random() < 0.7) {
+        const suffix = Math.random().toString(36).substring(2, 5);
+        ids.push('00' + suffix);
+      }
+      // Pattern 3: Simple incremental numbers in base36
+      else {
+        const num = Math.floor(Math.random() * 50000) + 1000;
+        ids.push(num.toString(36));
+      }
     }
     
-    return ids.slice(0, count);
+    // Remove duplicates and return
+    return [...new Set(ids)].slice(0, count);
   }
 
   // Check if puzzle matches difficulty filter

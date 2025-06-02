@@ -5,70 +5,92 @@ import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { getIncorrectMoveExplanation } from './ai';
 import './index.css';
+import UserSystem from './user-system';
+import { AuthModal, UserProfile, AuthHeader } from './auth-components';
 
 const getBoardSize = () => (window.innerWidth < 500 ? window.innerWidth - 40 : 400);
 
-const puzzles = [
+// FALLBACK PUZZLES (your working puzzles with added solved/attempted properties)
+const FALLBACK_PUZZLES = [
 {
 fen: 'r1bqkbnr/ppp2ppp/2n5/1B1pp3/3PP3/5N2/PPP2PPP/RNBQK2R w KQkq - 0 4',
 moves: ['e4d5', 'd8d5', 'b1c3', 'd5a5'],
 explanation:
-'This sequence helps White develop quickly and gain tempo by targeting the black queen with Nc3, forcing her to a passive square.'
+'This sequence helps White develop quickly and gain tempo by targeting the black queen with Nc3, forcing her to a passive square.',
+solved: false,
+attempted: false
 },
 {
 fen: 'r1bqkbnr/pp3ppp/2n1p3/2pp4/3PP3/2N2N2/PPP2PPP/R1BQKB1R w KQkq - 0 5',
 moves: ['e4d5', 'e6d5', 'f1b5', 'g8f6'],
 explanation:
-'White exchanges center pawns and develops the bishop to b5, pinning the knight and building pressure on Black’s position.'
+'White exchanges center pawns and develops the bishop to b5, pinning the knight and building pressure on Black's position.',
+solved: false,
+attempted: false
 },
 {
 fen: 'rnbqkb1r/pp1ppppp/5n2/2p5/2P5/5NP1/PP1PPP1P/RNBQKB1R w KQkq - 0 3',
 moves: ['f1g2', 'b8c6', 'd2d4', 'c5d4'],
 explanation:
-'White aims for kingside fianchetto and central control. Playing d4 strikes at the center to open lines and challenge Black’s setup.'
+'White aims for kingside fianchetto and central control. Playing d4 strikes at the center to open lines and challenge Black's setup.',
+solved: false,
+attempted: false
 },
 {
 fen: 'r1bqk1nr/pppp1ppp/2n5/4p3/1b1PP3/5N2/PPPN1PPP/R1BQKB1R w KQkq - 0 4',
 moves: ['d4e5', 'c6e5', 'f3e5', 'd7d6'],
 explanation:
-'By capturing and recapturing in the center, White opens lines and clarifies central tension, with Ne5 aiming to provoke weaknesses or exchanges.'
+'By capturing and recapturing in the center, White opens lines and clarifies central tension, with Ne5 aiming to provoke weaknesses or exchanges.',
+solved: false,
+attempted: false
 },
 {
 fen: 'r2qkbnr/ppp2ppp/2n1b3/3p4/3P4/2P2N2/PP2PPPP/RNBQKB1R w KQkq - 2 5',
 moves: ['c1g5', 'f8e7', 'g5e7', 'c6e7'],
 explanation:
-'White trades bishop for bishop to remove a key defender and weaken Blacks kingside control, preparing to develop quickly.'
+'White trades bishop for bishop to remove a key defender and weaken Blacks kingside control, preparing to develop quickly.',
+solved: false,
+attempted: false
 },
 {
 fen: 'rnbqkb1r/pp3ppp/2p1pn2/3p4/3P4/2N1PN2/PP3PPP/R1BQKB1R w KQkq - 0 5',
 moves: ['f1d3', 'f8d6', 'e3e4', 'd5e4'],
 explanation:
-'White builds up with classical development and prepares a central break. The e4 push is thematic, challenging Black’s center directly.'
+'White builds up with classical development and prepares a central break. The e4 push is thematic, challenging Black's center directly.',
+solved: false,
+attempted: false
 },
 {
 fen: 'rnbqkbnr/pp3ppp/4p3/2ppP3/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 0 4',
 moves: ['d2d4', 'c5d4', 'c2c3', 'd4c3'],
 explanation:
-'White strikes at the center with d4, and after the exchange, recaptures with the c-pawn to maintain central control and open lines for development.'
+'White strikes at the center with d4, and after the exchange, recaptures with the c-pawn to maintain central control and open lines for development.',
+solved: false,
+attempted: false
 },
 {
 fen: 'r1bq1rk1/pppp1ppp/2n2n2/4p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 6',
 moves: ['c1g5', 'h7h6', 'g5f6', 'd8f6'],
 explanation:
-'White pressures the kingside with Bg5, and when Black plays h6, captures the knight on f6 to damage Blacks kingside pawn structure and gain the bishop pair.'
+'White pressures the kingside with Bg5, and when Black plays h6, captures the knight on f6 to damage Blacks kingside pawn structure and gain the bishop pair.',
+solved: false,
+attempted: false
 },
 {
-  fen: 'r1bq1rk1/ppp2ppp/2n2n2/3p4/3P4/2N1PN2/PPP2PPP/R1BQKB1R w KQ - 0 8',
-  fen: 'r1bq1rk1/ppp2ppp/2n2n2/3p4/3P4/2N2N2/PPP2PPP/R1BQKB1R w KQ - 0 8',
+fen: 'r1bq1rk1/ppp2ppp/2n2n2/3p4/3P4/2N2N2/PPP2PPP/R1BQKB1R w KQ - 0 8',
 moves: ['c1g5', 'h7h6', 'g5f6', 'd8f6'],
 explanation:
-'White develops the bishop with tempo, attacking the knight. After Black plays h6, White captures the knight to damage the kingside pawn structure and maintain the initiative.'
+'White develops the bishop with tempo, attacking the knight. After Black plays h6, White captures the knight to damage the kingside pawn structure and maintain the initiative.',
+solved: false,
+attempted: false
 },
 {
 fen: 'r1bqkb1r/pp2pppp/2n2n2/2pp4/3P4/2N1PN2/PP3PPP/R1BQKB1R w KQkq - 0 5',
 moves: ['f1d3', 'c8g4', 'd1b3', 'c5c4'],
 explanation:
-'White develops with threats while preparing queenside pressure. Black responds by gaining space with ...c4 to blunt the b3 queen’s scope.'
+'White develops with threats while preparing queenside pressure. Black responds by gaining space with ...c4 to blunt the b3 queen's scope.',
+solved: false,
+attempted: false
 }
 ];
 
@@ -83,30 +105,105 @@ y: rank * squareSize + squareSize / 2
 };
 
 const App = () => {
+// EXISTING STATE VARIABLES (keeping all your original ones)
 const [boardSize, setBoardSize] = useState(getBoardSize());
 const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
 const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
-const [boardPosition, setBoardPosition] = useState(puzzles[0].fen);
+const [boardPosition, setBoardPosition] = useState(''); // Changed to empty string initially
 const [arrows, setArrows] = useState([]);
 const [highlightedSquares, setHighlightedSquares] = useState({});
 const [selectedSquares, setSelectedSquares] = useState([]);
 const [isUserTurnToMove, setIsUserTurnToMove] = useState(false);
 const [feedbackMessage, setFeedbackMessage] = useState('');
-const internalGameRef = useRef(new Chess(puzzles[0].fen));
+const internalGameRef = useRef(null); // Changed to null initially
 
-// Update board size on resize
+// NEW USER SYSTEM STATE VARIABLES
+const [puzzles, setPuzzles] = useState([]); // Now dynamic instead of const
+const [isLoadingPuzzles, setIsLoadingPuzzles] = useState(true);
+const [user, setUser] = useState(null);
+const [userProfile, setUserProfile] = useState(null);
+const [userSystem] = useState(() => new UserSystem());
+const [showAuthModal, setShowAuthModal] = useState(false);
+const [showProfileModal, setShowProfileModal] = useState(false);
+const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+const [puzzleStartTime, setPuzzleStartTime] = useState(null);
+
+// AUTHENTICATION USEEFFECT
+useEffect(() => {
+  // Set up auth state listener
+  const { data: { subscription } } = userSystem.onAuthStateChange(async (event, user) => {
+    setUser(user);
+    
+    if (user) {
+      // User signed in - load their profile
+      const profile = await userSystem.getUserProfile();
+      setUserProfile(profile);
+    } else {
+      // User signed out
+      setUserProfile(null);
+    }
+    
+    setIsLoadingAuth(false);
+  });
+
+  // Cleanup subscription
+  return () => {
+    subscription?.unsubscribe();
+  };
+}, [userSystem]);
+
+// PUZZLE LOADING USEEFFECT
+useEffect(() => {
+  async function loadPuzzles() {
+    try {
+      console.log('Loading puzzles...');
+      
+      // Get puzzles with user progress if logged in
+      const fetchedPuzzles = await userSystem.getPuzzlesForUser('all', 20);
+      
+      if (fetchedPuzzles.length > 0) {
+        setPuzzles(fetchedPuzzles);
+        console.log(`✅ Loaded ${fetchedPuzzles.length} puzzles`);
+      } else {
+        // Fallback to your original working puzzles
+        console.log('No puzzles in database, using fallback');
+        setPuzzles(FALLBACK_PUZZLES);
+      }
+    } catch (error) {
+      console.error('Failed to load puzzles:', error);
+      setPuzzles(FALLBACK_PUZZLES);
+    } finally {
+      setIsLoadingPuzzles(false);
+    }
+  }
+
+  // Only load puzzles after auth state is determined
+  if (!isLoadingAuth) {
+    loadPuzzles();
+  }
+}, [isLoadingAuth, user, userSystem]);
+
+// Update board size on resize (KEEPING YOUR EXACT CODE)
 useEffect(() => {
 const handleResize = () => setBoardSize(getBoardSize());
 window.addEventListener('resize', handleResize);
 return () => window.removeEventListener('resize', handleResize);
 }, []);
 
-// Whenever puzzle changes, reset state
+// Whenever puzzle changes, reset state (KEEPING YOUR EXACT CODE)
 useEffect(() => {
-resetCurrentPuzzle(currentPuzzleIndex);
-}, [currentPuzzleIndex]);
+if (puzzles.length > 0) {
+  resetCurrentPuzzle(currentPuzzleIndex);
+}
+}, [currentPuzzleIndex, puzzles]);
 
+// ENHANCED RESET FUNCTION (with safety check)
 const resetCurrentPuzzle = (index) => {
+if (!puzzles || puzzles.length === 0 || !puzzles[index]) {
+  console.log('No puzzles available yet');
+  return;
+}
+
 const puzzle = puzzles[index];
 internalGameRef.current = new Chess(puzzle.fen);
 setBoardPosition(puzzle.fen);
@@ -118,7 +215,12 @@ setIsUserTurnToMove(false);
 setFeedbackMessage('');
 };
 
+// ENHANCED HANDLESHOWMOVE (just adds puzzle start time tracking)
 const handleShowMove = () => {
+// Track puzzle start time for the first move
+if (currentMoveIndex === 0) setPuzzleStartTime(Date.now());
+
+// KEEPING ALL YOUR EXISTING LOGIC EXACTLY THE SAME
 const move = puzzles[currentPuzzleIndex].moves[currentMoveIndex];
 const from = move.slice(0, 2);
 const to = move.slice(2, 4);
@@ -132,8 +234,8 @@ setCurrentMoveIndex((i) => i + 1);
 // After showing Move 1 & 2, play them on internal game & update board
 const puzzle = puzzles[currentPuzzleIndex];
 const game = new Chess(puzzle.fen);
-const move1 = puzzle.moves[0]; // 'c1g5'
-const move2 = puzzle.moves[1]; // 'f8e7'
+const move1 = puzzle.moves[0];
+const move2 = puzzle.moves[1];
 
 game.move({ from: move1.slice(0, 2), to: move1.slice(2, 4) });
 game.move({ from: move2.slice(0, 2), to: move2.slice(2, 4) });
@@ -155,6 +257,7 @@ setArrows([]);
 }
 };
 
+// KEEPING YOUR EXACT HANDLESQUARECLICK
 const handleSquareClick = (square) => {
 if (!isUserTurnToMove) return;
 
@@ -184,13 +287,15 @@ setSelectedSquares([]);
 }
 };
 
+// ENHANCED EVALUATEUSERMOVE (adds user progress tracking)
 const evaluateUserMove = async (from, to, userGuess, correctMove) => {
 console.log('Current FEN:', internalGameRef.current.fen());
 console.log('Attempting move from', from, 'to', to);
 console.log('Available moves:', internalGameRef.current.moves());
 console.log('User guess as coordinate:', userGuess);
 console.log('from square:', from, 'to square:', to);
-// Validate on internalGameRef (already after Move 1 & 2)
+
+// KEEPING YOUR EXACT VALIDATION LOGIC
 const tempGame = new Chess(internalGameRef.current.fen());
 const moveResult = tempGame.move({ from, to });
 console.log('Chess.js move result:', moveResult);
@@ -203,15 +308,44 @@ return;
 setIsUserTurnToMove(false);
 setFeedbackMessage('Analyzing your move…');
 
-// Sequence: Moves 1, 2, then the user's guess
+// Calculate time taken and check if solved
+const timeTaken = puzzleStartTime ? Math.round((Date.now() - puzzleStartTime) / 1000) : null;
+const solved = userGuess === correctMove;
+
+// Record attempt if user is logged in
+if (user && puzzles[currentPuzzleIndex].id) {
+  try {
+    const result = await userSystem.recordPuzzleAttempt(
+      puzzles[currentPuzzleIndex].id,
+      solved,
+      timeTaken,
+      [userGuess]
+    );
+    
+    if (result && solved) {
+      // Update user profile with new rating
+      const updatedProfile = await userSystem.getUserProfile();
+      setUserProfile(updatedProfile);
+      
+      // Show rating change in feedback
+      const ratingChange = result.ratingChange;
+      const ratingText = ratingChange > 0 ? `(+${ratingChange})` : `(${ratingChange})`;
+      setFeedbackMessage(`Correct! Rating: ${result.newRating} ${ratingText}. ${puzzles[currentPuzzleIndex].explanation}`);
+    }
+  } catch (error) {
+    console.error('Failed to record attempt:', error);
+  }
+}
+
+// KEEPING YOUR EXACT SEQUENCE LOGIC
 const sequence = [
 puzzles[currentPuzzleIndex].moves[0],
 puzzles[currentPuzzleIndex].moves[1],
 userGuess
 ];
-playMoveSequence(sequence, userGuess === correctMove);
+playMoveSequence(sequence, solved);
 
-if (userGuess !== correctMove) {
+if (!solved) {
 try {
 const explanation = await getIncorrectMoveExplanation(
 internalGameRef.current.fen(),
@@ -225,9 +359,13 @@ setFeedbackMessage(
 'Incorrect. (Failed to fetch explanation; try again.)'
 );
 }
+} else if (!user) {
+// Show success message for non-logged-in users
+setFeedbackMessage(`Correct! ${puzzles[currentPuzzleIndex].explanation}`);
 }
 };
 
+// KEEPING YOUR EXACT PLAYMOVESEQUENCE
 const playMoveSequence = (moves, isCorrect) => {
 const puzzle = puzzles[currentPuzzleIndex];
 const game = new Chess(puzzle.fen);
@@ -252,11 +390,40 @@ setTimeout(() => setArrows([]), 700);
 }, moves.length * 1000 + 300);
 };
 
+// KEEPING YOUR EXACT HANDLEREVEALSOLUTION
 const handleRevealSolution = () => {
 const puzzle = puzzles[currentPuzzleIndex];
 playMoveSequence(puzzle.moves, true);
 };
 
+// NEW AUTH HANDLER FUNCTIONS
+const handleAuthSuccess = async (user) => {
+  setUser(user);
+  const profile = await userSystem.getUserProfile();
+  setUserProfile(profile);
+  setShowAuthModal(false);
+  
+  // Reload puzzles with user progress
+  const userPuzzles = await userSystem.getPuzzlesForUser('all', 20);
+  if (userPuzzles.length > 0) {
+    setPuzzles(userPuzzles);
+  }
+};
+
+const handleSignOut = async () => {
+  await userSystem.signOut();
+  setUser(null);
+  setUserProfile(null);
+  setShowProfileModal(false);
+  
+  // Reload puzzles without user progress
+  const publicPuzzles = await userSystem.getPublicPuzzles('all', 20);
+  if (publicPuzzles.length > 0) {
+    setPuzzles(publicPuzzles);
+  }
+};
+
+// KEEPING YOUR EXACT STYLES
 const buttonStyle = {
 margin: '5px',
 padding: '8px 16px',
@@ -270,6 +437,7 @@ boxShadow: '2px 2px 6px rgba(0,0,0,0.2)',
 transition: 'background-color 0.3s ease'
 };
 
+// KEEPING YOUR EXACT RENDERARROWS
 const renderArrows = () => (
 <svg
 width={boardSize}
@@ -307,6 +475,22 @@ markerEnd="url(#arrowhead)"
 </svg>
 );
 
+// LOADING STATE CHECK
+if (isLoadingPuzzles || isLoadingAuth) {
+  return (
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      height: '100vh',
+      flexDirection: 'column'
+    }}>
+      <h2>Loading Chess Puzzles...</h2>
+      <p>Setting up your personalized experience...</p>
+    </div>
+  );
+}
+
 return (
 <div
 className="App"
@@ -314,9 +498,20 @@ style={{
 paddingTop: '4px',
 display: 'flex',
 flexDirection: 'column',
-alignItems: 'center'
+alignItems: 'center',
+position: 'relative'
 }}
 >
+{/* AUTH HEADER */}
+<AuthHeader
+  user={user}
+  profile={userProfile}
+  onShowAuth={() => setShowAuthModal(true)}
+  onShowProfile={() => setShowProfileModal(true)}
+  onSignOut={handleSignOut}
+/>
+
+{/* KEEPING ALL YOUR EXISTING JSX EXACTLY THE SAME */}
 <img
 src="/logo.png"
 alt="Visualize 3 Logo"
@@ -341,7 +536,13 @@ moves play out, then use your recall skills to find the best third move
 without any visual aids.
 </p>
 <p>
-Puzzle {currentPuzzleIndex + 1} of {puzzles.length}
+  Puzzle {currentPuzzleIndex + 1} of {puzzles.length}
+  {puzzles[currentPuzzleIndex]?.solved && (
+    <span style={{ color: '#4CAF50', marginLeft: '10px' }}>✓ Solved</span>
+  )}
+  {puzzles[currentPuzzleIndex]?.attempted && !puzzles[currentPuzzleIndex]?.solved && (
+    <span style={{ color: '#FF9800', marginLeft: '10px' }}>⚬ Attempted</span>
+  )}
 </p>
 <div style={{ position: 'relative', width: boardSize, height: boardSize }}>
 <Chessboard
@@ -412,6 +613,21 @@ Next Puzzle
 </button>
 </div>
 </div>
+
+{/* AUTH MODALS */}
+<AuthModal
+  isOpen={showAuthModal}
+  onClose={() => setShowAuthModal(false)}
+  onAuthSuccess={handleAuthSuccess}
+  userSystem={userSystem}
+/>
+
+<UserProfile
+  user={user}
+  profile={userProfile}
+  onSignOut={handleSignOut}
+  onClose={() => setShowProfileModal(false)}
+/>
 </div>
 );
 };

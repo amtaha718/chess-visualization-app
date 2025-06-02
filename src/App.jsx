@@ -310,126 +310,130 @@ if (isLoadingPuzzles) {
 }
   return (
     <div
-      className="App"
-      style={{
-        paddingTop: '4px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center'
-      }}
-    >
-      <img
-        src="/logo.png"
-        alt="Visualize 3 Logo"
+  className="App"
+  style={{
+    paddingTop: '4px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center'
+  }}
+>
+  <img
+    src="/logo.png"
+    alt="Visualize 3 Logo"
+    style={{
+      height: boardSize > 360 ? '100px' : '60px',
+      marginTop: '2px',
+      marginBottom: '2px'
+    }}
+  />
+  <h1 style={{ fontSize: '22px', marginTop: '2px', marginBottom: '4px' }}>
+    Chess Visualization Trainer
+  </h1>
+  <p
+    style={{
+      maxWidth: '600px',
+      textAlign: 'center',
+      marginBottom: '16px'
+    }}
+  >
+    Strengthen your chess memory and tactical foresight. Watch the first two
+    moves play out, then use your recall skills to find the best third move
+    without any visual aids.
+  </p>
+  <p>
+    Puzzle {currentPuzzleIndex + 1} of {puzzles.length}
+  </p>
+  <div style={{ position: 'relative', width: boardSize, height: boardSize }}>
+    <Chessboard
+      position={boardPosition}
+      onSquareClick={handleSquareClick}
+      boardWidth={boardSize}
+      arePiecesDraggable={false}
+      customSquareStyles={highlightedSquares}
+      customDarkSquareStyle={{ backgroundColor: '#4caf50' }}
+      customLightSquareStyle={{ backgroundColor: '#f1f1e6' }}
+    />
+    {renderArrows()}
+  </div>
+  <p style={{ 
+      maxWidth: '600px', 
+      textAlign: 'center', 
+      wordWrap: 'break-word',
+      padding: '0 10px'
+    }}>
+    {feedbackMessage}
+  </p>
+
+  {/* Difficulty Selection */}
+  <div style={{ marginBottom: '10px' }}>
+    <span style={{ marginRight: '10px' }}>Difficulty: </span>
+    {['beginner', 'intermediate', 'advanced', 'all'].map(diff => (
+      <button
+        key={diff}
         style={{
-          height: boardSize > 360 ? '100px' : '60px',
-          marginTop: '2px',
-          marginBottom: '2px'
+          ...buttonStyle,
+          backgroundColor: difficulty === diff ? '#2196F3' : '#4CAF50',
+          margin: '2px'
         }}
-      />
-      <h1 style={{ fontSize: '22px', marginTop: '2px', marginBottom: '4px' }}>
-        Chess Visualization Trainer
-      </h1>
-      <p
-        style={{
-          maxWidth: '600px',
-          textAlign: 'center',
-          marginBottom: '16px'
-        }}
+        onClick={() => handleDifficultyChange(diff)}
       >
-        Strengthen your chess memory and tactical foresight. Watch the first two
-        moves play out, then use your recall skills to find the best third move
-        without any visual aids.
-      </p>
-      <p>
-        Puzzle {currentPuzzleIndex + 1} of {puzzles.length}
-      </p>
-      <div style={{ position: 'relative', width: boardSize, height: boardSize }}>
-        <Chessboard
-          position={boardPosition}
-          onSquareClick={handleSquareClick}
-          boardWidth={boardSize}
-          arePiecesDraggable={false}
-          customSquareStyles={highlightedSquares}
-          customDarkSquareStyle={{ backgroundColor: '#4caf50' }}
-          customLightSquareStyle={{ backgroundColor: '#f1f1e6' }}
-        />
-        {renderArrows()}
-      </div>
-      <p style={{ 
-          maxWidth: '600px', 
-          textAlign: 'center', 
-          wordWrap: 'break-word',
-          padding: '0 10px'
-        }}>
-        {feedbackMessage}
-      </p>
-      <div
-        style={{
-          marginTop: 10,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '10px'
-        }}
-        <div style={{ marginBottom: '10px' }}>
-  <span style={{ marginRight: '10px' }}>Difficulty: </span>
-  {['beginner', 'intermediate', 'advanced', 'all'].map(diff => (
-    <button
-      key={diff}
-      style={{
-        ...buttonStyle,
-        backgroundColor: difficulty === diff ? '#2196F3' : '#4CAF50',
-        margin: '2px'
-      }}
-      onClick={() => handleDifficultyChange(diff)}
-    >
-      {diff.charAt(0).toUpperCase() + diff.slice(1)}
-    </button>
-  ))}
-</div>
-      >
-        {/* Top row: Main action buttons */}
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          gap: '5px'
-        }}>
-          <button style={buttonStyle} onClick={handleShowMove}>
-            {currentMoveIndex < 2 ? `Show Move ${currentMoveIndex + 1}` : 'Your Move'}
-          </button>
-          <button style={buttonStyle} onClick={() => resetCurrentPuzzle(currentPuzzleIndex)}>
-            Replay
-          </button>
-          <button style={buttonStyle} onClick={handleRevealSolution}>
-            Reveal Solution
-          </button>
-        </div>
-        
-        {/* Bottom row: Navigation buttons */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '5px'
-        }}>
-          <button
-            style={buttonStyle}
-            onClick={() =>
-              setCurrentPuzzleIndex((i) => (i - 1 + puzzles.length) % puzzles.length)
-            }
-          >
-            Previous Puzzle
-          </button>
-          <button
-            style={buttonStyle}
-            onClick={() => setCurrentPuzzleIndex((i) => (i + 1) % puzzles.length)}
-          >
-            Next Puzzle
-          </button>
-        </div>
-      </div>
+        {diff.charAt(0).toUpperCase() + diff.slice(1)}
+      </button>
+    ))}
+  </div>
+
+  {/* Button Container */}
+  <div
+    style={{
+      marginTop: 10,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '10px'
+    }}
+  >
+    {/* Top row: Main action buttons */}
+    <div style={{
+      display: 'flex',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: '5px'
+    }}>
+      <button style={buttonStyle} onClick={handleShowMove}>
+        {currentMoveIndex < 2 ? `Show Move ${currentMoveIndex + 1}` : 'Your Move'}
+      </button>
+      <button style={buttonStyle} onClick={() => resetCurrentPuzzle(currentPuzzleIndex)}>
+        Replay
+      </button>
+      <button style={buttonStyle} onClick={handleRevealSolution}>
+        Reveal Solution
+      </button>
     </div>
+    
+    {/* Bottom row: Navigation buttons */}
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      gap: '5px'
+    }}>
+      <button
+        style={buttonStyle}
+        onClick={() =>
+          setCurrentPuzzleIndex((i) => (i - 1 + puzzles.length) % puzzles.length)
+        }
+      >
+        Previous Puzzle
+      </button>
+      <button
+        style={buttonStyle}
+        onClick={() => setCurrentPuzzleIndex((i) => (i + 1) % puzzles.length)}
+      >
+        Next Puzzle
+      </button>
+    </div>
+  </div>
+</div>
   );
 };
 

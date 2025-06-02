@@ -9,8 +9,6 @@ import './index.css';
 
 const getBoardSize = () => (window.innerWidth < 500 ? window.innerWidth - 40 : 400);
 
-import PuzzleGenerator from './puzzle-generator';
-
 // Replace the hardcoded puzzles array with state
 const [puzzles, setPuzzles] = useState([]);
 const [isLoadingPuzzles, setIsLoadingPuzzles] = useState(true);

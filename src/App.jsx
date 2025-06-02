@@ -125,6 +125,7 @@ const [userProfile, setUserProfile] = useState(null);
 const [userSystem] = useState(() => new UserSystem());
 const [showAuthModal, setShowAuthModal] = useState(false);
 const [showProfileModal, setShowProfileModal] = useState(false);
+  console.log('🔍 Current showProfileModal state:', showProfileModal);
 const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 const [puzzleStartTime, setPuzzleStartTime] = useState(null);
 

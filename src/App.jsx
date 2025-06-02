@@ -9,38 +9,6 @@ import './index.css';
 
 const getBoardSize = () => (window.innerWidth < 500 ? window.innerWidth - 40 : 400);
 
-// Replace the hardcoded puzzles array with state
-const [puzzles, setPuzzles] = useState([]);
-const [isLoadingPuzzles, setIsLoadingPuzzles] = useState(true);
-
-// Add this useEffect after your existing useEffects
-useEffect(() => {
-  async function loadGeneratedPuzzles() {
-    try {
-      console.log('Starting puzzle generation...');
-      const generator = new PuzzleGenerator();
-      const generatedPuzzles = await generator.generatePuzzleBatch(8);
-      
-      if (generatedPuzzles.length > 0) {
-        setPuzzles(generatedPuzzles);
-        console.log(`Generated ${generatedPuzzles.length} puzzles`);
-      } else {
-        // Fallback to your original puzzles if generation fails
-        setPuzzles([
-          // ... paste your original hardcoded puzzles here as backup
-        ]);
-      }
-    } catch (error) {
-      console.error('Failed to generate puzzles:', error);
-      // Use your original puzzles as fallback
-    } finally {
-      setIsLoadingPuzzles(false);
-    }
-  }
-  
-  loadGeneratedPuzzles();
-}, []);
-
 const getSquareCoordinates = (square, boardSize) => {
   const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
   const rank = 8 - parseInt(square[1], 10);
@@ -52,16 +20,46 @@ const getSquareCoordinates = (square, boardSize) => {
 };
 
 const App = () => {
+  // ALL STATE VARIABLES GO HERE (INSIDE THE COMPONENT)
+  const [puzzles, setPuzzles] = useState([]);
+  const [isLoadingPuzzles, setIsLoadingPuzzles] = useState(true);
   const [boardSize, setBoardSize] = useState(getBoardSize());
   const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
-  const [boardPosition, setBoardPosition] = useState(puzzles[0].fen);
+  const [boardPosition, setBoardPosition] = useState('');
   const [arrows, setArrows] = useState([]);
   const [highlightedSquares, setHighlightedSquares] = useState({});
   const [selectedSquares, setSelectedSquares] = useState([]);
   const [isUserTurnToMove, setIsUserTurnToMove] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
-  const internalGameRef = useRef(new Chess(puzzles[0].fen));
+  const internalGameRef = useRef(null);
+
+  // ALL USEEFFECTS GO HERE (INSIDE THE COMPONENT)
+  useEffect(() => {
+    async function loadGeneratedPuzzles() {
+      try {
+        console.log('Starting puzzle generation...');
+        const generator = new PuzzleGenerator();
+        const generatedPuzzles = await generator.generatePuzzleBatch(8);
+        
+        if (generatedPuzzles.length > 0) {
+          setPuzzles(generatedPuzzles);
+          console.log(`Generated ${generatedPuzzles.length} puzzles`);
+        } else {
+          // Fallback to original puzzles
+          setPuzzles([
+            // ... your original puzzles as backup
+          ]);
+        }
+      } catch (error) {
+        console.error('Failed to generate puzzles:', error);
+      } finally {
+        setIsLoadingPuzzles(false);
+      }
+    }
+    
+    loadGeneratedPuzzles();
+  }, []);
 
   // Update board size on resize
   useEffect(() => {

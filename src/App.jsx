@@ -511,7 +511,12 @@ position: 'relative'
 }}
 >
 {/* Add this debug line right before AuthHeader */}
-{console.log('🔍 AuthHeader props:', { user: !!user, profile: !!userProfile })}
+{console.log('🔍 AuthHeader props detailed:', { 
+  hasUser: !!user, 
+  userEmail: user?.email, 
+  hasProfile: !!userProfile, 
+  profileName: userProfile?.display_name 
+})}}
 
 <AuthHeader
   user={user}
@@ -527,6 +532,28 @@ position: 'relative'
   }}
   onSignOut={handleSignOut}
 />
+  {/* ADD THIS TEST BUTTON */}
+{user && (
+  <button 
+    onClick={() => {
+      console.log('🔍 TEST: Profile button clicked!');
+      setShowProfileModal(true);
+    }}
+    style={{
+      position: 'absolute',
+      top: '60px',
+      right: '10px',
+      backgroundColor: 'red',
+      color: 'white',
+      padding: '10px',
+      border: 'none',
+      borderRadius: '5px',
+      zIndex: 200
+    }}
+  >
+    TEST PROFILE
+  </button>
+)}
 
 <img
 src="/logo.png"

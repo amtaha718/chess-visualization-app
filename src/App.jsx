@@ -77,6 +77,8 @@ const App = () => {
     }
   };
 
+  
+
   // Update board size on resize
   useEffect(() => {
     const handleResize = () => setBoardSize(getBoardSize());
@@ -102,22 +104,6 @@ const App = () => {
     setIsUserTurnToMove(false);
     setFeedbackMessage('');
   };
-
-  const handleDifficultyChange = async (newDifficulty) => {
-  setDifficulty(newDifficulty);
-  setIsLoadingPuzzles(true);
-  
-  try {
-    const fetcher = new LichessPuzzleFetcher();
-    const newPuzzles = await fetcher.getPuzzlesForApp(newDifficulty, 15);
-    setPuzzles(newPuzzles);
-    setCurrentPuzzleIndex(0); // Reset to first puzzle
-  } catch (error) {
-    console.error('Failed to load new difficulty:', error);
-  } finally {
-    setIsLoadingPuzzles(false);
-  }
-};
 
   const handleShowMove = () => {
     const move = puzzles[currentPuzzleIndex].moves[currentMoveIndex];

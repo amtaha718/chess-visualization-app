@@ -88,7 +88,6 @@ useEffect(() => {
   };
 }, [userSystem]);
 
-// PUZZLE LOADING USEEFFECT - Updated to only use Supabase
 useEffect(() => {
   async function loadPuzzles() {
     try {
@@ -119,12 +118,6 @@ useEffect(() => {
       setIsLoadingPuzzles(false);
     }
   }
-
-  // Only load puzzles after auth state is determined
-  if (!isLoadingAuth) {
-    loadPuzzles();
-  }
-}, [isLoadingAuth, user, userSystem]);
 
   // Only load puzzles after auth state is determined
   if (!isLoadingAuth) {

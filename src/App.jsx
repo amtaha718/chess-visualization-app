@@ -635,44 +635,47 @@ Reveal Solution
 </div>
 
 <div style={{
-display: 'flex',
-justifyContent: 'center',
-gap: '5px'
-}}>
-<button
-style={buttonStyle}
-onClick={() =>
-setCurrentPuzzleIndex((i) => (i - 1 + puzzles.length) % puzzles.length)
-}
->
-Previous Puzzle
-</button>
-<button
-style={buttonStyle}
-onClick={() => setCurrentPuzzleIndex((i) => (i + 1) % puzzles.length)}
->
-Next Puzzle
-</button>
-</div>
-</div>
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '5px'
+        }}>
+          <button
+            style={buttonStyle}
+            onClick={() =>
+              setCurrentPuzzleIndex((i) => (i - 1 + puzzles.length) % puzzles.length)
+            }
+          >
+            Previous Puzzle
+          </button>
+          <button
+            style={buttonStyle}
+            onClick={() => setCurrentPuzzleIndex((i) => (i + 1) % puzzles.length)}
+          >
+            Next Puzzle
+          </button>
+        </div>
+      </div>
 
-<AuthModal
-  isOpen={showAuthModal}
-  onClose={() => setShowAuthModal(false)}
-  onAuthSuccess={handleAuthSuccess}
-  userSystem={userSystem}
-/>
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onAuthSuccess={handleAuthSuccess}
+        userSystem={userSystem}
+      />
 
-<UserProfile
-  isOpen={showProfileModal}
-  user={user}
-  profile={userProfile}
-  onSignOut={handleSignOut}
-  onClose={() => {
-    console.log('🔍 Close button clicked! Current modal state:', showProfileModal);
-    setShowProfileModal(false);
-    console.log('🔍 Modal should now be closed');
-  }}
-/>
+      <UserProfile
+        isOpen={showProfileModal}
+        user={user}
+        profile={userProfile}
+        onSignOut={handleSignOut}
+        onClose={() => {
+          console.log('🔍 Close button clicked! Current modal state:', showProfileModal);
+          setShowProfileModal(false);
+          console.log('🔍 Modal should now be closed');
+        }}
+      />
+    </div>
+  );
+};
 
 export default App;

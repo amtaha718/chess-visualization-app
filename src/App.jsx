@@ -5,6 +5,7 @@ import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { getIncorrectMoveExplanation } from './ai';
 import PuzzleGenerator from './puzzle-generator';
+import LichessPuzzleFetcher from './lichess-puzzles'; // Add this import at the top
 import './index.css';
 
 const getBoardSize = () => (window.innerWidth < 500 ? window.innerWidth - 40 : 400);
@@ -35,7 +36,7 @@ const App = () => {
   const internalGameRef = useRef(null);
   const [difficulty, setDifficulty] = useState('all');
 
-  import LichessPuzzleFetcher from './lichess-puzzles'; // Add this import at the top
+  
 
 useEffect(() => {
   async function loadLichessPuzzles() {

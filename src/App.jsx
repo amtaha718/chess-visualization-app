@@ -514,7 +514,11 @@ position: 'relative'
   user={user}
   profile={userProfile}
   onShowAuth={() => setShowAuthModal(true)}
-  onShowProfile={() => setShowProfileModal(true)}
+  onShowProfile={() => {
+    console.log('🔍 Profile button clicked! Setting modal to true');
+    setShowProfileModal(true);
+    console.log('🔍 Modal state should now be true');
+  }}
   onSignOut={handleSignOut}
 />
 

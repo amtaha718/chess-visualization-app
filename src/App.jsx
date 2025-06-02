@@ -628,7 +628,11 @@ Next Puzzle
   user={user}
   profile={userProfile}
   onSignOut={handleSignOut}
-  onClose={() => setShowProfileModal(false)}
+  onClose={() => {
+    console.log('🔍 Close button clicked! Current modal state:', showProfileModal);
+    setShowProfileModal(false);
+    console.log('🔍 Modal should now be closed');
+  }}
 />
 </div>
 );

@@ -532,7 +532,8 @@ position: 'relative'
   }}
   onSignOut={handleSignOut}
 />
-  {/* ADD THIS TEST BUTTON */}
+
+{/* TEST BUTTON */}
 {user && (
   <button 
     onClick={() => {

@@ -510,10 +510,16 @@ alignItems: 'center',
 position: 'relative'
 }}
 >
+{/* Add this debug line right before AuthHeader */}
+{console.log('🔍 AuthHeader props:', { user: !!user, profile: !!userProfile })}
+
 <AuthHeader
   user={user}
   profile={userProfile}
-  onShowAuth={() => setShowAuthModal(true)}
+  onShowAuth={() => {
+    console.log('🔍 Sign In button clicked!');
+    setShowAuthModal(true);
+  }}
   onShowProfile={() => {
     console.log('🔍 Profile button clicked! Setting modal to true');
     setShowProfileModal(true);

@@ -1,10 +1,8 @@
 // src/App.js
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { getIncorrectMoveExplanation } from './ai';
-import PuzzleGenerator from './puzzle-generator';
 import LichessAPI from './lichess-api';
 import './index.css';
 
@@ -36,52 +34,48 @@ const App = () => {
   const internalGameRef = useRef(null);
   const [difficulty, setDifficulty] = useState('all');
 
-  
-
-useEffect(() => {
-  async function loadLichessPuzzles() {
-    try {
-      console.log('Loading puzzles from Lichess API...');
-      const lichessAPI = new LichessAPI();
-      const puzzles = await lichessAPI.getPuzzlesForApp('all', 12);
-      
-      if (puzzles && puzzles.length > 0) {
-        setPuzzles(puzzles);
-        console.log(`✅ Loaded ${puzzles.length} Lichess puzzles`);
-      } else {
-        throw new Error('No puzzles loaded');
+  // Load puzzles from Lichess API
+  useEffect(() => {
+    async function loadLichessPuzzles() {
+      try {
+        console.log('Loading puzzles from Lichess API...');
+        const lichessAPI = new LichessAPI();
+        const puzzles = await lichessAPI.getPuzzlesForApp('all', 12);
+        
+        if (puzzles && puzzles.length > 0) {
+          setPuzzles(puzzles);
+          console.log(`✅ Loaded ${puzzles.length} Lichess puzzles`);
+        } else {
+          throw new Error('No puzzles loaded');
+        }
+      } catch (error) {
+        console.error('❌ Failed to load Lichess puzzles:', error);
+        // Don't set empty array - let the loading state show the error
+      } finally {
+        setIsLoadingPuzzles(false);
       }
+    }
+    
+    loadLichessPuzzles();
+  }, []);
+
+  // Difficulty change handler
+  const handleDifficultyChange = async (newDifficulty) => {
+    setDifficulty(newDifficulty);
+    setIsLoadingPuzzles(true);
+    
+    try {
+      const lichessAPI = new LichessAPI();
+      const newPuzzles = await lichessAPI.getPuzzlesForApp(newDifficulty, 12);
+      setPuzzles(newPuzzles);
+      setCurrentPuzzleIndex(0);
+      console.log(`✅ Loaded ${newPuzzles.length} ${newDifficulty} puzzles`);
     } catch (error) {
-      console.error('❌ Failed to load Lichess puzzles:', error);
-      // Don't set empty array - let the loading state show the error
+      console.error('❌ Failed to load new difficulty:', error);
     } finally {
       setIsLoadingPuzzles(false);
     }
-  }
-  
-  loadLichessPuzzles();
-}, []);
-
-// Also update the difficulty change handler:
-const handleDifficultyChange = async (newDifficulty) => {
-  setDifficulty(newDifficulty);
-  setIsLoadingPuzzles(true);
-  
-  try {
-    const lichessAPI = new LichessAPI();
-    const newPuzzles = await lichessAPI.getPuzzlesForApp(newDifficulty, 12);
-    setPuzzles(newPuzzles);
-    setCurrentPuzzleIndex(0);
-    console.log(`✅ Loaded ${newPuzzles.length} ${newDifficulty} puzzles`);
-  } catch (error) {
-    console.error('❌ Failed to load new difficulty:', error);
-  } finally {
-    setIsLoadingPuzzles(false);
-  }
-};
-  
-  loadLichessPuzzles();
-}, []);
+  };
 
   // Update board size on resize
   useEffect(() => {
@@ -90,10 +84,12 @@ const handleDifficultyChange = async (newDifficulty) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Whenever puzzle changes, reset state
+  // Reset puzzle when index changes
   useEffect(() => {
-    resetCurrentPuzzle(currentPuzzleIndex);
-  }, [currentPuzzleIndex]);
+    if (puzzles.length > 0) {
+      resetCurrentPuzzle(currentPuzzleIndex);
+    }
+  }, [currentPuzzleIndex, puzzles]);
 
   const resetCurrentPuzzle = (index) => {
     const puzzle = puzzles[index];

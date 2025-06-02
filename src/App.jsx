@@ -346,7 +346,9 @@ const handleSignOut = async () => {
   setUserProfile(null);
   setShowProfileModal(false);
   
-  setPuzzles(FALLBACK_PUZZLES);
+  // Reload puzzles as a guest user
+  const guestPuzzles = await userSystem.getPublicPuzzles('all', 50);
+  setPuzzles(guestPuzzles);
 };
 
 // EXISTING STYLES - unchanged

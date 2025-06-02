@@ -4,72 +4,44 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { getIncorrectMoveExplanation } from './ai';
+import PuzzleGenerator from './puzzle-generator';
 import './index.css';
 
 const getBoardSize = () => (window.innerWidth < 500 ? window.innerWidth - 40 : 400);
 
-const puzzles = [
-  {
-    fen: 'r1bqkbnr/ppp2ppp/2n5/1B1pp3/3PP3/5N2/PPP2PPP/RNBQK2R w KQkq - 0 4',
-    moves: ['e4d5', 'd8d5', 'b1c3', 'd5a5'],
-    explanation:
-      'This sequence helps White develop quickly and gain tempo by targeting the black queen with Nc3, forcing her to a passive square.'
-  },
-  {
-    fen: 'r1bqkbnr/pp3ppp/2n1p3/2pp4/3PP3/2N2N2/PPP2PPP/R1BQKB1R w KQkq - 0 5',
-    moves: ['e4d5', 'e6d5', 'f1b5', 'g8f6'],
-    explanation:
-      'White exchanges center pawns and develops the bishop to b5, pinning the knight and building pressure on Black’s position.'
-  },
-  {
-    fen: 'rnbqkb1r/pp1ppppp/5n2/2p5/2P5/5NP1/PP1PPP1P/RNBQKB1R w KQkq - 0 3',
-    moves: ['f1g2', 'b8c6', 'd2d4', 'c5d4'],
-    explanation:
-      'White aims for kingside fianchetto and central control. Playing d4 strikes at the center to open lines and challenge Black’s setup.'
-  },
-  {
-    fen: 'r1bqk1nr/pppp1ppp/2n5/4p3/1b1PP3/5N2/PPPN1PPP/R1BQKB1R w KQkq - 0 4',
-    moves: ['d4e5', 'c6e5', 'f3e5', 'd7d6'],
-    explanation:
-      'By capturing and recapturing in the center, White opens lines and clarifies central tension, with Ne5 aiming to provoke weaknesses or exchanges.'
-  },
-  {
-  fen: 'r2qkbnr/ppp2ppp/2n1b3/3p4/3P4/2P2N2/PP2PPPP/RNBQKB1R w KQkq - 2 5',
-  moves: ['c1g5', 'f8e7', 'g5e7', 'c6e7'],
-  explanation:
-    'White trades bishop for bishop to remove a key defender and weaken Blacks kingside control, preparing to develop quickly.'
-},
-  {
-    fen: 'rnbqkb1r/pp3ppp/2p1pn2/3p4/3P4/2N1PN2/PP3PPP/R1BQKB1R w KQkq - 0 5',
-    moves: ['f1d3', 'f8d6', 'e3e4', 'd5e4'],
-    explanation:
-      'White builds up with classical development and prepares a central break. The e4 push is thematic, challenging Black’s center directly.'
-  },
-  {
-  fen: 'rnbqkbnr/pp3ppp/4p3/2ppP3/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 0 4',
-  moves: ['d2d4', 'c5d4', 'c2c3', 'd4c3'],
-  explanation:
-    'White strikes at the center with d4, and after the exchange, recaptures with the c-pawn to maintain central control and open lines for development.'
-},
-  {
-  fen: 'r1bq1rk1/pppp1ppp/2n2n2/4p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 6',
-  moves: ['c1g5', 'h7h6', 'g5f6', 'd8f6'],
-  explanation:
-    'White pressures the kingside with Bg5, and when Black plays h6, captures the knight on f6 to damage Blacks kingside pawn structure and gain the bishop pair.'
-},
-  {
-  fen: 'r1bq1rk1/ppp2ppp/2n2n2/3p4/3P4/2N2N2/PPP2PPP/R1BQKB1R w KQ - 0 8',
-  moves: ['c1g5', 'h7h6', 'g5f6', 'd8f6'],
-  explanation:
-    'White develops the bishop with tempo, attacking the knight. After Black plays h6, White captures the knight to damage the kingside pawn structure and maintain the initiative.'
-},
-  {
-    fen: 'r1bqkb1r/pp2pppp/2n2n2/2pp4/3P4/2N1PN2/PP3PPP/R1BQKB1R w KQkq - 0 5',
-    moves: ['f1d3', 'c8g4', 'd1b3', 'c5c4'],
-    explanation:
-      'White develops with threats while preparing queenside pressure. Black responds by gaining space with ...c4 to blunt the b3 queen’s scope.'
+import PuzzleGenerator from './puzzle-generator';
+
+// Replace the hardcoded puzzles array with state
+const [puzzles, setPuzzles] = useState([]);
+const [isLoadingPuzzles, setIsLoadingPuzzles] = useState(true);
+
+// Add this useEffect after your existing useEffects
+useEffect(() => {
+  async function loadGeneratedPuzzles() {
+    try {
+      console.log('Starting puzzle generation...');
+      const generator = new PuzzleGenerator();
+      const generatedPuzzles = await generator.generatePuzzleBatch(8);
+      
+      if (generatedPuzzles.length > 0) {
+        setPuzzles(generatedPuzzles);
+        console.log(`Generated ${generatedPuzzles.length} puzzles`);
+      } else {
+        // Fallback to your original puzzles if generation fails
+        setPuzzles([
+          // ... paste your original hardcoded puzzles here as backup
+        ]);
+      }
+    } catch (error) {
+      console.error('Failed to generate puzzles:', error);
+      // Use your original puzzles as fallback
+    } finally {
+      setIsLoadingPuzzles(false);
+    }
   }
-];
+  
+  loadGeneratedPuzzles();
+}, []);
 
 const getSquareCoordinates = (square, boardSize) => {
   const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
@@ -305,7 +277,20 @@ console.log('Available moves after 1&2:', game.moves());
       })}
     </svg>
   );
-
+if (isLoadingPuzzles) {
+  return (
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      height: '100vh',
+      flexDirection: 'column'
+    }}>
+      <h2>Generating Chess Puzzles...</h2>
+      <p>This may take a moment while we create personalized tactical sequences.</p>
+    </div>
+  );
+}
   return (
     <div
       className="App"

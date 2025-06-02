@@ -664,6 +664,7 @@ Next Puzzle
 />
 
 <UserProfile
+  isOpen={showProfileModal}
   user={user}
   profile={userProfile}
   onSignOut={handleSignOut}
@@ -673,8 +674,5 @@ Next Puzzle
     console.log('🔍 Modal should now be closed');
   }}
 />
-</div>
-);
-};
 
 export default App;

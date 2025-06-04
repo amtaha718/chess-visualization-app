@@ -203,7 +203,26 @@ const App = () => {
     }
   }, [currentPuzzleIndex, puzzles]);
 
-  // RESET FUNCTION with board orientation detection
+  // Helper function to validate puzzle data
+  const validatePuzzle = (puzzle) => {
+    if (!puzzle.moves || puzzle.moves.length !== 3) {
+      console.warn('Puzzle does not have exactly 3 moves:', puzzle);
+      return false;
+    }
+    
+    // Validate move format (should be 4 characters like 'e2e4')
+    for (let i = 0; i < 3; i++) {
+      const move = puzzle.moves[i];
+      if (!move || move.length !== 4) {
+        console.warn(`Invalid move format at index ${i}:`, move);
+        return false;
+      }
+    }
+    
+    return true;
+  };
+
+  // RESET FUNCTION with board orientation detection and validation
   const resetCurrentPuzzle = (index) => {
     if (!puzzles || puzzles.length === 0 || !puzzles[index]) {
       console.log('No puzzles available yet');
@@ -211,6 +230,17 @@ const App = () => {
     }
 
     const puzzle = puzzles[index];
+    
+    // Validate puzzle before using it
+    if (!validatePuzzle(puzzle)) {
+      setFeedbackMessage('This puzzle appears to be invalid. Skipping to next puzzle.');
+      // Skip to next puzzle
+      if (puzzles.length > 1) {
+        setCurrentPuzzleIndex((index + 1) % puzzles.length);
+      }
+      return;
+    }
+
     const game = new Chess(puzzle.fen);
     
     // Determine who plays first based on FEN
@@ -230,11 +260,20 @@ const App = () => {
     setFeedbackMessage('');
   };
 
-  // ENHANCED HANDLESHOWMOVE
+  // ENHANCED HANDLESHOWMOVE with validation
   const handleShowMove = () => {
     if (currentMoveIndex === 0) setPuzzleStartTime(Date.now());
 
-    const move = puzzles[currentPuzzleIndex].moves[currentMoveIndex];
+    const puzzle = puzzles[currentPuzzleIndex];
+    
+    // Validate puzzle has exactly 3 moves
+    if (!puzzle.moves || puzzle.moves.length !== 3) {
+      console.error('Puzzle does not have exactly 3 moves:', puzzle);
+      setFeedbackMessage('This puzzle appears to be invalid. Please try another.');
+      return;
+    }
+
+    const move = puzzle.moves[currentMoveIndex];
     const from = move.slice(0, 2);
     const to = move.slice(2, 4);
 
@@ -243,13 +282,18 @@ const App = () => {
     if (currentMoveIndex < 2) {
       setCurrentMoveIndex((i) => i + 1);
     } else {
-      const puzzle = puzzles[currentPuzzleIndex];
       const game = new Chess(puzzle.fen);
       const move1 = puzzle.moves[0];
       const move2 = puzzle.moves[1];
 
-      game.move({ from: move1.slice(0, 2), to: move1.slice(2, 4) });
-      game.move({ from: move2.slice(0, 2), to: move2.slice(2, 4) });
+      const moveResult1 = game.move({ from: move1.slice(0, 2), to: move1.slice(2, 4) });
+      const moveResult2 = game.move({ from: move2.slice(0, 2), to: move2.slice(2, 4) });
+
+      if (!moveResult1 || !moveResult2) {
+        console.error('Invalid moves in puzzle sequence');
+        setFeedbackMessage('This puzzle contains invalid moves. Please try another.');
+        return;
+      }
 
       console.log('Move 1 being applied:', move1);
       console.log('Move 2 being applied:', move2);
@@ -297,7 +341,7 @@ const App = () => {
     }
   };
 
-  // ENHANCED EVALUATEUSERMOVE
+  // ENHANCED EVALUATEUSERMOVE with proper rating updates
   const evaluateUserMove = async (from, to, userGuess, correctMove) => {
     console.log('Current FEN:', internalGameRef.current.fen());
     console.log('Attempting move from', from, 'to', to);
@@ -330,13 +374,25 @@ const App = () => {
           [userGuess]
         );
         
-        if (result && solved) {
+        if (result) {
+          // Force refresh of user profile to get updated stats
           const updatedProfile = await userSystem.getUserProfile();
           setUserProfile(updatedProfile);
           
-          const ratingChange = result.ratingChange;
-          const ratingText = ratingChange > 0 ? `(+${ratingChange})` : `(${ratingChange})`;
-          setFeedbackMessage(`Correct! Rating: ${result.newRating} ${ratingText}. ${puzzles[currentPuzzleIndex].explanation}`);
+          if (solved) {
+            const ratingChange = result.ratingChange;
+            const ratingText = ratingChange > 0 ? `(+${ratingChange})` : `(${ratingChange})`;
+            setFeedbackMessage(`Correct! Rating: ${result.newRating} ${ratingText}. ${puzzles[currentPuzzleIndex].explanation}`);
+          }
+          
+          // Update the current puzzle's solved/attempted status in the local state
+          const updatedPuzzles = [...puzzles];
+          updatedPuzzles[currentPuzzleIndex] = {
+            ...updatedPuzzles[currentPuzzleIndex],
+            solved: solved || updatedPuzzles[currentPuzzleIndex].solved,
+            attempted: true
+          };
+          setPuzzles(updatedPuzzles);
         }
       } catch (error) {
         console.error('Failed to record attempt:', error);
@@ -369,20 +425,28 @@ const App = () => {
     }
   };
 
-  // EXISTING PLAYMOVESEQUENCE - unchanged
+  // FIXED PLAYMOVESEQUENCE - only plays 3 moves
   const playMoveSequence = (moves, isCorrect) => {
     const puzzle = puzzles[currentPuzzleIndex];
     const game = new Chess(puzzle.fen);
     setBoardPosition(puzzle.fen);
     setArrows([]);
 
-    moves.forEach((move, i) => {
+    // Limit to first 3 moves only
+    const movesToPlay = moves.slice(0, 3);
+
+    movesToPlay.forEach((move, i) => {
       setTimeout(() => {
         const from = move.slice(0, 2);
         const to = move.slice(2, 4);
-        game.move({ from, to });
-        setBoardPosition(game.fen());
-        setArrows([{ from, to }]);
+        const moveResult = game.move({ from, to });
+        
+        if (moveResult) {
+          setBoardPosition(game.fen());
+          setArrows([{ from, to }]);
+        } else {
+          console.error(`Invalid move in sequence: ${move}`);
+        }
       }, i * 1000);
     });
 
@@ -391,13 +455,15 @@ const App = () => {
         setFeedbackMessage(`Correct! ${puzzle.explanation}`);
       }
       setTimeout(() => setArrows([]), 700);
-    }, moves.length * 1000 + 300);
+    }, movesToPlay.length * 1000 + 300);
   };
 
-  // EXISTING HANDLEREVEALSOLUTION - unchanged
+  // FIXED HANDLEREVEALSOLUTION - only plays 3 moves
   const handleRevealSolution = () => {
     const puzzle = puzzles[currentPuzzleIndex];
-    playMoveSequence(puzzle.moves, true);
+    // Only play the first 3 moves (not all moves)
+    const firstThreeMoves = puzzle.moves.slice(0, 3);
+    playMoveSequence(firstThreeMoves, true);
   };
 
   // Handler for difficulty change
@@ -522,13 +588,10 @@ const App = () => {
         user={user}
         profile={userProfile}
         onShowAuth={() => {
-          console.log('🔍 Sign In button clicked!');
           setShowAuthModal(true);
         }}
         onShowProfile={() => {
-          console.log('🔍 Profile button clicked! Setting modal to true');
           setShowProfileModal(true);
-          console.log('🔍 Modal state should now be true');
         }}
         onSignOut={handleSignOut}
       />
@@ -669,9 +732,7 @@ const App = () => {
         profile={userProfile}
         onSignOut={handleSignOut}
         onClose={() => {
-          console.log('🔍 Close button clicked! Current modal state:', showProfileModal);
           setShowProfileModal(false);
-          console.log('🔍 Modal should now be closed');
         }}
       />
     </div>

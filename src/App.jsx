@@ -10,9 +10,22 @@ import { AuthModal, UserProfile, AuthHeader } from './auth-components';
 
 const getBoardSize = () => (window.innerWidth < 500 ? window.innerWidth - 40 : 400);
 
-const getSquareCoordinates = (square, boardSize) => {
-  const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
-  const rank = 8 - parseInt(square[1], 10);
+// Helper function to determine whose turn it is from FEN
+const getActiveColor = (fen) => {
+  const parts = fen.split(' ');
+  return parts[1] === 'w' ? 'white' : 'black';
+};
+
+const getSquareCoordinates = (square, boardSize, isFlipped = false) => {
+  let file = square.charCodeAt(0) - 'a'.charCodeAt(0);
+  let rank = 8 - parseInt(square[1], 10);
+  
+  // If board is flipped, invert the coordinates
+  if (isFlipped) {
+    file = 7 - file;
+    rank = 7 - rank;
+  }
+  
   const squareSize = boardSize / 8;
   return {
     x: file * squareSize + squareSize / 2,
@@ -88,6 +101,10 @@ const App = () => {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [puzzleStartTime, setPuzzleStartTime] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState('beginner');
+  
+  // NEW STATE FOR BOARD ORIENTATION
+  const [boardOrientation, setBoardOrientation] = useState('white');
+  const [userPlayingAs, setUserPlayingAs] = useState('white');
 
   // AUTHENTICATION USEEFFECT
   useEffect(() => {
@@ -186,7 +203,7 @@ const App = () => {
     }
   }, [currentPuzzleIndex, puzzles]);
 
-  // RESET FUNCTION with safety check
+  // RESET FUNCTION with board orientation detection
   const resetCurrentPuzzle = (index) => {
     if (!puzzles || puzzles.length === 0 || !puzzles[index]) {
       console.log('No puzzles available yet');
@@ -194,7 +211,16 @@ const App = () => {
     }
 
     const puzzle = puzzles[index];
-    internalGameRef.current = new Chess(puzzle.fen);
+    const game = new Chess(puzzle.fen);
+    
+    // Determine who plays first based on FEN
+    const activeColor = getActiveColor(puzzle.fen);
+    setUserPlayingAs(activeColor);
+    
+    // Auto-flip board if user is playing as black
+    setBoardOrientation(activeColor);
+    
+    internalGameRef.current = game;
     setBoardPosition(puzzle.fen);
     setCurrentMoveIndex(0);
     setArrows([]);
@@ -235,7 +261,7 @@ const App = () => {
 
       setIsUserTurnToMove(true);
       setFeedbackMessage(
-        'Recall moves 1 and 2 in your mind—then choose the squares for the strongest move 3.'
+        `Recall moves 1 and 2 in your mind—then choose the squares for the strongest move 3 as ${userPlayingAs === 'white' ? 'White' : 'Black'}.`
       );
       setArrows([]);
     }
@@ -380,6 +406,11 @@ const App = () => {
     setIsLoadingPuzzles(true);
   };
 
+  // Handler for manual board flip
+  const handleFlipBoard = () => {
+    setBoardOrientation(prev => prev === 'white' ? 'black' : 'white');
+  };
+
   // AUTH HANDLER FUNCTIONS
   const handleAuthSuccess = async (user) => {
     setUser(user);
@@ -418,43 +449,47 @@ const App = () => {
     transition: 'background-color 0.3s ease'
   };
 
-  // EXISTING RENDERARROWS - unchanged
-  const renderArrows = () => (
-    <svg
-      width={boardSize}
-      height={boardSize}
-      style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
-    >
-      <defs>
-        <marker
-          id="arrowhead"
-          markerWidth="5"
-          markerHeight="3.5"
-          refX="5"
-          refY="1.75"
-          orient="auto"
-        >
-          <polygon points="0 0, 5 1.75, 0 3.5" fill="rgba(30, 144, 255, 0.7)" />
-        </marker>
-      </defs>
-      {arrows.map(({ from, to }, i) => {
-        const start = getSquareCoordinates(from, boardSize);
-        const end = getSquareCoordinates(to, boardSize);
-        return (
-          <line
-            key={i}
-            x1={start.x}
-            y1={start.y}
-            x2={end.x}
-            y2={end.y}
-            stroke="rgba(30, 144, 255, 0.7)"
-            strokeWidth="5"
-            markerEnd="url(#arrowhead)"
-          />
-        );
-      })}
-    </svg>
-  );
+  // UPDATED RENDERARROWS to support flipped board
+  const renderArrows = () => {
+    const isFlipped = boardOrientation === 'black';
+    
+    return (
+      <svg
+        width={boardSize}
+        height={boardSize}
+        style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
+      >
+        <defs>
+          <marker
+            id="arrowhead"
+            markerWidth="5"
+            markerHeight="3.5"
+            refX="5"
+            refY="1.75"
+            orient="auto"
+          >
+            <polygon points="0 0, 5 1.75, 0 3.5" fill="rgba(30, 144, 255, 0.7)" />
+          </marker>
+        </defs>
+        {arrows.map(({ from, to }, i) => {
+          const start = getSquareCoordinates(from, boardSize, isFlipped);
+          const end = getSquareCoordinates(to, boardSize, isFlipped);
+          return (
+            <line
+              key={i}
+              x1={start.x}
+              y1={start.y}
+              x2={end.x}
+              y2={end.y}
+              stroke="rgba(30, 144, 255, 0.7)"
+              strokeWidth="5"
+              markerEnd="url(#arrowhead)"
+            />
+          );
+        })}
+      </svg>
+    );
+  };
 
   // LOADING STATE CHECK
   if (isLoadingPuzzles || isLoadingAuth) {
@@ -530,6 +565,15 @@ const App = () => {
 
       <p>
         Puzzle {currentPuzzleIndex + 1} of {puzzles.length}
+        {userPlayingAs && (
+          <span style={{ 
+            fontWeight: 'bold', 
+            marginLeft: '10px',
+            color: userPlayingAs === 'white' ? '#333' : '#000'
+          }}>
+            Playing as {userPlayingAs === 'white' ? 'White' : 'Black'}
+          </span>
+        )}
         {puzzles[currentPuzzleIndex]?.solved && (
           <span style={{ color: '#4CAF50', marginLeft: '10px' }}>✓ Solved</span>
         )}
@@ -542,6 +586,7 @@ const App = () => {
           position={boardPosition}
           onSquareClick={handleSquareClick}
           boardWidth={boardSize}
+          boardOrientation={boardOrientation}
           arePiecesDraggable={false}
           customSquareStyles={highlightedSquares}
           customDarkSquareStyle={{ backgroundColor: '#4caf50' }}
@@ -580,6 +625,12 @@ const App = () => {
           </button>
           <button style={buttonStyle} onClick={handleRevealSolution}>
             Reveal Solution
+          </button>
+          <button 
+            style={{...buttonStyle, backgroundColor: '#2196F3'}} 
+            onClick={handleFlipBoard}
+          >
+            Flip Board
           </button>
         </div>
 

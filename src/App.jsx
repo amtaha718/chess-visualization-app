@@ -432,7 +432,8 @@ const App = () => {
           } else {
             // No rating change (repeated attempt)
             if (solved) {
-              const aiExplanation = currentPuzzle.ai_explanation || currentPuzzle.explanation;
+              // Try to get AI explanation even for repeated attempts
+              const aiExplanation = await getCorrectMoveExplanation(currentPuzzle, userSystem, userPlayingAs);
               setFeedbackMessage(`Correct! ${aiExplanation} (No rating change - puzzle already attempted)`);
             } else {
               setFeedbackMessage('Incorrect. (No rating change - puzzle already attempted)');

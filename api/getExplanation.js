@@ -7,7 +7,7 @@ import OpenAI from 'openai';
  * why a user‐chosen chess move is suboptimal.
  *
  * Expects a POST request with JSON body:
- *   { fen: string, userMove: string, correctMove: string }
+ *   { fen: string, userMove: string, correctMove: string, playingAs: string }
  *
  * Returns JSON: { explanation: string } on success,
  * or { error: '...' } with HTTP 4xx/5xx on failure.
@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   }
 
   // Extract parameters from request body
-  const { fen, userMove, correctMove } = req.body;
+  const { fen, userMove, correctMove, playingAs = 'white' } = req.body;
   if (!fen || !userMove || !correctMove) {
     return res.status(400).json({
       error: 'Missing required fields: fen, userMove, correctMove',
@@ -38,21 +38,24 @@ export default async function handler(req, res) {
   // Initialize the OpenAI client with the secret (never exposed to browser)
   const openai = new OpenAI({ apiKey });
 
-  // Construct the chat prompt
-const prompt = `
+  // Construct the chat prompt with board orientation context
+  const prompt = `
 You are a strong chess coach. Here is the board position in FEN:
 ${fen}
 
-The student guessed the move "${userMove}", but the best move was "${correctMove}".
+The student is playing as ${playingAs === 'white' ? 'White' : 'Black'} and guessed the move "${userMove}", but the best move was "${correctMove}".
 
-In 1–2 clear sentences, explain why the move "${userMove}" is a poor choice, without revealing or hinting at the correct move. Do not say what the right move is. Do not give a variation. Just explain what is weak or risky about the guessed move — for example: loss of tempo, hanging a piece, weak square, etc.
+Important: The board is oriented from ${playingAs === 'white' ? "White's" : "Black's"} perspective (${playingAs === 'white' ? 'a1 in bottom-left' : 'h8 in bottom-left'}).
+
+In 1–2 clear sentences, explain why the move "${userMove}" is a poor choice from ${playingAs === 'white' ? "White's" : "Black's"} perspective, without revealing or hinting at the correct move. Do not say what the right move is. Do not give a variation. Just explain what is weak or risky about the guessed move — for example: loss of tempo, hanging a piece, weak square, etc.
+
+Consider the player's perspective when describing directions (e.g., if playing Black, "forward" means toward rank 1).
 
 Finish your explanation with: "Try again."
 `.trim();
 
-
   try {
-    // Call OpenAI’s chat completion
+    // Call OpenAI's chat completion
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini', // or 'gpt-3.5-turbo' if you prefer
       messages: [

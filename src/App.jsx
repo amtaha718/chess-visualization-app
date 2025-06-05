@@ -480,8 +480,8 @@ const App = () => {
           userPlayingAs             // Board orientation
         );
         
-        // Append to existing feedback message
-        setFeedbackMessage(prev => prev + ' ' + explanation);
+        // Prepend "Incorrect. " to the existing feedback message
+        setFeedbackMessage(prev => 'Incorrect. ' + prev + ' ' + explanation);
       } catch (err) {
         console.error(err);
         setFeedbackMessage(prev => prev + ' (Failed to fetch explanation; try again.)');

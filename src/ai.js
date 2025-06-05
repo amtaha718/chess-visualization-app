@@ -1,12 +1,31 @@
-// src/ai.js - COMPREHENSIVE DEBUG VERSION
+// src/ai.js - IMPROVED WITH POSITION TRACKING
+
+import { Chess } from 'chess.js';
 
 /**
  * Calls our Vercel serverless function for incorrect move explanations.
+ * Now includes the position after 3 moves for better accuracy.
  */
 export async function getIncorrectMoveExplanation(originalFen, moves, userMove, correctMove, playingAs = 'white') {
   try {
     console.log('❌ === INCORRECT MOVE EXPLANATION ===');
     console.log('📤 Request data:', { originalFen, moves, userMove, correctMove, playingAs });
+    
+    // Calculate the position after 3 moves to avoid hallucinations
+    let positionAfter3Moves = null;
+    try {
+      const tempGame = new Chess(originalFen);
+      // Apply the first 3 moves
+      if (moves.length >= 3) {
+        tempGame.move({ from: moves[0].slice(0, 2), to: moves[0].slice(2, 4) });
+        tempGame.move({ from: moves[1].slice(0, 2), to: moves[1].slice(2, 4) });
+        tempGame.move({ from: moves[2].slice(0, 2), to: moves[2].slice(2, 4) });
+        positionAfter3Moves = tempGame.fen();
+        console.log('📍 Position after 3 moves:', positionAfter3Moves);
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not calculate position after 3 moves:', error);
+    }
     
     const response = await fetch('/api/getExplanation', {
       method: 'POST',
@@ -19,7 +38,8 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
         userMove, 
         correctMove, 
         playingAs,
-        isCorrect: false
+        isCorrect: false,
+        positionAfter3Moves // Include the calculated position
       }),
     });
 
@@ -43,6 +63,7 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
 
 /**
  * Gets or generates AI explanation for correct answers.
+ * Now includes the position after 3 moves for better accuracy.
  */
 export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
   console.log('✅ === CORRECT MOVE EXPLANATION START ===');
@@ -55,17 +76,37 @@ export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
   });
 
   try {
-    // TEMPORARILY SKIP CACHE FOR TESTING
-    console.log('🔄 SKIPPING CACHE - Generating fresh explanation');
+    // Check if we already have a cached AI explanation
+    if (puzzle.ai_explanation && puzzle.ai_explanation.length > 10) {
+      console.log('📦 Using cached AI explanation');
+      return puzzle.ai_explanation;
+    }
     
     console.log('🚀 Starting AI explanation generation...');
+    
+    // Calculate the position after 3 moves
+    let positionAfter3Moves = null;
+    try {
+      const tempGame = new Chess(puzzle.fen);
+      if (puzzle.moves && puzzle.moves.length >= 3) {
+        tempGame.move({ from: puzzle.moves[0].slice(0, 2), to: puzzle.moves[0].slice(2, 4) });
+        tempGame.move({ from: puzzle.moves[1].slice(0, 2), to: puzzle.moves[1].slice(2, 4) });
+        tempGame.move({ from: puzzle.moves[2].slice(0, 2), to: puzzle.moves[2].slice(2, 4) });
+        positionAfter3Moves = tempGame.fen();
+        console.log('📍 Position after 3 moves:', positionAfter3Moves);
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not calculate position after 3 moves:', error);
+    }
+    
     console.log('📤 Request data will be:', {
       originalFen: puzzle.fen,
       moves: puzzle.moves,
       userMove: puzzle.moves[3], 
       correctMove: puzzle.moves[3],
       playingAs: playingAs,
-      isCorrect: true
+      isCorrect: true,
+      positionAfter3Moves
     });
     
     // Generate new explanation
@@ -82,7 +123,8 @@ export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
         userMove: puzzle.moves[3], 
         correctMove: puzzle.moves[3],
         playingAs: playingAs,
-        isCorrect: true
+        isCorrect: true,
+        positionAfter3Moves // Include the calculated position
       }),
     });
 

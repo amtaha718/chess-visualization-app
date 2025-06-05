@@ -13,7 +13,8 @@ import OpenAI from 'openai';
  *     userMove: string,         // User's attempted move 4
  *     correctMove: string,      // The correct move 4
  *     playingAs: string,        // 'white' or 'black'
- *     isCorrect: boolean        // true for correct answer explanation
+ *     isCorrect: boolean,       // true for correct answer explanation
+ *     positionAfter3Moves: string // FEN after applying first 3 moves (optional but recommended)
  *   }
  *
  * Returns JSON: { explanation: string } on success,
@@ -26,7 +27,15 @@ export default async function handler(req, res) {
   }
 
   // Extract parameters from request body
-  const { originalFen, moves, userMove, correctMove, playingAs = 'white', isCorrect = false } = req.body;
+  const { 
+    originalFen, 
+    moves, 
+    userMove, 
+    correctMove, 
+    playingAs = 'white', 
+    isCorrect = false,
+    positionAfter3Moves // New optional parameter
+  } = req.body;
   
   console.log('🤖 AI EXPLANATION REQUEST RECEIVED:');
   console.log('==========================================');
@@ -37,6 +46,7 @@ export default async function handler(req, res) {
   console.log('- correctMove:', correctMove);
   console.log('- playingAs:', playingAs);
   console.log('- isCorrect:', isCorrect);
+  console.log('- positionAfter3Moves:', positionAfter3Moves || 'Not provided');
   console.log('==========================================');
   
   if (!originalFen || !moves || !correctMove) {
@@ -63,6 +73,9 @@ export default async function handler(req, res) {
   console.log('Move 4 (what should be played):', moves[3]);
   console.log('User attempted:', userMove);
   console.log('Playing as:', playingAs);
+  if (positionAfter3Moves) {
+    console.log('Position after 3 moves:', positionAfter3Moves);
+  }
 
   // Read the secret key from environment
   const apiKey = process.env.OPENAI_API_KEY;
@@ -77,13 +90,21 @@ export default async function handler(req, res) {
   const openai = new OpenAI({ apiKey });
 
   let prompt;
+  let systemPrompt = 'You are a helpful chess coach who gives clear, concise explanations in 1-2 sentences only. You carefully analyze chess positions and never mention pieces that do not exist on the board.';
   
   if (isCorrect) {
     console.log('✅ Generating CORRECT answer explanation');
-    // Generate explanation for correct answer - SHORTENED
-    prompt = `
-You are a chess coach analyzing a tactical puzzle. Here's the puzzle:
+    
+    // For correct answers, we can use either the position after 3 moves or describe the sequence
+    if (positionAfter3Moves) {
+      prompt = `
+Chess position (FEN): ${positionAfter3Moves}
+The correct move ${moves[3]} was just played by ${playingAs === 'white' ? 'White' : 'Black'}.
 
+In 1-2 sentences, explain why this move wins or gives a significant advantage. Focus on the main tactical theme or strategic benefit.
+`.trim();
+    } else {
+      prompt = `
 Starting position (FEN): ${originalFen}
 Moves played:
 1. ${moves[0]} (opponent's move that creates the tactical opportunity)
@@ -95,36 +116,43 @@ Explain in exactly 1-2 short sentences why this move sequence wins. Focus on the
 
 Keep it concise and clear.
 `.trim();
+    }
   } else {
     console.log('❌ Generating INCORRECT answer explanation');
     console.log('🔍 Building analysis prompt...');
     
-    // Generate explanation for incorrect answer - IMPROVED WITH DEBUGGING
-    prompt = `
-You are a chess coach analyzing a tactical puzzle mistake.
+    // For incorrect answers, prefer using the exact position if available
+    if (positionAfter3Moves) {
+      prompt = `
+Current chess position (FEN): ${positionAfter3Moves}
+It is ${playingAs === 'white' ? 'White' : 'Black'}'s turn.
+The player attempted: ${userMove} (moving from ${userMove.slice(0,2)} to ${userMove.slice(2,4)})
 
-IMPORTANT: Follow these steps exactly and show your work:
+Looking at this exact position:
+1. What piece is on square ${userMove.slice(0,2)}?
+2. Why is moving it to ${userMove.slice(2,4)} a mistake?
 
-STEP 1: Start with this position: ${originalFen}
-
-STEP 2: Apply these 3 moves in sequence:
-Move 1: ${moves[0]} 
-Move 2: ${moves[1]} 
-Move 3: ${moves[2]}
-
-STEP 3: In the resulting position, the student (playing as ${playingAs === 'white' ? 'White' : 'Black'}) played: ${userMove}
-
-CRITICAL ANALYSIS RULES:
-- ONLY mention pieces that exist on the board AFTER applying moves 1, 2, and 3
-- Look at what immediate threats or material loss ${userMove} allows
-- Be specific about which pieces can capture what AFTER the student's move
-- Do NOT mention pieces from the starting position that may no longer exist
-- Do NOT reveal the correct move (${correctMove})
-
-EXAMPLE FORMAT: "This move allows [opponent's piece] to capture your [piece] on [square]."
-
-Analyze the position after the 3 preliminary moves, then explain why ${userMove} is tactically weak. Keep to 1-2 sentences and end with "Try again."
+Explain in 1-2 sentences what immediate threat or loss this move allows. Only mention pieces visible in the FEN above. End with "Try again."
 `.trim();
+    } else {
+      // Fallback to move sequence if position not provided
+      prompt = `
+Starting position FEN: ${originalFen}
+
+Apply these 3 moves in order:
+1. ${moves[0]} (${moves[0].slice(0,2)} to ${moves[0].slice(2,4)})
+2. ${moves[1]} (${moves[1].slice(0,2)} to ${moves[1].slice(2,4)})  
+3. ${moves[2]} (${moves[2].slice(0,2)} to ${moves[2].slice(2,4)})
+
+After these 3 moves, it is ${playingAs === 'white' ? 'White' : 'Black'}'s turn.
+The student tried: ${userMove} (${userMove.slice(0,2)} to ${userMove.slice(2,4)})
+
+CRITICAL: Before analyzing, identify what piece is ACTUALLY on ${userMove.slice(0,2)} after the 3 moves above.
+Then explain in 1-2 sentences why ${userMove} is a mistake - what does it allow the opponent to do?
+Do NOT guess at pieces - only mention pieces you are certain about from the move sequence.
+End with "Try again."
+`.trim();
+    }
   }
 
   console.log('📝 Generated prompt:');
@@ -141,7 +169,7 @@ Analyze the position after the 3 preliminary moves, then explain why ${userMove}
       messages: [
         { 
           role: 'system', 
-          content: 'You are a helpful chess coach who gives clear, concise explanations in 1-2 sentences only. You carefully analyze chess positions step by step and only mention pieces that actually exist on the board.' 
+          content: systemPrompt
         },
         { role: 'user', content: prompt },
       ],

@@ -1,413 +1,123 @@
-// src/user-system.js
-import { createClient } from '@supabase/supabase-js';
+// api/getExplanation.js
 
-class UserSystem {
-  constructor() {
-    // Replace with your Supabase credentials
-    const supabaseUrl = 'https://hwnpylgiiurhcftbmwzh.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh3bnB5bGdpaXVyaGNmdGJtd3poIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4ODg2MDQsImV4cCI6MjA2NDQ2NDYwNH0.30vJugiZ3DWeTR53hU6R2sCrVqQ6kR-JaqKWi6RDILE';
-    
-    this.supabase = createClient(supabaseUrl, supabaseKey);
+import OpenAI from 'openai';
+
+/**
+ * A Vercel Serverless Function that returns explanations for chess moves.
+ * Can handle both incorrect move explanations and correct move explanations.
+ *
+ * Expects a POST request with JSON body:
+ *   { 
+ *     originalFen: string,      // Starting position
+ *     moves: string[],          // Array of 4 moves
+ *     userMove: string,         // User's attempted move 4
+ *     correctMove: string,      // The correct move 4
+ *     playingAs: string,        // 'white' or 'black'
+ *     isCorrect: boolean        // true for correct answer explanation
+ *   }
+ *
+ * Returns JSON: { explanation: string } on success,
+ * or { error: '...' } with HTTP 4xx/5xx on failure.
+ */
+export default async function handler(req, res) {
+  // Only allow POST
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // ===== AUTHENTICATION =====
+  // Extract parameters from request body
+  const { originalFen, moves, userMove, correctMove, playingAs = 'white', isCorrect = false } = req.body;
   
-  async signUp(email, password, displayName = null) {
-    try {
-      const { data, error } = await this.supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: displayName || email.split('@')[0]
-          }
-        }
-      });
-
-      if (error) throw error;
-      
-      console.log('✅ User signed up successfully');
-      return { user: data.user, error: null };
-    } catch (error) {
-      console.error('❌ Sign up error:', error);
-      return { user: null, error: error.message };
-    }
-  }
-
-  async signIn(email, password) {
-    try {
-      const { data, error } = await this.supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) throw error;
-      
-      console.log('✅ User signed in successfully');
-      return { user: data.user, error: null };
-    } catch (error) {
-      console.error('❌ Sign in error:', error);
-      return { user: null, error: error.message };
-    }
-  }
-
-  async signOut() {
-    try {
-      const { error } = await this.supabase.auth.signOut();
-      if (error) throw error;
-      
-      console.log('✅ User signed out successfully');
-      return { error: null };
-    } catch (error) {
-      console.error('❌ Sign out error:', error);
-      return { error: error.message };
-    }
-  }
-
-  async getCurrentUser() {
-    try {
-      const { data: { user }, error } = await this.supabase.auth.getUser();
-      if (error) throw error;
-      return user;
-    } catch (error) {
-      console.error('❌ Get current user error:', error);
-      return null;
-    }
-  }
-
-  // Listen to auth state changes
-  onAuthStateChange(callback) {
-    return this.supabase.auth.onAuthStateChange((event, session) => {
-      callback(event, session?.user || null);
+  if (!originalFen || !moves || !correctMove) {
+    return res.status(400).json({
+      error: 'Missing required fields: originalFen, moves, correctMove',
     });
   }
 
-  // ===== USER PROFILE =====
+  // Read the secret key from environment
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.error('OPENAI_API_KEY is not set in environment');
+    return res
+      .status(500)
+      .json({ error: 'Server misconfiguration: missing API key' });
+  }
+
+  // Initialize the OpenAI client
+  const openai = new OpenAI({ apiKey });
+
+  let prompt;
   
-  async getUserProfile(userId = null) {
-    try {
-      const id = userId || (await this.getCurrentUser())?.id;
-      if (!id) throw new Error('No user ID provided');
+  if (isCorrect) {
+    // Generate explanation for correct answer
+    prompt = `
+You are a strong chess coach analyzing a tactical puzzle. Here's the puzzle:
 
-      const { data, error } = await this.supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', id)
-        .single();
+Starting position (FEN): ${originalFen}
+Moves played:
+1. ${moves[0]} (opponent's move that creates the tactical opportunity)
+2. ${moves[1]} (first correct move by ${playingAs === 'white' ? 'White' : 'Black'})
+3. ${moves[2]} (opponent's response)
+4. ${moves[3]} (the winning move by ${playingAs === 'white' ? 'White' : 'Black'})
 
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('❌ Get user profile error:', error);
-      return null;
-    }
+Explain in 2-3 sentences why the move sequence ${moves[1]} followed by ${moves[3]} is winning for ${playingAs === 'white' ? 'White' : 'Black'}. Focus on the tactical theme (pin, fork, discovered attack, etc.) and what advantage it achieves. Be specific about the chess concepts demonstrated.
+
+Keep the explanation concise and educational.
+`.trim();
+  } else {
+    // Generate explanation for incorrect answer
+    prompt = `
+You are a strong chess coach analyzing a tactical puzzle. 
+
+Starting position (FEN): ${originalFen}
+
+The puzzle sequence:
+1. ${moves[0]} (${playingAs === 'white' ? 'Black' : 'White'} plays)
+2. ${moves[1]} (${playingAs === 'white' ? 'White' : 'Black'} responds)
+3. ${moves[2]} (${playingAs === 'white' ? 'Black' : 'White'} plays)
+
+Now ${playingAs === 'white' ? 'White' : 'Black'} needs to play move 4. The student tried: ${userMove}
+
+To analyze this:
+1. Play through the first 3 moves from the starting position
+2. From that position, play the student's move ${userMove}
+3. Analyze why this move is weak
+
+CRITICAL RULES:
+- You are analyzing why ${userMove} is bad for ${playingAs === 'white' ? 'White' : 'Black'}
+- Focus on what ${playingAs === 'white' ? 'Black' : 'White'} can do AFTER the student's move
+- Be specific about pieces and squares
+- Do NOT reveal or hint at the correct move
+- Do NOT start with "Incorrect"
+
+Example good explanations:
+- "This allows Black to play Qxf7+, forking your king and rook."
+- "After this move, your bishop on c4 hangs to Black's knight."
+- "This permits Black's rook to infiltrate on the 7th rank with devastating effect."
+
+Write 1-2 sentences explaining the specific tactical problem with ${userMove}. End with "Try again."
+`.trim();
   }
 
-  async updateUserProfile(updates) {
-    try {
-      const user = await this.getCurrentUser();
-      if (!user) throw new Error('Not authenticated');
+  try {
+    // Call OpenAI's chat completion
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You are a helpful chess coach who gives clear, concise explanations.' },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 200,
+    });
 
-      const { data, error } = await this.supabase
-        .from('user_profiles')
-        .update(updates)
-        .eq('id', user.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      console.log('✅ Profile updated successfully');
-      return data;
-    } catch (error) {
-      console.error('❌ Update profile error:', error);
-      return null;
-    }
-  }
-
-  // ===== PUZZLE PROGRESS =====
-  
-  async getPuzzlesForUser(difficulty = 'all', limit = 100) {
-    try {
-      const user = await this.getCurrentUser();
-      
-      if (!user) {
-        // Guest user - return puzzles without progress tracking
-        return await this.getPublicPuzzles(difficulty, limit);
-      }
-
-      // Get puzzles with user progress
-      let query = this.supabase
-        .from('puzzles')
-        .select(`
-          *,
-          user_puzzle_progress!left (
-            status,
-            best_time,
-            attempts_count,
-            first_solved_at
-          )
-        `)
-        .order('id', { ascending: true })
-        .limit(limit);
-
-      if (difficulty !== 'all') {
-        query = query.eq('difficulty', difficulty);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      // Transform data to include progress info
-      return data.map(puzzle => ({
-        id: puzzle.id,
-        fen: puzzle.fen,
-        moves: puzzle.moves,
-        explanation: puzzle.explanation,
-        ai_explanation: puzzle.ai_explanation,
-        difficulty: puzzle.difficulty,
-        rating: puzzle.rating,
-        themes: puzzle.themes,
-        // User progress info - handle left join nulls
-        solved: puzzle.user_puzzle_progress?.[0]?.status === 'solved' || false,
-        attempted: puzzle.user_puzzle_progress?.[0]?.attempts_count > 0 || false,
-        bestTime: puzzle.user_puzzle_progress?.[0]?.best_time,
-        attemptCount: puzzle.user_puzzle_progress?.[0]?.attempts_count || 0
-      }));
-
-    } catch (error) {
-      console.error('❌ Get puzzles for user error:', error);
-      return [];
-    }
-  }
-
-  async getPublicPuzzles(difficulty = 'all', limit = 20) {
-    try {
-      let query = this.supabase
-        .from('puzzles')
-        .select('*')
-        .limit(limit);
-
-      if (difficulty !== 'all') {
-        query = query.eq('difficulty', difficulty);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      return data.map(puzzle => ({
-        id: puzzle.id,
-        fen: puzzle.fen,
-        moves: puzzle.moves,
-        explanation: puzzle.explanation,
-        ai_explanation: puzzle.ai_explanation,
-        difficulty: puzzle.difficulty,
-        rating: puzzle.rating,
-        themes: puzzle.themes,
-        solved: false,
-        attempted: false
-      }));
-
-    } catch (error) {
-      console.error('❌ Get public puzzles error:', error);
-      return [];
-    }
-  }
-
-  async recordPuzzleAttempt(puzzleId, solved, timeTaken, movesTried = []) {
-    try {
-      const user = await this.getCurrentUser();
-      console.log('🔍 Debug recordPuzzleAttempt:');
-      console.log('- Current user:', user);
-      console.log('- User ID:', user?.id);
-      console.log('- Puzzle ID:', puzzleId);
-      console.log('- Solved:', solved);
-      
-      if (!user) {
-        console.log('❌ No user found - not recording attempt');
-        return null;
-      }
-
-      const profile = await this.getUserProfile();
-      const ratingBefore = profile?.current_rating || 1200;
-      console.log('- Rating before:', ratingBefore);
-
-      // Check if this is a repeated attempt
-      const { count: existingAttempts } = await this.supabase
-        .from('user_puzzle_attempts')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('puzzle_id', puzzleId);
-
-      console.log('- Existing attempts:', existingAttempts);
-
-      // Record the attempt
-      console.log('📝 Attempting to insert into user_puzzle_attempts...');
-      const { data: attemptData, error: attemptError } = await this.supabase
-        .from('user_puzzle_attempts')
-        .insert({
-          user_id: user.id,
-          puzzle_id: puzzleId,
-          solved,
-          time_taken: timeTaken,
-          moves_tried: movesTried,
-          rating_before: ratingBefore
-        })
-        .select()
-        .single();
-
-      if (attemptError) {
-        console.error('❌ Insert error:', attemptError);
-        console.error('Error details:', {
-          code: attemptError.code,
-          message: attemptError.message,
-          details: attemptError.details,
-          hint: attemptError.hint
-        });
-        throw attemptError;
-      }
-
-      console.log('✅ Attempt inserted:', attemptData);
-
-      // Update user rating using database function
-      console.log('📊 Calling update_user_rating function...');
-      const { data: newRating, error: ratingError } = await this.supabase
-        .rpc('update_user_rating', {
-          p_user_id: user.id,
-          p_puzzle_id: puzzleId,
-          p_solved: solved,
-          p_time_taken: timeTaken
-        });
-
-      if (ratingError) {
-        console.error('❌ Rating update error:', ratingError);
-        throw ratingError;
-      }
-
-      console.log('✅ New rating:', newRating);
-
-      // Calculate actual rating change
-      const actualRatingChange = existingAttempts === 0 ? (newRating - ratingBefore) : 0;
-      console.log('- Rating change:', actualRatingChange);
-
-      // Update puzzle progress
-      console.log('📈 Updating puzzle progress...');
-      const { error: progressError } = await this.supabase
-        .from('user_puzzle_progress')
-        .upsert({
-          user_id: user.id,
-          puzzle_id: puzzleId,
-          status: solved ? 'solved' : 'attempted',
-          best_time: solved ? timeTaken : null,
-          attempts_count: (existingAttempts || 0) + 1,
-          first_solved_at: solved && existingAttempts === 0 ? new Date().toISOString() : null,
-          last_attempted_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id,puzzle_id',
-          ignoreDuplicates: false
-        });
-
-      if (progressError) {
-        console.error('❌ Progress update error:', progressError);
-      }
-
-      console.log('✅ Puzzle attempt recorded successfully');
-      
-      return {
-        newRating: newRating || ratingBefore,
-        ratingChange: actualRatingChange,
-        attemptId: attemptData.id
-      };
-
-    } catch (error) {
-      console.error('❌ Record puzzle attempt error:', error);
-      return null;
-    }
-  }
-
-  // ===== STATISTICS =====
-  
-  async getUserStats() {
-    try {
-      const user = await this.getCurrentUser();
-      if (!user) return null;
-
-      const profile = await this.getUserProfile();
-      
-      // Get recent rating history
-      const { data: recentHistory } = await this.supabase
-        .from('rating_history')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      // Get weakness analysis
-      const { data: weaknesses } = await this.supabase
-        .from('user_weaknesses')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('weakness_score', { ascending: false });
-
-      return {
-        profile,
-        recentHistory: recentHistory || [],
-        weaknesses: weaknesses || []
-      };
-
-    } catch (error) {
-      console.error('❌ Get user stats error:', error);
-      return null;
-    }
-  }
-
-  async getLeaderboard(limit = 10) {
-    try {
-      const { data, error } = await this.supabase
-        .from('user_profiles')
-        .select('username, display_name, current_rating, puzzles_solved')
-        .order('current_rating', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('❌ Get leaderboard error:', error);
-      return [];
-    }
-  }
-
-  // ===== UTILITY METHODS =====
-  
-  async isAuthenticated() {
-    const user = await this.getCurrentUser();
-    return !!user;
-  }
-
-  async requireAuth() {
-    const user = await this.getCurrentUser();
-    if (!user) {
-      throw new Error('Authentication required');
-    }
-    return user;
-  }
-
-  async savePuzzleExplanation(puzzleId, aiExplanation) {
-    try {
-      const { error } = await this.supabase
-        .from('puzzles')
-        .update({ ai_explanation: aiExplanation })
-        .eq('id', puzzleId);
-      
-      if (error) {
-        console.error('Error saving AI explanation:', error);
-      } else {
-        console.log('✅ AI explanation saved for puzzle', puzzleId);
-      }
-    } catch (error) {
-      console.error('Failed to save AI explanation:', error);
-    }
+    // Extract the explanation text
+    const explanation = response.choices[0].message.content.trim();
+    return res.status(200).json({ explanation });
+  } catch (err) {
+    console.error('OpenAI error:', err);
+    return res
+      .status(500)
+      .json({ error: 'OpenAI request failed. Please try again later.' });
   }
 }
-
-export default UserSystem;

@@ -1,178 +1,28 @@
-// src/stockfish-generator.js - Vercel-compatible version
-
-class StockfishPuzzleGenerator {
-  constructor() {
-    this.worker = null;
-    this.isReady = false;
-    this.messageQueue = [];
-    this.responseHandlers = new Map();
-    this.currentId = 0;
-  }
-
-  async initializeEngine() {
-    try {
-      console.log('🐟 Initializing Stockfish for Vercel deployment...');
-      
-      // Use the Web Worker approach for better compatibility
-      if (typeof Worker !== 'undefined') {
-        // Create worker from CDN (more reliable for Vercel)
-        this.worker = new Worker('https://cdn.jsdelivr.net/npm/stockfish@15.0.0/src/stockfish.js');
-        
-        this.worker.onmessage = (e) => {
-          this.handleMessage(e.data);
-        };
-
-        this.worker.onerror = (error) => {
-          console.error('❌ Stockfish worker error:', error);
-        };
-
-        // Initialize UCI
-        this.sendCommand('uci');
-        await this.waitForResponse('uciok');
-        
-        this.isReady = true;
-        console.log('✅ Stockfish initialized successfully');
-        return true;
-        
-      } else {
-        throw new Error('Web Workers not supported');
-      }
-      
-    } catch (error) {
-      console.error('❌ Stockfish initialization failed:', error);
-      
-      // Fallback: Try loading from public directory
-      try {
-        console.log('🔄 Trying fallback initialization...');
-        return await this.initializeFallback();
-      } catch (fallbackError) {
-        console.error('❌ Fallback also failed:', fallbackError);
-        return false;
-      }
+{
+  "functions": {
+    "api/generate-puzzle.js": {
+      "maxDuration": 30
     }
-  }
-
-  async initializeFallback() {
-    // For Vercel, we'll create a simple API-based approach
-    console.log('🔄 Using API-based analysis fallback');
-    this.isReady = true;
-    return true;
-  }
-
-  handleMessage(message) {
-    console.log('🐟 Stockfish:', message);
-    
-    // Handle specific responses
-    if (message === 'uciok') {
-      this.isReady = true;
-    }
-    
-    // Handle queued response handlers
-    for (const [id, handler] of this.responseHandlers) {
-      if (handler.pattern.test(message)) {
-        handler.resolve(message);
-        this.responseHandlers.delete(id);
-        break;
-      }
-    }
-  }
-
-  sendCommand(command) {
-    if (this.worker) {
-      console.log('📤 Sending:', command);
-      this.worker.postMessage(command);
-    }
-  }
-
-  waitForResponse(pattern, timeout = 5000) {
-    return new Promise((resolve, reject) => {
-      const id = this.currentId++;
-      const timer = setTimeout(() => {
-        this.responseHandlers.delete(id);
-        reject(new Error(`Timeout waiting for: ${pattern}`));
-      }, timeout);
-
-      this.responseHandlers.set(id, {
-        pattern: new RegExp(pattern),
-        resolve: (message) => {
-          clearTimeout(timer);
-          resolve(message);
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cross-Origin-Embedder-Policy",
+          "value": "require-corp"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin"
         }
-      });
-    });
-  }
-
-  // Simplified puzzle generation for initial testing
-  async generateSimplePuzzle() {
-    if (!this.isReady) {
-      throw new Error('Engine not ready');
+      ]
     }
-
-    try {
-      console.log('🎯 Generating simple test puzzle...');
-      
-      // Use a known tactical position for testing
-      const testPosition = 'r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4';
-      
-      if (this.worker) {
-        // Use real Stockfish analysis
-        return await this.analyzeWithStockfish(testPosition);
-      } else {
-        // Use predefined puzzle for testing
-        return this.getPredefinedPuzzle();
-      }
-      
-    } catch (error) {
-      console.error('❌ Puzzle generation failed:', error);
-      return this.getPredefinedPuzzle();
+  ],
+  "rewrites": [
+    {
+      "source": "/stockfish.js",
+      "destination": "https://cdn.jsdelivr.net/npm/stockfish@15.0.0/src/stockfish.js"
     }
-  }
-
-  async analyzeWithStockfish(fen) {
-    this.sendCommand(`position fen ${fen}`);
-    this.sendCommand('go depth 10');
-    
-    const response = await this.waitForResponse('bestmove');
-    const moveMatch = response.match(/bestmove (\w+)/);
-    
-    if (moveMatch) {
-      return {
-        id: `stockfish_${Date.now()}`,
-        fen: fen,
-        moves: [moveMatch[1], 'e7e5', 'f3e5', 'd8h4'], // Extended for testing
-        explanation: 'A tactical sequence found by Stockfish analysis.',
-        difficulty: 'intermediate',
-        rating: 1500,
-        themes: ['tactics'],
-        source: 'stockfish'
-      };
-    }
-    
-    return this.getPredefinedPuzzle();
-  }
-
-  getPredefinedPuzzle() {
-    // Fallback puzzle for testing
-    return {
-      id: `fallback_${Date.now()}`,
-      fen: 'r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4',
-      moves: ['f3e5', 'd8h4', 'e5f7', 'e8f7'],
-      explanation: 'A knight fork attacking the king and queen.',
-      difficulty: 'intermediate',
-      rating: 1500,
-      themes: ['fork', 'tactics'],
-      source: 'predefined'
-    };
-  }
-
-  destroy() {
-    if (this.worker) {
-      this.worker.terminate();
-      this.worker = null;
-    }
-    this.responseHandlers.clear();
-    this.isReady = false;
-  }
+  ]
 }
-
-export default StockfishPuzzleGenerator;

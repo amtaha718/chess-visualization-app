@@ -54,6 +54,12 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
  */
 export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
   try {
+    console.log('getCorrectMoveExplanation called with:', {
+      puzzleId: puzzle.id,
+      playingAs: playingAs,
+      hasAiExplanation: !!puzzle.ai_explanation
+    });
+    
     // Check if AI explanation already exists
     if (puzzle.ai_explanation) {
       console.log('Using cached AI explanation');
@@ -61,6 +67,11 @@ export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
     }
 
     console.log('Generating new AI explanation for puzzle', puzzle.id);
+    console.log('Puzzle data:', {
+      fen: puzzle.fen,
+      moves: puzzle.moves,
+      playingAs: playingAs
+    });
     
     // Generate new explanation
     const response = await fetch('/api/getExplanation', {
@@ -78,8 +89,11 @@ export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
       }),
     });
 
+    console.log('API response status:', response.status);
+
     if (!response.ok) {
-      console.error('Failed to generate explanation, response not ok');
+      const errorText = await response.text();
+      console.error('API error response:', errorText);
       throw new Error('Failed to generate explanation');
     }
 
@@ -89,13 +103,16 @@ export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
 
     // Save to database for future use
     if (userSystem && puzzle.id) {
+      console.log('Saving explanation to database...');
       await userSystem.savePuzzleExplanation(puzzle.id, aiExplanation);
     }
 
     return aiExplanation;
   } catch (error) {
     console.error('Error getting correct move explanation:', error);
+    console.error('Full error details:', error.message, error.stack);
     // Fall back to original explanation
+    console.log('Falling back to original explanation:', puzzle.explanation);
     return puzzle.explanation;
   }
 }

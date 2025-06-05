@@ -424,7 +424,7 @@ const App = () => {
             const ratingText = result.ratingChange > 0 ? `(+${result.ratingChange})` : `(${result.ratingChange})`;
             if (solved) {
               // Get AI explanation for correct answer
-              const aiExplanation = await getCorrectMoveExplanation(currentPuzzle, userSystem);
+              const aiExplanation = await getCorrectMoveExplanation(currentPuzzle, userSystem, userPlayingAs);
               setFeedbackMessage(`Correct! Rating: ${result.newRating} ${ratingText}. ${aiExplanation}`);
             } else {
               setFeedbackMessage(`Incorrect. Rating: ${result.newRating} ${ratingText}. `);

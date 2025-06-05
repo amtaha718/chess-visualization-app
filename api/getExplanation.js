@@ -71,21 +71,21 @@ You are a strong chess coach. Here's a tactical puzzle position:
 
 Starting position (FEN): ${originalFen}
 The puzzle sequence so far:
-1. ${moves[0]} (opponent's move)
+1. ${moves[0]} (${playingAs === 'white' ? 'Black' : 'White'}'s move)
 2. ${moves[1]} (${playingAs === 'white' ? 'White' : 'Black'} plays)
-3. ${moves[2]} (opponent responds)
+3. ${moves[2]} (${playingAs === 'white' ? 'Black' : 'White'} responds)
 
-Now ${playingAs === 'white' ? 'White' : 'Black'} must find move 4. The student tried "${userMove}".
+Now ${playingAs === 'white' ? 'White' : 'Black'} must find move 4. The student (playing ${playingAs === 'white' ? 'White' : 'Black'}) tried "${userMove}".
 
 CRITICAL RULES:
-- Do NOT mention, hint at, or describe what the correct move would be
-- Do NOT say what the student "should" do or "needs" to do
-- Do NOT mention the correct move "${correctMove}" in any way
+- The student is playing ${playingAs === 'white' ? 'White' : 'Black'}, so refer to opponent as ${playingAs === 'white' ? 'Black' : 'White'}
+- Do NOT mention or hint at what the correct move would be
 - Focus ONLY on the specific weakness of their chosen move
+- Do NOT start with "Incorrect" (this will be added separately)
 
-Explain in 1-2 sentences what SPECIFIC problem the move "${userMove}" creates. Be concrete:
+Explain in 1-2 sentences what SPECIFIC problem the move "${userMove}" creates for ${playingAs === 'white' ? 'White' : 'Black'}. Be concrete:
 - Name specific pieces and squares (e.g., "leaves your knight on e5 undefended")
-- Mention specific threats it allows (e.g., "allows White's bishop to pin your rook to the king")
+- Mention specific threats it allows the opponent (e.g., "allows Black's bishop to pin your rook")
 - Point out specific weaknesses it creates (e.g., "weakens the f7 square")
 
 End with: "Try again."

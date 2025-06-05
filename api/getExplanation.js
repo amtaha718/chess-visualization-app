@@ -49,9 +49,9 @@ export default async function handler(req, res) {
   let prompt;
   
   if (isCorrect) {
-    // Generate explanation for correct answer
+    // Generate explanation for correct answer - SHORTENED
     prompt = `
-You are a strong chess coach analyzing a tactical puzzle. Here's the puzzle:
+You are a chess coach analyzing a tactical puzzle. Here's the puzzle:
 
 Starting position (FEN): ${originalFen}
 Moves played:
@@ -60,9 +60,9 @@ Moves played:
 3. ${moves[2]} (opponent's response)
 4. ${moves[3]} (the winning move by ${playingAs === 'white' ? 'White' : 'Black'})
 
-Explain in 2-3 sentences why the move sequence ${moves[1]} followed by ${moves[3]} is winning for ${playingAs === 'white' ? 'White' : 'Black'}. Focus on the tactical theme (pin, fork, discovered attack, etc.) and what advantage it achieves. Be specific about the chess concepts demonstrated.
+Explain in exactly 1-2 short sentences why this move sequence wins. Focus on the main tactical theme (fork, pin, discovered attack, etc.) and the key advantage gained.
 
-Keep the explanation concise and educational.
+Keep it concise and clear.
 `.trim();
   } else {
     // Generate explanation for incorrect answer
@@ -104,11 +104,11 @@ Write 1-2 sentences explaining the specific tactical problem with ${userMove}. E
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: 'You are a helpful chess coach who gives clear, concise explanations.' },
+        { role: 'system', content: 'You are a helpful chess coach who gives clear, concise explanations in 1-2 sentences only.' },
         { role: 'user', content: prompt },
       ],
       temperature: 0.7,
-      max_tokens: 200,
+      max_tokens: 100, // Reduced from 200 to force shorter responses
     });
 
     // Extract the explanation text

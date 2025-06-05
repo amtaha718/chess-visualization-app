@@ -506,17 +506,71 @@ const App = () => {
     });
 
     setTimeout(() => {
-      if (isCorrect) {
-        setFeedbackMessage(`Correct! ${puzzle.explanation}`);
-      }
-      setTimeout(() => setArrows([]), 700);
-    }, movesToPlay.length * 1000 + 300);
+      setArrows([]);
+    }, movesToPlay.length * 1000 + 700);
   };
 
-  const handleRevealSolution = () => {
+  const handleRevealSolution = async () => {
     const puzzle = puzzles[currentPuzzleIndex];
-    const allMoves = puzzle.moves.slice(0, 4);
-    playMoveSequence(allMoves, true);
+    const correctMove = puzzle.moves[3];
+    
+    // Set feedback to indicate this is a reveal, not a correct answer
+    setFeedbackMessage('Revealing solution...');
+    
+    // Play all 4 moves
+    const game = new Chess(puzzle.fen);
+    setBoardPosition(puzzle.fen);
+    setArrows([]);
+
+    const movesToPlay = puzzle.moves.slice(0, 4);
+
+    movesToPlay.forEach((move, i) => {
+      setTimeout(() => {
+        const from = move.slice(0, 2);
+        const to = move.slice(2, 4);
+        const moveResult = game.move({ from, to });
+        
+        if (moveResult) {
+          setBoardPosition(game.fen());
+          setArrows([{ from, to }]);
+          
+          // Highlight the final move
+          if (i === 3) {
+            setHighlightedSquares({
+              [from]: { backgroundColor: 'rgba(255, 215, 0, 0.6)' }, // Gold highlight
+              [to]: { backgroundColor: 'rgba(255, 215, 0, 0.6)' }
+            });
+          }
+        }
+      }, i * 1000);
+    });
+
+    // After showing all moves, explain why move 4 is best
+    setTimeout(async () => {
+      try {
+        // Determine who played move 4
+        const tempGame = new Chess(puzzle.fen);
+        tempGame.move({ from: puzzle.moves[0].slice(0, 2), to: puzzle.moves[0].slice(2, 4) });
+        tempGame.move({ from: puzzle.moves[1].slice(0, 2), to: puzzle.moves[1].slice(2, 4) });
+        tempGame.move({ from: puzzle.moves[2].slice(0, 2), to: puzzle.moves[2].slice(2, 4) });
+        const playingAs = tempGame.turn() === 'w' ? 'white' : 'black';
+        
+        // Get AI explanation for the correct move
+        const explanation = await getCorrectMoveExplanation(puzzle, userSystem, playingAs);
+        
+        setFeedbackMessage(`The solution is ${correctMove}. ${explanation}`);
+        
+        // Clear highlights after a delay
+        setTimeout(() => {
+          setArrows([]);
+          setHighlightedSquares({});
+        }, 2000);
+        
+      } catch (error) {
+        console.error('Failed to get explanation:', error);
+        setFeedbackMessage(`The solution is ${correctMove}. ${puzzle.explanation}`);
+      }
+    }, movesToPlay.length * 1000 + 300);
   };
 
   // Difficulty change handler

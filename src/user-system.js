@@ -231,6 +231,15 @@ async recordPuzzleAttempt(puzzleId, solved, timeTaken, movesTried = []) {
     const ratingBefore = profile?.current_rating || 1200;
     console.log('- Rating before:', ratingBefore);
 
+    // Check if this is a repeated attempt
+    const { count: existingAttempts } = await this.supabase
+      .from('user_puzzle_attempts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('puzzle_id', puzzleId);
+
+    console.log('- Existing attempts:', existingAttempts);
+
     // Record the attempt
     console.log('📝 Attempting to insert into user_puzzle_attempts...');
     const { data: attemptData, error: attemptError } = await this.supabase
@@ -248,12 +257,6 @@ async recordPuzzleAttempt(puzzleId, solved, timeTaken, movesTried = []) {
 
     if (attemptError) {
       console.error('❌ Insert error:', attemptError);
-      console.error('Error details:', {
-        code: attemptError.code,
-        message: attemptError.message,
-        details: attemptError.details,
-        hint: attemptError.hint
-      });
       throw attemptError;
     }
 
@@ -276,6 +279,10 @@ async recordPuzzleAttempt(puzzleId, solved, timeTaken, movesTried = []) {
 
     console.log('✅ New rating:', newRating);
 
+    // Calculate actual rating change
+    const actualRatingChange = existingAttempts === 0 ? (newRating - ratingBefore) : 0;
+    console.log('- Rating change:', actualRatingChange);
+
     // Update puzzle progress
     console.log('📈 Updating puzzle progress...');
     const { error: progressError } = await this.supabase
@@ -285,8 +292,8 @@ async recordPuzzleAttempt(puzzleId, solved, timeTaken, movesTried = []) {
         puzzle_id: puzzleId,
         status: solved ? 'solved' : 'attempted',
         best_time: solved ? timeTaken : null,
-        attempts_count: 1,
-        first_solved_at: solved ? new Date().toISOString() : null,
+        attempts_count: (existingAttempts || 0) + 1,
+        first_solved_at: solved && existingAttempts === 0 ? new Date().toISOString() : null,
         last_attempted_at: new Date().toISOString()
       }, {
         onConflict: 'user_id,puzzle_id',
@@ -298,6 +305,18 @@ async recordPuzzleAttempt(puzzleId, solved, timeTaken, movesTried = []) {
     }
 
     console.log('✅ Puzzle attempt recorded successfully');
+    
+    return {
+      newRating: newRating || ratingBefore,
+      ratingChange: actualRatingChange,
+      attemptId: attemptData.id
+    };
+
+  } catch (error) {
+    console.error('❌ Record puzzle attempt error:', error);
+    return null;
+  }
+}
     
     return {
       newRating,

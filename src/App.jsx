@@ -1,6 +1,6 @@
 // src/App.jsx
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { getIncorrectMoveExplanation, getCorrectMoveExplanation } from './ai';
@@ -14,6 +14,27 @@ const getBoardSize = () => (window.innerWidth < 500 ? window.innerWidth - 40 : 4
 const getActiveColor = (fen) => {
   const parts = fen.split(' ');
   return parts[1] === 'w' ? 'white' : 'black';
+};
+
+// Session persistence helpers
+const STORAGE_KEY = 'chess-trainer-session';
+
+const saveSessionData = (data) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (error) {
+    console.warn('Failed to save session data:', error);
+  }
+};
+
+const loadSessionData = () => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch (error) {
+    console.warn('Failed to load session data:', error);
+    return null;
+  }
 };
 
 const getSquareCoordinates = (square, boardSize, isFlipped = false) => {
@@ -80,7 +101,6 @@ const DifficultyToggle = ({ currentDifficulty, onDifficultyChange, disabled }) =
 const App = () => {
   // EXISTING STATE VARIABLES
   const [boardSize, setBoardSize] = useState(getBoardSize());
-  const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [boardPosition, setBoardPosition] = useState('');
   const [arrows, setArrows] = useState([]);
@@ -101,11 +121,32 @@ const App = () => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [puzzleStartTime, setPuzzleStartTime] = useState(null);
-  const [selectedDifficulty, setSelectedDifficulty] = useState('beginner');
+  
+  // SESSION PERSISTENCE STATE - Load from localStorage
+  const [selectedDifficulty, setSelectedDifficulty] = useState(() => {
+    const savedSession = loadSessionData();
+    return savedSession?.difficulty || 'beginner';
+  });
+
+  const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(() => {
+    const savedSession = loadSessionData();
+    return savedSession?.puzzleIndex || 0;
+  });
   
   // NEW STATE FOR BOARD ORIENTATION
   const [boardOrientation, setBoardOrientation] = useState('white');
   const [userPlayingAs, setUserPlayingAs] = useState('white');
+
+  // Save session data when things change
+  useEffect(() => {
+    if (user && puzzles.length > 0) {
+      saveSessionData({
+        difficulty: selectedDifficulty,
+        puzzleIndex: currentPuzzleIndex,
+        userId: user.id
+      });
+    }
+  }, [user, selectedDifficulty, currentPuzzleIndex, puzzles.length]);
 
   // AUTHENTICATION USEEFFECT
   useEffect(() => {
@@ -151,8 +192,14 @@ const App = () => {
     };
   }, [userSystem]);
 
-  // ENHANCED PUZZLE LOADING USEEFFECT
+  // ENHANCED PUZZLE LOADING USEEFFECT with session persistence
   useEffect(() => {
+    // Prevent double loading by checking if we're already loading
+    if (isLoadingPuzzles) {
+      console.log('⏳ DEBUG: Already loading puzzles, skipping...');
+      return;
+    }
+
     async function loadPuzzles() {
       try {
         console.log('🔍 DEBUG: Loading puzzles from Supabase...');
@@ -164,12 +211,10 @@ const App = () => {
         
         if (user) {
           console.log('📊 DEBUG: User is logged in, getting puzzles with progress...');
-          // Get puzzles with user progress if logged in
           fetchedPuzzles = await userSystem.getPuzzlesForUser(selectedDifficulty, 100);
           console.log('📊 DEBUG: Received', fetchedPuzzles.length, 'puzzles from getPuzzlesForUser');
         } else {
           console.log('👤 DEBUG: Guest user, getting public puzzles...');
-          // Guest user - get puzzles without progress tracking
           fetchedPuzzles = await userSystem.getPublicPuzzles(selectedDifficulty, 50);
           console.log('📊 DEBUG: Received', fetchedPuzzles.length, 'puzzles from getPublicPuzzles');
         }
@@ -183,29 +228,42 @@ const App = () => {
           console.log('📊 DEBUG: Solved puzzles:', solvedCount);
           console.log('📊 DEBUG: Attempted puzzles:', attemptedCount);
           
-          // Log first 10 puzzles' status for debugging
-          console.log('📋 DEBUG: First 10 puzzles status:');
-          fetchedPuzzles.slice(0, 10).forEach((puzzle, i) => {
-            console.log(`  ${i + 1}. ID:${puzzle.id} Solved:${puzzle.solved} Attempted:${puzzle.attempted}`);
-          });
+          // Check if we have a saved session for this difficulty
+          const savedSession = loadSessionData();
+          let targetIndex = 0;
           
-          // Find first unsolved puzzle
-          const firstUnsolvedIndex = fetchedPuzzles.findIndex(p => !p.solved);
-          console.log('🎯 DEBUG: First unsolved index found:', firstUnsolvedIndex);
-          
-          if (firstUnsolvedIndex !== -1) {
-            console.log('🎯 DEBUG: Setting puzzle index to:', firstUnsolvedIndex);
-            console.log('🎯 DEBUG: This is puzzle ID:', fetchedPuzzles[firstUnsolvedIndex].id);
-            setCurrentPuzzleIndex(firstUnsolvedIndex);
+          if (savedSession && 
+              savedSession.difficulty === selectedDifficulty && 
+              savedSession.userId === user?.id &&
+              savedSession.puzzleIndex < fetchedPuzzles.length) {
+            // Resume from saved position if it's unsolved
+            const savedPuzzle = fetchedPuzzles[savedSession.puzzleIndex];
+            if (savedPuzzle && !savedPuzzle.solved) {
+              targetIndex = savedSession.puzzleIndex;
+              console.log('🔄 DEBUG: Resuming from saved session at index:', targetIndex);
+            } else {
+              // Saved puzzle is solved, find next unsolved
+              const firstUnsolvedIndex = fetchedPuzzles.findIndex(p => !p.solved);
+              targetIndex = firstUnsolvedIndex !== -1 ? firstUnsolvedIndex : 0;
+              console.log('🎯 DEBUG: Saved puzzle solved, finding next unsolved:', targetIndex);
+            }
           } else {
-            // All puzzles solved, start at 0
-            console.log('🏆 DEBUG: All puzzles solved! Starting at index 0');
-            setCurrentPuzzleIndex(0);
+            // No valid session, find first unsolved
+            const firstUnsolvedIndex = fetchedPuzzles.findIndex(p => !p.solved);
+            targetIndex = firstUnsolvedIndex !== -1 ? firstUnsolvedIndex : 0;
+            console.log('🎯 DEBUG: No session, finding first unsolved:', targetIndex);
+          }
+          
+          console.log('🎯 DEBUG: Setting puzzle index to:', targetIndex);
+          console.log('🎯 DEBUG: This is puzzle ID:', fetchedPuzzles[targetIndex]?.id);
+          setCurrentPuzzleIndex(targetIndex);
+          
+          if (targetIndex === 0 && fetchedPuzzles[0]?.solved) {
             setFeedbackMessage('All puzzles in this difficulty have been solved!');
           }
           
           console.log(`✅ Loaded ${fetchedPuzzles.length} ${selectedDifficulty} puzzles from Supabase`);
-          console.log(`📍 Starting at puzzle ${firstUnsolvedIndex !== -1 ? firstUnsolvedIndex + 1 : 1}`);
+          console.log(`📍 Starting at puzzle ${targetIndex + 1}`);
         } else {
           console.error('❌ No puzzles found for difficulty:', selectedDifficulty);
           setFeedbackMessage(`No ${selectedDifficulty} puzzles available.`);
@@ -222,6 +280,7 @@ const App = () => {
     // Only load puzzles after auth state is determined
     if (!isLoadingAuth) {
       console.log('🚀 DEBUG: Auth state determined, loading puzzles...');
+      setIsLoadingPuzzles(true);
       loadPuzzles();
     } else {
       console.log('⏳ DEBUG: Still loading auth state...');
@@ -234,13 +293,6 @@ const App = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // Whenever puzzle changes, reset state
-  useEffect(() => {
-    if (puzzles.length > 0) {
-      resetCurrentPuzzle(currentPuzzleIndex);
-    }
-  }, [currentPuzzleIndex, puzzles]);
 
   // Helper function to validate puzzle data for 4 moves
   const validatePuzzle = (puzzle) => {
@@ -262,7 +314,7 @@ const App = () => {
   };
 
   // RESET FUNCTION with board orientation detection and validation for 4 moves
-  const resetCurrentPuzzle = (index) => {
+  const resetCurrentPuzzle = useCallback((index) => {
     if (!puzzles || puzzles.length === 0 || !puzzles[index]) {
       console.log('No puzzles available yet');
       return;
@@ -302,7 +354,14 @@ const App = () => {
     setSelectedSquares([]);
     setIsUserTurnToMove(false);
     setFeedbackMessage('');
-  };
+  }, [puzzles]);
+
+  // Whenever puzzle changes, reset state
+  useEffect(() => {
+    if (puzzles.length > 0) {
+      resetCurrentPuzzle(currentPuzzleIndex);
+    }
+  }, [currentPuzzleIndex, puzzles, resetCurrentPuzzle]);
 
   // ENHANCED HANDLESHOWMOVE for 4 moves
   const handleShowMove = () => {
@@ -581,11 +640,14 @@ const App = () => {
     playMoveSequence(allMoves, true);
   };
 
-  // Handler for difficulty change
-  const handleDifficultyChange = (newDifficulty) => {
-    setSelectedDifficulty(newDifficulty);
-    setIsLoadingPuzzles(true);
-  };
+  // Handler for difficulty change with stability improvements
+  const handleDifficultyChange = useCallback((newDifficulty) => {
+    if (newDifficulty !== selectedDifficulty) {
+      setSelectedDifficulty(newDifficulty);
+      setIsLoadingPuzzles(true);
+      setCurrentPuzzleIndex(0); // Reset to first puzzle when changing difficulty
+    }
+  }, [selectedDifficulty]);
 
   // AUTH HANDLER FUNCTIONS
   const handleAuthSuccess = async (user) => {
@@ -614,6 +676,9 @@ const App = () => {
     setUser(null);
     setUserProfile(null);
     setShowProfileModal(false);
+    
+    // Clear session data
+    localStorage.removeItem(STORAGE_KEY);
     
     // Reload puzzles as a guest user
     const guestPuzzles = await userSystem.getPublicPuzzles(selectedDifficulty, 50);

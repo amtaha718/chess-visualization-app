@@ -77,7 +77,10 @@ The puzzle sequence so far:
 
 Now ${playingAs === 'white' ? 'White' : 'Black'} must find move 4. The student tried "${userMove}", but the best move was "${correctMove}".
 
-Important: The board is oriented from ${playingAs === 'white' ? "White's" : "Black's"} perspective.
+Important notes:
+- The student is playing as ${playingAs === 'white' ? 'White' : 'Black'}
+- When playing as Black, the board is visually flipped on screen, but algebraic notation remains standard (a1 is always bottom-left from White's perspective)
+- Use standard chess notation in your explanation
 
 In 1–2 clear sentences, explain why "${userMove}" fails to capitalize on the tactical opportunity, without revealing what the correct move achieves. Focus on what the student's move allows the opponent to do or what opportunity it misses.
 

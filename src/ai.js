@@ -1,4 +1,18 @@
-// src/ai.js
+export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
+  try {
+    console.log('getCorrectMoveExplanation called with:', {
+      puzzleId: puzzle.id,
+      playingAs: playingAs,
+      hasAiExplanation: !!puzzle.ai_explanation
+    });
+    
+    // Check if AI explanation already exists
+    if (puzzle.ai_explanation) {
+      console.log('Using cached AI explanation');
+      return puzzle.ai_explanation;
+    }
+
+    console.log('Generating new AI explanation// src/ai.js
 
 /**
  * Calls our Vercel serverless function for incorrect move explanations.

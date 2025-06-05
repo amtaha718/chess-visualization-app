@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
-import { getIncorrectMoveExplanation } from './ai';
+import { getIncorrectMoveExplanation, getCorrectMoveExplanation } from './ai';
 import './index.css';
 import UserSystem from './user-system';
 import { AuthModal, UserProfile, AuthHeader } from './auth-components';
@@ -380,7 +380,7 @@ const App = () => {
     }
   };
 
-  // ENHANCED EVALUATEUSERMOVE with board orientation consideration
+  // ENHANCED EVALUATEUSERMOVE with full context for AI
   const evaluateUserMove = async (from, to, userGuess, correctMove) => {
     console.log('Current FEN:', internalGameRef.current.fen());
     console.log('Attempting move from', from, 'to', to);
@@ -402,12 +402,13 @@ const App = () => {
 
     const timeTaken = puzzleStartTime ? Math.round((Date.now() - puzzleStartTime) / 1000) : null;
     const solved = userGuess === correctMove;
+    const currentPuzzle = puzzles[currentPuzzleIndex];
 
     // Record attempt if user is logged in
-    if (user && puzzles[currentPuzzleIndex].id) {
+    if (user && currentPuzzle.id) {
       try {
         const result = await userSystem.recordPuzzleAttempt(
-          puzzles[currentPuzzleIndex].id,
+          currentPuzzle.id,
           solved,
           timeTaken,
           [userGuess]
@@ -419,10 +420,23 @@ const App = () => {
           setUserProfile(updatedProfile);
           setProfileUpdateKey(prev => prev + 1); // Force header re-render
           
-          if (solved) {
-            const ratingChange = result.ratingChange;
-            const ratingText = ratingChange > 0 ? `(+${ratingChange})` : `(${ratingChange})`;
-            setFeedbackMessage(`Correct! Rating: ${result.newRating} ${ratingText}. ${puzzles[currentPuzzleIndex].explanation}`);
+          if (result.ratingChange !== 0) {
+            const ratingText = result.ratingChange > 0 ? `(+${result.ratingChange})` : `(${result.ratingChange})`;
+            if (solved) {
+              // Get AI explanation for correct answer
+              const aiExplanation = await getCorrectMoveExplanation(currentPuzzle, userSystem);
+              setFeedbackMessage(`Correct! Rating: ${result.newRating} ${ratingText}. ${aiExplanation}`);
+            } else {
+              setFeedbackMessage(`Incorrect. Rating: ${result.newRating} ${ratingText}. `);
+            }
+          } else {
+            // No rating change (repeated attempt)
+            if (solved) {
+              const aiExplanation = currentPuzzle.ai_explanation || currentPuzzle.explanation;
+              setFeedbackMessage(`Correct! ${aiExplanation} (No rating change - puzzle already attempted)`);
+            } else {
+              setFeedbackMessage('Incorrect. (No rating change - puzzle already attempted)');
+            }
           }
           
           // Update the current puzzle's solved/attempted status in the local state
@@ -430,42 +444,47 @@ const App = () => {
           updatedPuzzles[currentPuzzleIndex] = {
             ...updatedPuzzles[currentPuzzleIndex],
             solved: solved || updatedPuzzles[currentPuzzleIndex].solved,
-            attempted: true
+            attempted: true,
+            ai_explanation: currentPuzzle.ai_explanation // Keep any AI explanation
           };
           setPuzzles(updatedPuzzles);
         }
       } catch (error) {
         console.error('Failed to record attempt:', error);
       }
+    } else if (!user) {
+      // Guest user
+      if (solved) {
+        setFeedbackMessage(`Correct! ${currentPuzzle.explanation}`);
+      }
     }
 
     // Play all 4 moves
     const sequence = [
-      puzzles[currentPuzzleIndex].moves[0],
-      puzzles[currentPuzzleIndex].moves[1],
-      puzzles[currentPuzzleIndex].moves[2],
+      currentPuzzle.moves[0],
+      currentPuzzle.moves[1],
+      currentPuzzle.moves[2],
       userGuess
     ];
     playMoveSequence(sequence, solved);
 
     if (!solved) {
       try {
-        // Pass board orientation info to AI
+        // Pass full context to AI for better explanations
         const explanation = await getIncorrectMoveExplanation(
-          internalGameRef.current.fen(),
-          userGuess,
-          correctMove,
-          userPlayingAs // Pass which color the user is playing
+          currentPuzzle.fen,        // Original position
+          currentPuzzle.moves,      // All 4 moves
+          userGuess,                // What user tried
+          correctMove,              // What they should have played
+          userPlayingAs             // Board orientation
         );
-        setFeedbackMessage(`Incorrect. ${explanation}`);
+        
+        // Append to existing feedback message
+        setFeedbackMessage(prev => prev + ' ' + explanation);
       } catch (err) {
         console.error(err);
-        setFeedbackMessage(
-          'Incorrect. (Failed to fetch explanation; try again.)'
-        );
+        setFeedbackMessage(prev => prev + ' (Failed to fetch explanation; try again.)');
       }
-    } else if (!user) {
-      setFeedbackMessage(`Correct! ${puzzles[currentPuzzleIndex].explanation}`);
     }
   };
 

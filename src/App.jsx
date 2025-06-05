@@ -489,7 +489,7 @@ const App = () => {
     }
   };
 
-  // UPDATED PLAYMOVESEQUENCE for 4 moves
+  // UPDATED PLAYMOVESEQUENCE - removed auto-advance
   const playMoveSequence = (moves, isCorrect) => {
     const puzzle = puzzles[currentPuzzleIndex];
     const game = new Chess(puzzle.fen);
@@ -517,10 +517,7 @@ const App = () => {
     setTimeout(() => {
       if (isCorrect) {
         setFeedbackMessage(`Correct! ${puzzle.explanation}`);
-        // Auto-advance to next unsolved puzzle after correct answer
-        setTimeout(() => {
-          skipToNextUnsolved();
-        }, 2000);
+        // Removed auto-advance - user must click Next Puzzle
       }
       setTimeout(() => setArrows([]), 700);
     }, movesToPlay.length * 1000 + 300);

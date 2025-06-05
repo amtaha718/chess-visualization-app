@@ -112,15 +112,17 @@ const App = () => {
 
   // NEW USER SYSTEM STATE VARIABLES
   const [puzzles, setPuzzles] = useState([]);
-  const [isLoadingPuzzles, setIsLoadingPuzzles] = useState(true);
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
-  const [profileUpdateKey, setProfileUpdateKey] = useState(0); // Force re-render of header
+  const [profileUpdateKey, setProfileUpdateKey] = useState(0);
   const [userSystem] = useState(() => new UserSystem());
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [puzzleStartTime, setPuzzleStartTime] = useState(null);
+  
+  // SIMPLIFIED LOADING STATES
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [isLoadingPuzzles, setIsLoadingPuzzles] = useState(false);
   
   // SESSION PERSISTENCE STATE - Load from localStorage
   const [selectedDifficulty, setSelectedDifficulty] = useState(() => {
@@ -128,10 +130,7 @@ const App = () => {
     return savedSession?.difficulty || 'beginner';
   });
 
-  const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(() => {
-    const savedSession = loadSessionData();
-    return savedSession?.puzzleIndex || 0;
-  });
+  const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
   
   // NEW STATE FOR BOARD ORIENTATION
   const [boardOrientation, setBoardOrientation] = useState('white');
@@ -148,23 +147,28 @@ const App = () => {
     }
   }, [user, selectedDifficulty, currentPuzzleIndex, puzzles.length]);
 
-  // AUTHENTICATION USEEFFECT
+  // SIMPLIFIED AUTHENTICATION USEEFFECT
   useEffect(() => {
     let subscription;
     
     const setupAuth = async () => {
       try {
+        console.log('🔐 Setting up authentication...');
+        
         // Get current user first
         const currentUser = await userSystem.getCurrentUser();
+        console.log('👤 Current user:', currentUser?.id || 'none');
         setUser(currentUser);
         
         if (currentUser) {
           const profile = await userSystem.getUserProfile();
+          console.log('📊 User profile:', profile?.current_rating || 'no profile');
           setUserProfile(profile);
         }
         
         // Set up auth state listener
         subscription = userSystem.onAuthStateChange(async (event, user) => {
+          console.log('🔄 Auth state changed:', event, user?.id || 'none');
           setUser(user);
           
           if (user) {
@@ -176,8 +180,9 @@ const App = () => {
         });
         
       } catch (error) {
-        console.error('Auth setup error:', error);
+        console.error('❌ Auth setup error:', error);
       } finally {
+        console.log('✅ Auth setup complete');
         setIsLoadingAuth(false);
       }
     };
@@ -192,100 +197,83 @@ const App = () => {
     };
   }, [userSystem]);
 
-  // ENHANCED PUZZLE LOADING USEEFFECT with session persistence
-  useEffect(() => {
-    // Prevent double loading by checking if we're already loading
-    if (isLoadingPuzzles) {
-      console.log('⏳ DEBUG: Already loading puzzles, skipping...');
+  // SIMPLIFIED PUZZLE LOADING FUNCTION
+  const loadPuzzles = useCallback(async () => {
+    if (isLoadingAuth) {
+      console.log('⏳ Still loading auth, skipping puzzle load');
       return;
     }
 
-    async function loadPuzzles() {
-      try {
-        console.log('🔍 DEBUG: Loading puzzles from Supabase...');
-        console.log('🔍 DEBUG: Auth loading state:', isLoadingAuth);
-        console.log('🔍 DEBUG: User:', user?.id);
-        console.log('🔍 DEBUG: Selected difficulty:', selectedDifficulty);
+    console.log('🧩 Starting to load puzzles...');
+    console.log('- User:', user?.id || 'guest');
+    console.log('- Difficulty:', selectedDifficulty);
+    
+    setIsLoadingPuzzles(true);
+    
+    try {
+      let fetchedPuzzles = [];
+      
+      if (user) {
+        console.log('📊 Loading puzzles with user progress...');
+        fetchedPuzzles = await userSystem.getPuzzlesForUser(selectedDifficulty, 100);
+      } else {
+        console.log('👤 Loading public puzzles...');
+        fetchedPuzzles = await userSystem.getPublicPuzzles(selectedDifficulty, 50);
+      }
+      
+      console.log('📦 Received puzzles:', fetchedPuzzles.length);
+      
+      if (fetchedPuzzles.length > 0) {
+        setPuzzles(fetchedPuzzles);
         
-        let fetchedPuzzles = [];
+        // Find starting index with session persistence
+        const savedSession = loadSessionData();
+        let targetIndex = 0;
         
-        if (user) {
-          console.log('📊 DEBUG: User is logged in, getting puzzles with progress...');
-          fetchedPuzzles = await userSystem.getPuzzlesForUser(selectedDifficulty, 100);
-          console.log('📊 DEBUG: Received', fetchedPuzzles.length, 'puzzles from getPuzzlesForUser');
-        } else {
-          console.log('👤 DEBUG: Guest user, getting public puzzles...');
-          fetchedPuzzles = await userSystem.getPublicPuzzles(selectedDifficulty, 50);
-          console.log('📊 DEBUG: Received', fetchedPuzzles.length, 'puzzles from getPublicPuzzles');
-        }
-        
-        if (fetchedPuzzles.length > 0) {
-          setPuzzles(fetchedPuzzles);
+        if (savedSession && 
+            savedSession.difficulty === selectedDifficulty && 
+            savedSession.userId === user?.id &&
+            savedSession.puzzleIndex < fetchedPuzzles.length) {
           
-          console.log('🔍 DEBUG: Analyzing puzzle progress...');
-          const solvedCount = fetchedPuzzles.filter(p => p.solved).length;
-          const attemptedCount = fetchedPuzzles.filter(p => p.attempted).length;
-          console.log('📊 DEBUG: Solved puzzles:', solvedCount);
-          console.log('📊 DEBUG: Attempted puzzles:', attemptedCount);
-          
-          // Check if we have a saved session for this difficulty
-          const savedSession = loadSessionData();
-          let targetIndex = 0;
-          
-          if (savedSession && 
-              savedSession.difficulty === selectedDifficulty && 
-              savedSession.userId === user?.id &&
-              savedSession.puzzleIndex < fetchedPuzzles.length) {
-            // Resume from saved position if it's unsolved
-            const savedPuzzle = fetchedPuzzles[savedSession.puzzleIndex];
-            if (savedPuzzle && !savedPuzzle.solved) {
-              targetIndex = savedSession.puzzleIndex;
-              console.log('🔄 DEBUG: Resuming from saved session at index:', targetIndex);
-            } else {
-              // Saved puzzle is solved, find next unsolved
-              const firstUnsolvedIndex = fetchedPuzzles.findIndex(p => !p.solved);
-              targetIndex = firstUnsolvedIndex !== -1 ? firstUnsolvedIndex : 0;
-              console.log('🎯 DEBUG: Saved puzzle solved, finding next unsolved:', targetIndex);
-            }
+          const savedPuzzle = fetchedPuzzles[savedSession.puzzleIndex];
+          if (savedPuzzle && !savedPuzzle.solved) {
+            targetIndex = savedSession.puzzleIndex;
+            console.log('🔄 Resuming from saved session at index:', targetIndex);
           } else {
-            // No valid session, find first unsolved
             const firstUnsolvedIndex = fetchedPuzzles.findIndex(p => !p.solved);
             targetIndex = firstUnsolvedIndex !== -1 ? firstUnsolvedIndex : 0;
-            console.log('🎯 DEBUG: No session, finding first unsolved:', targetIndex);
+            console.log('🎯 Saved puzzle solved, finding next unsolved:', targetIndex);
           }
-          
-          console.log('🎯 DEBUG: Setting puzzle index to:', targetIndex);
-          console.log('🎯 DEBUG: This is puzzle ID:', fetchedPuzzles[targetIndex]?.id);
-          setCurrentPuzzleIndex(targetIndex);
-          
-          if (targetIndex === 0 && fetchedPuzzles[0]?.solved) {
-            setFeedbackMessage('All puzzles in this difficulty have been solved!');
-          }
-          
-          console.log(`✅ Loaded ${fetchedPuzzles.length} ${selectedDifficulty} puzzles from Supabase`);
-          console.log(`📍 Starting at puzzle ${targetIndex + 1}`);
         } else {
-          console.error('❌ No puzzles found for difficulty:', selectedDifficulty);
-          setFeedbackMessage(`No ${selectedDifficulty} puzzles available.`);
+          const firstUnsolvedIndex = fetchedPuzzles.findIndex(p => !p.solved);
+          targetIndex = firstUnsolvedIndex !== -1 ? firstUnsolvedIndex : 0;
+          console.log('🎯 No session, finding first unsolved:', targetIndex);
         }
         
-      } catch (error) {
-        console.error('❌ Failed to load puzzles:', error);
-        setFeedbackMessage('Failed to load puzzles. Please refresh the page.');
-      } finally {
-        setIsLoadingPuzzles(false);
+        setCurrentPuzzleIndex(targetIndex);
+        console.log(`✅ Loaded ${fetchedPuzzles.length} ${selectedDifficulty} puzzles, starting at ${targetIndex + 1}`);
+        
+      } else {
+        console.error('❌ No puzzles found');
+        setFeedbackMessage(`No ${selectedDifficulty} puzzles available.`);
       }
-    }
-
-    // Only load puzzles after auth state is determined
-    if (!isLoadingAuth) {
-      console.log('🚀 DEBUG: Auth state determined, loading puzzles...');
-      setIsLoadingPuzzles(true);
-      loadPuzzles();
-    } else {
-      console.log('⏳ DEBUG: Still loading auth state...');
+      
+    } catch (error) {
+      console.error('❌ Failed to load puzzles:', error);
+      setFeedbackMessage('Failed to load puzzles. Please refresh the page.');
+    } finally {
+      setIsLoadingPuzzles(false);
+      console.log('🏁 Puzzle loading complete');
     }
   }, [isLoadingAuth, user, userSystem, selectedDifficulty]);
+
+  // TRIGGER PUZZLE LOADING
+  useEffect(() => {
+    if (!isLoadingAuth) {
+      console.log('🚀 Auth ready, loading puzzles...');
+      loadPuzzles();
+    }
+  }, [isLoadingAuth, loadPuzzles]);
 
   // Update board size on resize
   useEffect(() => {
@@ -382,7 +370,7 @@ const App = () => {
 
     setArrows([{ from, to }]);
 
-    if (currentMoveIndex < 3) {  // Changed from 2 to 3
+    if (currentMoveIndex < 3) {
       setCurrentMoveIndex((i) => i + 1);
     } else {
       // Apply first 3 moves to the game
@@ -450,7 +438,7 @@ const App = () => {
       const from = selectedSquares[0];
       const to = square;
       const userGuess = from + to;
-      const correctMove = puzzles[currentPuzzleIndex].moves[3];  // Changed to move 4
+      const correctMove = puzzles[currentPuzzleIndex].moves[3];
 
       setHighlightedSquares({
         [from]: { backgroundColor: 'rgba(173, 216, 230, 0.6)' },
@@ -470,13 +458,11 @@ const App = () => {
   const evaluateUserMove = async (from, to, userGuess, correctMove) => {
     console.log('Current FEN:', internalGameRef.current.fen());
     console.log('Attempting move from', from, 'to', to);
-    console.log('Available moves:', internalGameRef.current.moves());
     console.log('User guess as coordinate:', userGuess);
     console.log('Correct move:', correctMove);
 
     const tempGame = new Chess(internalGameRef.current.fen());
     const moveResult = tempGame.move({ from, to });
-    console.log('Chess.js move result:', moveResult);
 
     if (!moveResult) {
       setFeedbackMessage('Illegal move.');
@@ -493,11 +479,6 @@ const App = () => {
     // Record attempt if user is logged in
     if (user && currentPuzzle.id) {
       try {
-        console.log('🔍 DEBUG: Before recording attempt');
-        console.log('- Current profile rating:', userProfile?.current_rating);
-        console.log('- Puzzle ID:', currentPuzzle.id);
-        console.log('- Solved:', solved);
-        
         const result = await userSystem.recordPuzzleAttempt(
           currentPuzzle.id,
           solved,
@@ -505,23 +486,16 @@ const App = () => {
           [userGuess]
         );
         
-        console.log('🔍 DEBUG: After recording attempt');
-        console.log('- Result:', result);
-        
         if (result) {
           // Enhanced profile refresh with retry logic
           const refreshProfile = async (attempts = 3) => {
             for (let i = 0; i < attempts; i++) {
-              await new Promise(resolve => setTimeout(resolve, 300 * (i + 1))); // Progressive delay
-              console.log(`🔄 DEBUG: Refreshing user profile (attempt ${i + 1})...`);
+              await new Promise(resolve => setTimeout(resolve, 300 * (i + 1)));
               const updatedProfile = await userSystem.getUserProfile();
-              console.log('🔄 DEBUG: Updated profile:', updatedProfile);
-              console.log('🔄 DEBUG: Rating changed from', userProfile?.current_rating, 'to', updatedProfile?.current_rating);
               
               if (updatedProfile && updatedProfile.current_rating !== userProfile?.current_rating) {
                 setUserProfile(updatedProfile);
                 setProfileUpdateKey(prev => prev + 1);
-                console.log('✅ DEBUG: Profile successfully updated');
                 break;
               }
             }
@@ -532,16 +506,13 @@ const App = () => {
           if (result.ratingChange !== 0) {
             const ratingText = result.ratingChange > 0 ? `(+${result.ratingChange})` : `(${result.ratingChange})`;
             if (solved) {
-              // Get AI explanation for correct answer
               const aiExplanation = await getCorrectMoveExplanation(currentPuzzle, userSystem, userPlayingAs);
               setFeedbackMessage(`Correct! Rating: ${result.newRating} ${ratingText}. ${aiExplanation}`);
             } else {
               setFeedbackMessage(`Incorrect. Rating: ${result.newRating} ${ratingText}. `);
             }
           } else {
-            // No rating change (repeated attempt)
             if (solved) {
-              // Try to get AI explanation even for repeated attempts
               const aiExplanation = await getCorrectMoveExplanation(currentPuzzle, userSystem, userPlayingAs);
               setFeedbackMessage(`Correct! ${aiExplanation} (No rating change - puzzle already attempted)`);
             } else {
@@ -555,7 +526,7 @@ const App = () => {
             ...updatedPuzzles[currentPuzzleIndex],
             solved: solved || updatedPuzzles[currentPuzzleIndex].solved,
             attempted: true,
-            ai_explanation: currentPuzzle.ai_explanation // Keep any AI explanation
+            ai_explanation: currentPuzzle.ai_explanation
           };
           setPuzzles(updatedPuzzles);
         }
@@ -580,16 +551,14 @@ const App = () => {
 
     if (!solved) {
       try {
-        // Pass full context to AI for better explanations
         const explanation = await getIncorrectMoveExplanation(
-          currentPuzzle.fen,        // Original position
-          currentPuzzle.moves,      // All 4 moves
-          userGuess,                // What user tried
-          correctMove,              // What they should have played
-          userPlayingAs             // Board orientation
+          currentPuzzle.fen,
+          currentPuzzle.moves,
+          userGuess,
+          correctMove,
+          userPlayingAs
         );
         
-        // Prepend "Incorrect. " to the existing feedback message
         setFeedbackMessage(prev => 'Incorrect. ' + prev + ' ' + explanation);
       } catch (err) {
         console.error(err);
@@ -626,7 +595,6 @@ const App = () => {
     setTimeout(() => {
       if (isCorrect) {
         setFeedbackMessage(`Correct! ${puzzle.explanation}`);
-        // Removed auto-advance - user must click Next Puzzle
       }
       setTimeout(() => setArrows([]), 700);
     }, movesToPlay.length * 1000 + 300);
@@ -635,17 +603,17 @@ const App = () => {
   // UPDATED HANDLEREVEALSOLUTION for 4 moves
   const handleRevealSolution = () => {
     const puzzle = puzzles[currentPuzzleIndex];
-    // Play all 4 moves
     const allMoves = puzzle.moves.slice(0, 4);
     playMoveSequence(allMoves, true);
   };
 
-  // Handler for difficulty change with stability improvements
+  // Handler for difficulty change
   const handleDifficultyChange = useCallback((newDifficulty) => {
     if (newDifficulty !== selectedDifficulty) {
+      console.log('🔄 Changing difficulty to:', newDifficulty);
       setSelectedDifficulty(newDifficulty);
-      setIsLoadingPuzzles(true);
-      setCurrentPuzzleIndex(0); // Reset to first puzzle when changing difficulty
+      setCurrentPuzzleIndex(0);
+      // This will trigger the loadPuzzles useEffect
     }
   }, [selectedDifficulty]);
 
@@ -654,21 +622,11 @@ const App = () => {
     setUser(user);
     const profile = await userSystem.getUserProfile();
     setUserProfile(profile);
-    setProfileUpdateKey(prev => prev + 1); // Force header re-render
+    setProfileUpdateKey(prev => prev + 1);
     setShowAuthModal(false);
     
-    const userPuzzles = await userSystem.getPuzzlesForUser(selectedDifficulty, 100);
-    if (userPuzzles.length > 0) {
-      setPuzzles(userPuzzles);
-      // Find first unsolved puzzle
-      const firstUnsolvedIndex = userPuzzles.findIndex(p => !p.solved);
-      if (firstUnsolvedIndex !== -1) {
-        setCurrentPuzzleIndex(firstUnsolvedIndex);
-      } else {
-        setCurrentPuzzleIndex(0);
-        setFeedbackMessage('All puzzles in this difficulty have been solved!');
-      }
-    }
+    // Reload puzzles with user progress
+    loadPuzzles();
   };
 
   const handleSignOut = async () => {
@@ -680,9 +638,8 @@ const App = () => {
     // Clear session data
     localStorage.removeItem(STORAGE_KEY);
     
-    // Reload puzzles as a guest user
-    const guestPuzzles = await userSystem.getPublicPuzzles(selectedDifficulty, 50);
-    setPuzzles(guestPuzzles);
+    // Reload puzzles as guest
+    loadPuzzles();
   };
 
   // EXISTING STYLES - unchanged
@@ -741,8 +698,30 @@ const App = () => {
     );
   };
 
-  // LOADING STATE CHECK
-  if (isLoadingPuzzles || isLoadingAuth) {
+  // SIMPLIFIED LOADING STATE CHECK
+  console.log('🎮 Render state:', {
+    isLoadingAuth,
+    isLoadingPuzzles,
+    puzzlesLength: puzzles.length,
+    user: user?.id || 'none'
+  });
+
+  if (isLoadingAuth) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column'
+      }}>
+        <h2>Setting up authentication...</h2>
+        <p>Please wait...</p>
+      </div>
+    );
+  }
+
+  if (isLoadingPuzzles) {
     return (
       <div style={{ 
         display: 'flex', 
@@ -752,7 +731,29 @@ const App = () => {
         flexDirection: 'column'
       }}>
         <h2>Loading Chess Puzzles...</h2>
-        <p>Setting up your personalized experience...</p>
+        <p>Difficulty: {selectedDifficulty}</p>
+        <p>User: {user ? 'Logged in' : 'Guest'}</p>
+      </div>
+    );
+  }
+
+  if (puzzles.length === 0) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column'
+      }}>
+        <h2>No Puzzles Found</h2>
+        <p>Difficulty: {selectedDifficulty}</p>
+        <button 
+          onClick={() => loadPuzzles()}
+          style={buttonStyle}
+        >
+          Retry Loading
+        </button>
       </div>
     );
   }
@@ -772,12 +773,8 @@ const App = () => {
         key={profileUpdateKey}
         user={user}
         profile={userProfile}
-        onShowAuth={() => {
-          setShowAuthModal(true);
-        }}
-        onShowProfile={() => {
-          setShowProfileModal(true);
-        }}
+        onShowAuth={() => setShowAuthModal(true)}
+        onShowProfile={() => setShowProfileModal(true)}
         onSignOut={handleSignOut}
       />
 
@@ -907,9 +904,7 @@ const App = () => {
         user={user}
         profile={userProfile}
         onSignOut={handleSignOut}
-        onClose={() => {
-          setShowProfileModal(false);
-        }}
+        onClose={() => setShowProfileModal(false)}
       />
     </div>
   );

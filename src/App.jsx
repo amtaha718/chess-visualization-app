@@ -10,12 +10,6 @@ import { AuthModal, UserProfile, AuthHeader } from './auth-components';
 
 const getBoardSize = () => (window.innerWidth < 500 ? window.innerWidth - 40 : 400);
 
-// Helper function to determine whose turn it is from FEN
-const getActiveColor = (fen) => {
-  const parts = fen.split(' ');
-  return parts[1] === 'w' ? 'white' : 'black';
-};
-
 // Session persistence helpers
 const STORAGE_KEY = 'chess-trainer-session';
 
@@ -41,7 +35,6 @@ const getSquareCoordinates = (square, boardSize, isFlipped = false) => {
   let file = square.charCodeAt(0) - 'a'.charCodeAt(0);
   let rank = 8 - parseInt(square[1], 10);
   
-  // If board is flipped, invert the coordinates
   if (isFlipped) {
     file = 7 - file;
     rank = 7 - rank;
@@ -110,7 +103,7 @@ const App = () => {
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const internalGameRef = useRef(null);
 
-  // NEW USER SYSTEM STATE VARIABLES
+  // USER SYSTEM STATE VARIABLES
   const [puzzles, setPuzzles] = useState([]);
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -124,15 +117,15 @@ const App = () => {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPuzzles, setIsLoadingPuzzles] = useState(false);
   
-  // SESSION PERSISTENCE STATE - Load from localStorage
+  // SESSION PERSISTENCE STATE
   const [selectedDifficulty, setSelectedDifficulty] = useState(() => {
     const savedSession = loadSessionData();
-    return savedSession?.difficulty || 'beginner';
+    return savedSession?.difficulty || 'intermediate'; // Start with last used difficulty
   });
 
   const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
   
-  // NEW STATE FOR BOARD ORIENTATION
+  // BOARD ORIENTATION STATE
   const [boardOrientation, setBoardOrientation] = useState('white');
   const [userPlayingAs, setUserPlayingAs] = useState('white');
 
@@ -147,27 +140,35 @@ const App = () => {
     }
   }, [user, selectedDifficulty, currentPuzzleIndex, puzzles.length]);
 
-  // SIMPLIFIED AUTHENTICATION USEEFFECT
+  // FIXED AUTHENTICATION - Prevent auth loops
   useEffect(() => {
     let subscription;
+    let isInitialized = false;
     
     const setupAuth = async () => {
       try {
         console.log('🔐 Setting up authentication...');
         
-        // Get current user first
         const currentUser = await userSystem.getCurrentUser();
         console.log('👤 Current user:', currentUser?.id || 'none');
         setUser(currentUser);
         
         if (currentUser) {
           const profile = await userSystem.getUserProfile();
-          console.log('📊 User profile:', profile?.current_rating || 'no profile');
+          console.log('📊 User profile loaded');
           setUserProfile(profile);
         }
         
-        // Set up auth state listener
+        isInitialized = true;
+        
+        // Set up auth state listener - but ignore certain events
         subscription = userSystem.onAuthStateChange(async (event, user) => {
+          // Ignore token refresh events to prevent reload loops
+          if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+            console.log('🔄 Auth event ignored:', event);
+            return;
+          }
+          
           console.log('🔄 Auth state changed:', event, user?.id || 'none');
           setUser(user);
           
@@ -189,7 +190,6 @@ const App = () => {
     
     setupAuth();
     
-    // Cleanup function
     return () => {
       if (subscription && subscription.data && subscription.data.subscription) {
         subscription.data.subscription.unsubscribe();
@@ -197,27 +197,21 @@ const App = () => {
     };
   }, [userSystem]);
 
-  // SIMPLIFIED PUZZLE LOADING FUNCTION
+  // STABLE PUZZLE LOADING - Only loads once per difficulty/user change
   const loadPuzzles = useCallback(async () => {
-    if (isLoadingAuth) {
-      console.log('⏳ Still loading auth, skipping puzzle load');
+    if (isLoadingAuth || isLoadingPuzzles) {
       return;
     }
 
-    console.log('🧩 Starting to load puzzles...');
-    console.log('- User:', user?.id || 'guest');
-    console.log('- Difficulty:', selectedDifficulty);
-    
+    console.log('🧩 Loading puzzles:', selectedDifficulty, 'for user:', user?.id || 'guest');
     setIsLoadingPuzzles(true);
     
     try {
       let fetchedPuzzles = [];
       
       if (user) {
-        console.log('📊 Loading puzzles with user progress...');
         fetchedPuzzles = await userSystem.getPuzzlesForUser(selectedDifficulty, 100);
       } else {
-        console.log('👤 Loading public puzzles...');
         fetchedPuzzles = await userSystem.getPublicPuzzles(selectedDifficulty, 50);
       }
       
@@ -226,7 +220,7 @@ const App = () => {
       if (fetchedPuzzles.length > 0) {
         setPuzzles(fetchedPuzzles);
         
-        // Find starting index with session persistence
+        // Smart resume logic with session persistence
         const savedSession = loadSessionData();
         let targetIndex = 0;
         
@@ -238,23 +232,22 @@ const App = () => {
           const savedPuzzle = fetchedPuzzles[savedSession.puzzleIndex];
           if (savedPuzzle && !savedPuzzle.solved) {
             targetIndex = savedSession.puzzleIndex;
-            console.log('🔄 Resuming from saved session at index:', targetIndex);
+            console.log('🔄 Resuming from saved session at puzzle:', targetIndex + 1);
           } else {
             const firstUnsolvedIndex = fetchedPuzzles.findIndex(p => !p.solved);
             targetIndex = firstUnsolvedIndex !== -1 ? firstUnsolvedIndex : 0;
-            console.log('🎯 Saved puzzle solved, finding next unsolved:', targetIndex);
+            console.log('🎯 Finding next unsolved puzzle:', targetIndex + 1);
           }
         } else {
           const firstUnsolvedIndex = fetchedPuzzles.findIndex(p => !p.solved);
           targetIndex = firstUnsolvedIndex !== -1 ? firstUnsolvedIndex : 0;
-          console.log('🎯 No session, finding first unsolved:', targetIndex);
+          console.log('🎯 Starting at first unsolved puzzle:', targetIndex + 1);
         }
         
         setCurrentPuzzleIndex(targetIndex);
-        console.log(`✅ Loaded ${fetchedPuzzles.length} ${selectedDifficulty} puzzles, starting at ${targetIndex + 1}`);
+        console.log(`✅ Ready! ${selectedDifficulty} difficulty, puzzle ${targetIndex + 1}/${fetchedPuzzles.length}`);
         
       } else {
-        console.error('❌ No puzzles found');
         setFeedbackMessage(`No ${selectedDifficulty} puzzles available.`);
       }
       
@@ -263,17 +256,16 @@ const App = () => {
       setFeedbackMessage('Failed to load puzzles. Please refresh the page.');
     } finally {
       setIsLoadingPuzzles(false);
-      console.log('🏁 Puzzle loading complete');
     }
-  }, [isLoadingAuth, user, userSystem, selectedDifficulty]);
+  }, [isLoadingAuth, user, userSystem, selectedDifficulty, isLoadingPuzzles]);
 
-  // TRIGGER PUZZLE LOADING
+  // Trigger puzzle loading only when auth is ready and difficulty changes
+  const puzzleLoadTrigger = `${!isLoadingAuth}-${user?.id || 'guest'}-${selectedDifficulty}`;
   useEffect(() => {
     if (!isLoadingAuth) {
-      console.log('🚀 Auth ready, loading puzzles...');
       loadPuzzles();
     }
-  }, [isLoadingAuth, loadPuzzles]);
+  }, [puzzleLoadTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update board size on resize
   useEffect(() => {
@@ -282,14 +274,13 @@ const App = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Helper function to validate puzzle data for 4 moves
+  // Helper function to validate puzzle data
   const validatePuzzle = (puzzle) => {
     if (!puzzle.moves || puzzle.moves.length !== 4) {
       console.warn('Puzzle does not have exactly 4 moves:', puzzle);
       return false;
     }
     
-    // Validate move format (should be 4 characters like 'e2e4')
     for (let i = 0; i < 4; i++) {
       const move = puzzle.moves[i];
       if (!move || move.length !== 4) {
@@ -301,16 +292,14 @@ const App = () => {
     return true;
   };
 
-  // RESET FUNCTION with board orientation detection and validation for 4 moves
+  // Reset puzzle function
   const resetCurrentPuzzle = useCallback((index) => {
     if (!puzzles || puzzles.length === 0 || !puzzles[index]) {
-      console.log('No puzzles available yet');
       return;
     }
 
     const puzzle = puzzles[index];
     
-    // Validate puzzle before using it
     if (!validatePuzzle(puzzle)) {
       setFeedbackMessage('This puzzle appears to be invalid. Skipping to next puzzle.');
       if (puzzles.length > 1) {
@@ -321,8 +310,7 @@ const App = () => {
 
     const game = new Chess(puzzle.fen);
     
-    // For 4-move puzzles, determine who plays move 4
-    // Apply first 3 moves to see whose turn it is
+    // Determine who plays move 4
     const tempGame = new Chess(puzzle.fen);
     tempGame.move({ from: puzzle.moves[0].slice(0, 2), to: puzzle.moves[0].slice(2, 4) });
     tempGame.move({ from: puzzle.moves[1].slice(0, 2), to: puzzle.moves[1].slice(2, 4) });
@@ -330,8 +318,6 @@ const App = () => {
     
     const userPlaysAs = tempGame.turn() === 'w' ? 'white' : 'black';
     setUserPlayingAs(userPlaysAs);
-    
-    // Auto-orient board based on who the user plays as
     setBoardOrientation(userPlaysAs);
     
     internalGameRef.current = game;
@@ -344,22 +330,19 @@ const App = () => {
     setFeedbackMessage('');
   }, [puzzles]);
 
-  // Whenever puzzle changes, reset state
+  // Reset puzzle when index changes
   useEffect(() => {
     if (puzzles.length > 0) {
       resetCurrentPuzzle(currentPuzzleIndex);
     }
   }, [currentPuzzleIndex, puzzles, resetCurrentPuzzle]);
 
-  // ENHANCED HANDLESHOWMOVE for 4 moves
   const handleShowMove = () => {
     if (currentMoveIndex === 0) setPuzzleStartTime(Date.now());
 
     const puzzle = puzzles[currentPuzzleIndex];
     
-    // Validate puzzle has exactly 4 moves
     if (!puzzle.moves || puzzle.moves.length !== 4) {
-      console.error('Puzzle does not have exactly 4 moves:', puzzle);
       setFeedbackMessage('This puzzle appears to be invalid. Please try another.');
       return;
     }
@@ -373,7 +356,7 @@ const App = () => {
     if (currentMoveIndex < 3) {
       setCurrentMoveIndex((i) => i + 1);
     } else {
-      // Apply first 3 moves to the game
+      // Apply first 3 moves
       const game = new Chess(puzzle.fen);
       const move1 = puzzle.moves[0];
       const move2 = puzzle.moves[1];
@@ -384,7 +367,6 @@ const App = () => {
       const moveResult3 = game.move({ from: move3.slice(0, 2), to: move3.slice(2, 4) });
 
       if (!moveResult1 || !moveResult2 || !moveResult3) {
-        console.error('Invalid moves in puzzle sequence');
         setFeedbackMessage('This puzzle contains invalid moves. Please try another.');
         return;
       }
@@ -394,7 +376,6 @@ const App = () => {
 
       internalGameRef.current = game;
       
-      // Determine who the user is playing as based on whose turn it is after 3 moves
       const currentTurn = game.turn();
       const playingAs = currentTurn === 'w' ? 'white' : 'black';
       setUserPlayingAs(playingAs);
@@ -407,24 +388,20 @@ const App = () => {
     }
   };
 
-  // Function to skip to next unsolved puzzle
   const skipToNextUnsolved = () => {
     const nextIndex = puzzles.findIndex((p, idx) => idx > currentPuzzleIndex && !p.solved);
     if (nextIndex !== -1) {
       setCurrentPuzzleIndex(nextIndex);
     } else {
-      // No more unsolved puzzles after current, check from beginning
       const fromStartIndex = puzzles.findIndex(p => !p.solved);
       if (fromStartIndex !== -1 && fromStartIndex !== currentPuzzleIndex) {
         setCurrentPuzzleIndex(fromStartIndex);
       } else {
-        // All puzzles solved
         setFeedbackMessage('Congratulations! You have solved all puzzles in this difficulty.');
       }
     }
   };
 
-  // EXISTING HANDLESQUARECLICK - unchanged
   const handleSquareClick = (square) => {
     if (!isUserTurnToMove) return;
 
@@ -454,13 +431,7 @@ const App = () => {
     }
   };
 
-  // ENHANCED EVALUATEUSERMOVE with improved rating refresh and full context for AI
   const evaluateUserMove = async (from, to, userGuess, correctMove) => {
-    console.log('Current FEN:', internalGameRef.current.fen());
-    console.log('Attempting move from', from, 'to', to);
-    console.log('User guess as coordinate:', userGuess);
-    console.log('Correct move:', correctMove);
-
     const tempGame = new Chess(internalGameRef.current.fen());
     const moveResult = tempGame.move({ from, to });
 
@@ -487,21 +458,14 @@ const App = () => {
         );
         
         if (result) {
-          // Enhanced profile refresh with retry logic
-          const refreshProfile = async (attempts = 3) => {
-            for (let i = 0; i < attempts; i++) {
-              await new Promise(resolve => setTimeout(resolve, 300 * (i + 1)));
-              const updatedProfile = await userSystem.getUserProfile();
-              
-              if (updatedProfile && updatedProfile.current_rating !== userProfile?.current_rating) {
-                setUserProfile(updatedProfile);
-                setProfileUpdateKey(prev => prev + 1);
-                break;
-              }
+          // Profile refresh
+          setTimeout(async () => {
+            const updatedProfile = await userSystem.getUserProfile();
+            if (updatedProfile) {
+              setUserProfile(updatedProfile);
+              setProfileUpdateKey(prev => prev + 1);
             }
-          };
-          
-          refreshProfile();
+          }, 500);
           
           if (result.ratingChange !== 0) {
             const ratingText = result.ratingChange > 0 ? `(+${result.ratingChange})` : `(${result.ratingChange})`;
@@ -520,7 +484,7 @@ const App = () => {
             }
           }
           
-          // Update the current puzzle's solved/attempted status in the local state
+          // Update local puzzle state
           const updatedPuzzles = [...puzzles];
           updatedPuzzles[currentPuzzleIndex] = {
             ...updatedPuzzles[currentPuzzleIndex],
@@ -534,7 +498,6 @@ const App = () => {
         console.error('Failed to record attempt:', error);
       }
     } else if (!user) {
-      // Guest user
       if (solved) {
         setFeedbackMessage(`Correct! ${currentPuzzle.explanation}`);
       }
@@ -551,6 +514,7 @@ const App = () => {
 
     if (!solved) {
       try {
+        // Get AI explanation with better context
         const explanation = await getIncorrectMoveExplanation(
           currentPuzzle.fen,
           currentPuzzle.moves,
@@ -561,20 +525,17 @@ const App = () => {
         
         setFeedbackMessage(prev => 'Incorrect. ' + prev + ' ' + explanation);
       } catch (err) {
-        console.error(err);
         setFeedbackMessage(prev => prev + ' (Failed to fetch explanation; try again.)');
       }
     }
   };
 
-  // UPDATED PLAYMOVESEQUENCE - removed auto-advance
   const playMoveSequence = (moves, isCorrect) => {
     const puzzle = puzzles[currentPuzzleIndex];
     const game = new Chess(puzzle.fen);
     setBoardPosition(puzzle.fen);
     setArrows([]);
 
-    // Limit to first 4 moves
     const movesToPlay = moves.slice(0, 4);
 
     movesToPlay.forEach((move, i) => {
@@ -586,8 +547,6 @@ const App = () => {
         if (moveResult) {
           setBoardPosition(game.fen());
           setArrows([{ from, to }]);
-        } else {
-          console.error(`Invalid move in sequence: ${move}`);
         }
       }, i * 1000);
     });
@@ -600,24 +559,22 @@ const App = () => {
     }, movesToPlay.length * 1000 + 300);
   };
 
-  // UPDATED HANDLEREVEALSOLUTION for 4 moves
   const handleRevealSolution = () => {
     const puzzle = puzzles[currentPuzzleIndex];
     const allMoves = puzzle.moves.slice(0, 4);
     playMoveSequence(allMoves, true);
   };
 
-  // Handler for difficulty change
+  // Stable difficulty change handler
   const handleDifficultyChange = useCallback((newDifficulty) => {
     if (newDifficulty !== selectedDifficulty) {
       console.log('🔄 Changing difficulty to:', newDifficulty);
       setSelectedDifficulty(newDifficulty);
       setCurrentPuzzleIndex(0);
-      // This will trigger the loadPuzzles useEffect
     }
   }, [selectedDifficulty]);
 
-  // AUTH HANDLER FUNCTIONS
+  // Auth handlers
   const handleAuthSuccess = async (user) => {
     setUser(user);
     const profile = await userSystem.getUserProfile();
@@ -625,8 +582,7 @@ const App = () => {
     setProfileUpdateKey(prev => prev + 1);
     setShowAuthModal(false);
     
-    // Reload puzzles with user progress
-    loadPuzzles();
+    // This will trigger puzzle reload via the useEffect
   };
 
   const handleSignOut = async () => {
@@ -634,15 +590,9 @@ const App = () => {
     setUser(null);
     setUserProfile(null);
     setShowProfileModal(false);
-    
-    // Clear session data
     localStorage.removeItem(STORAGE_KEY);
-    
-    // Reload puzzles as guest
-    loadPuzzles();
   };
 
-  // EXISTING STYLES - unchanged
   const buttonStyle = {
     margin: '5px',
     padding: '8px 16px',
@@ -656,7 +606,6 @@ const App = () => {
     transition: 'background-color 0.3s ease'
   };
 
-  // UPDATED RENDERARROWS to support flipped board
   const renderArrows = () => {
     const isFlipped = boardOrientation === 'black';
     
@@ -698,14 +647,7 @@ const App = () => {
     );
   };
 
-  // SIMPLIFIED LOADING STATE CHECK
-  console.log('🎮 Render state:', {
-    isLoadingAuth,
-    isLoadingPuzzles,
-    puzzlesLength: puzzles.length,
-    user: user?.id || 'none'
-  });
-
+  // Loading states
   if (isLoadingAuth) {
     return (
       <div style={{ 
@@ -716,7 +658,6 @@ const App = () => {
         flexDirection: 'column'
       }}>
         <h2>Setting up authentication...</h2>
-        <p>Please wait...</p>
       </div>
     );
   }
@@ -730,9 +671,8 @@ const App = () => {
         height: '100vh',
         flexDirection: 'column'
       }}>
-        <h2>Loading Chess Puzzles...</h2>
+        <h2>Loading Puzzles...</h2>
         <p>Difficulty: {selectedDifficulty}</p>
-        <p>User: {user ? 'Logged in' : 'Guest'}</p>
       </div>
     );
   }
@@ -748,10 +688,7 @@ const App = () => {
       }}>
         <h2>No Puzzles Found</h2>
         <p>Difficulty: {selectedDifficulty}</p>
-        <button 
-          onClick={() => loadPuzzles()}
-          style={buttonStyle}
-        >
+        <button onClick={() => loadPuzzles()} style={buttonStyle}>
           Retry Loading
         </button>
       </div>

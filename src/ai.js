@@ -38,13 +38,16 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
  * Gets or generates AI explanation for correct answers.
  * First checks Supabase, then calls OpenAI if needed.
  */
-export async function getCorrectMoveExplanation(puzzle, userSystem) {
+export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
   try {
     // Check if AI explanation already exists
     if (puzzle.ai_explanation) {
+      console.log('Using cached AI explanation');
       return puzzle.ai_explanation;
     }
 
+    console.log('Generating new AI explanation for puzzle', puzzle.id);
+    
     // Generate new explanation
     const response = await fetch('/api/getExplanation', {
       method: 'POST',
@@ -56,19 +59,19 @@ export async function getCorrectMoveExplanation(puzzle, userSystem) {
         moves: puzzle.moves,
         userMove: puzzle.moves[3], 
         correctMove: puzzle.moves[3],
-        playingAs: puzzle.moves[0].length === 4 ? 
-          (puzzle.fen.split(' ')[1] === 'w' ? 'white' : 'black') : 
-          'white',
+        playingAs: playingAs,  // Use the actual playing color
         isCorrect: true
       }),
     });
 
     if (!response.ok) {
+      console.error('Failed to generate explanation, response not ok');
       throw new Error('Failed to generate explanation');
     }
 
     const data = await response.json();
     const aiExplanation = data.explanation;
+    console.log('Generated explanation:', aiExplanation);
 
     // Save to database for future use
     if (userSystem && puzzle.id) {

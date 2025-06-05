@@ -211,73 +211,105 @@ class UserSystem {
     }
   }
 
-  async recordPuzzleAttempt(puzzleId, solved, timeTaken, movesTried = []) {
-    try {
-      const user = await this.getCurrentUser();
-      if (!user) {
-        console.log('Guest user - not recording attempt');
-        return null;
-      }
+  // In user-system.js, replace the recordPuzzleAttempt function with this debug version:
 
-      const profile = await this.getUserProfile();
-      const ratingBefore = profile?.current_rating || 1200;
-
-      // Record the attempt
-      const { data: attemptData, error: attemptError } = await this.supabase
-        .from('user_puzzle_attempts')
-        .insert({
-          user_id: user.id,
-          puzzle_id: puzzleId,
-          solved,
-          time_taken: timeTaken,
-          moves_tried: movesTried,
-          rating_before: ratingBefore
-        })
-        .select()
-        .single();
-
-      if (attemptError) throw attemptError;
-
-      // Update user rating using database function
-      const { data: newRating, error: ratingError } = await this.supabase
-        .rpc('update_user_rating', {
-          p_user_id: user.id,
-          p_puzzle_id: puzzleId,
-          p_solved: solved,
-          p_time_taken: timeTaken
-        });
-
-      if (ratingError) throw ratingError;
-
-      // Update puzzle progress
-      await this.supabase
-        .from('user_puzzle_progress')
-        .upsert({
-          user_id: user.id,
-          puzzle_id: puzzleId,
-          status: solved ? 'solved' : 'attempted',
-          best_time: solved ? timeTaken : null,
-          attempts_count: 1,
-          first_solved_at: solved ? new Date().toISOString() : null,
-          last_attempted_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id,puzzle_id',
-          ignoreDuplicates: false
-        });
-
-      console.log(`✅ Puzzle attempt recorded. New rating: ${newRating}`);
-      
-      return {
-        newRating,
-        ratingChange: newRating - ratingBefore,
-        attemptId: attemptData.id
-      };
-
-    } catch (error) {
-      console.error('❌ Record puzzle attempt error:', error);
+async recordPuzzleAttempt(puzzleId, solved, timeTaken, movesTried = []) {
+  try {
+    const user = await this.getCurrentUser();
+    console.log('🔍 Debug recordPuzzleAttempt:');
+    console.log('- Current user:', user);
+    console.log('- User ID:', user?.id);
+    console.log('- Puzzle ID:', puzzleId);
+    console.log('- Solved:', solved);
+    
+    if (!user) {
+      console.log('❌ No user found - not recording attempt');
       return null;
     }
+
+    const profile = await this.getUserProfile();
+    const ratingBefore = profile?.current_rating || 1200;
+    console.log('- Rating before:', ratingBefore);
+
+    // Record the attempt
+    console.log('📝 Attempting to insert into user_puzzle_attempts...');
+    const { data: attemptData, error: attemptError } = await this.supabase
+      .from('user_puzzle_attempts')
+      .insert({
+        user_id: user.id,
+        puzzle_id: puzzleId,
+        solved,
+        time_taken: timeTaken,
+        moves_tried: movesTried,
+        rating_before: ratingBefore
+      })
+      .select()
+      .single();
+
+    if (attemptError) {
+      console.error('❌ Insert error:', attemptError);
+      console.error('Error details:', {
+        code: attemptError.code,
+        message: attemptError.message,
+        details: attemptError.details,
+        hint: attemptError.hint
+      });
+      throw attemptError;
+    }
+
+    console.log('✅ Attempt inserted:', attemptData);
+
+    // Update user rating using database function
+    console.log('📊 Calling update_user_rating function...');
+    const { data: newRating, error: ratingError } = await this.supabase
+      .rpc('update_user_rating', {
+        p_user_id: user.id,
+        p_puzzle_id: puzzleId,
+        p_solved: solved,
+        p_time_taken: timeTaken
+      });
+
+    if (ratingError) {
+      console.error('❌ Rating update error:', ratingError);
+      throw ratingError;
+    }
+
+    console.log('✅ New rating:', newRating);
+
+    // Update puzzle progress
+    console.log('📈 Updating puzzle progress...');
+    const { error: progressError } = await this.supabase
+      .from('user_puzzle_progress')
+      .upsert({
+        user_id: user.id,
+        puzzle_id: puzzleId,
+        status: solved ? 'solved' : 'attempted',
+        best_time: solved ? timeTaken : null,
+        attempts_count: 1,
+        first_solved_at: solved ? new Date().toISOString() : null,
+        last_attempted_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,puzzle_id',
+        ignoreDuplicates: false
+      });
+
+    if (progressError) {
+      console.error('❌ Progress update error:', progressError);
+    }
+
+    console.log('✅ Puzzle attempt recorded successfully');
+    
+    return {
+      newRating,
+      ratingChange: newRating - ratingBefore,
+      attemptId: attemptData.id
+    };
+
+  } catch (error) {
+    console.error('❌ Record puzzle attempt error:', error);
+    return null;
   }
+}
 
   // ===== STATISTICS =====
   

@@ -28,16 +28,46 @@ export default async function handler(req, res) {
   // Extract parameters from request body
   const { originalFen, moves, userMove, correctMove, playingAs = 'white', isCorrect = false } = req.body;
   
+  console.log('🤖 AI EXPLANATION REQUEST RECEIVED:');
+  console.log('==========================================');
+  console.log('📋 Request Data:');
+  console.log('- originalFen:', originalFen);
+  console.log('- moves:', moves);
+  console.log('- userMove:', userMove);
+  console.log('- correctMove:', correctMove);
+  console.log('- playingAs:', playingAs);
+  console.log('- isCorrect:', isCorrect);
+  console.log('==========================================');
+  
   if (!originalFen || !moves || !correctMove) {
+    console.error('❌ Missing required fields');
     return res.status(400).json({
       error: 'Missing required fields: originalFen, moves, correctMove',
     });
   }
 
+  // Validate moves array
+  if (!Array.isArray(moves) || moves.length !== 4) {
+    console.error('❌ Invalid moves array:', moves);
+    return res.status(400).json({
+      error: 'Moves must be an array of exactly 4 moves',
+    });
+  }
+
+  // Log each move for clarity
+  console.log('🔍 MOVE SEQUENCE ANALYSIS:');
+  console.log('Starting position FEN:', originalFen);
+  console.log('Move 1 (opponent):', moves[0]);
+  console.log('Move 2 (solution start):', moves[1]);
+  console.log('Move 3 (opponent response):', moves[2]);
+  console.log('Move 4 (what should be played):', moves[3]);
+  console.log('User attempted:', userMove);
+  console.log('Playing as:', playingAs);
+
   // Read the secret key from environment
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    console.error('OPENAI_API_KEY is not set in environment');
+    console.error('❌ OPENAI_API_KEY is not set in environment');
     return res
       .status(500)
       .json({ error: 'Server misconfiguration: missing API key' });
@@ -49,6 +79,7 @@ export default async function handler(req, res) {
   let prompt;
   
   if (isCorrect) {
+    console.log('✅ Generating CORRECT answer explanation');
     // Generate explanation for correct answer - SHORTENED
     prompt = `
 You are a chess coach analyzing a tactical puzzle. Here's the puzzle:
@@ -65,55 +96,86 @@ Explain in exactly 1-2 short sentences why this move sequence wins. Focus on the
 Keep it concise and clear.
 `.trim();
   } else {
-    // Generate explanation for incorrect answer
+    console.log('❌ Generating INCORRECT answer explanation');
+    console.log('🔍 Building analysis prompt...');
+    
+    // Generate explanation for incorrect answer - IMPROVED WITH DEBUGGING
     prompt = `
-You are a strong chess coach analyzing a tactical puzzle. 
+You are a chess coach analyzing a tactical puzzle mistake.
 
-STEP 1: Analyze the position after 3 moves
-Starting position (FEN): ${originalFen}
-After playing these 3 moves in sequence:
-1. ${moves[0]} 
-2. ${moves[1]} 
-3. ${moves[2]}
+IMPORTANT: Follow these steps exactly and show your work:
 
-STEP 2: Evaluate the student's move
-The student (playing as ${playingAs === 'white' ? 'White' : 'Black'}) tried: ${userMove}
+STEP 1: Start with this position: ${originalFen}
 
-CRITICAL INSTRUCTIONS:
-- First, mentally play through moves 1-3 from the starting position to understand the current board
-- Then analyze what happens after the student plays ${userMove}
-- Focus on immediate tactical threats or material loss that ${userMove} allows
-- Be specific about which pieces can attack what after ${userMove}
-- Do NOT mention pieces that aren't on the board
-- Do NOT reveal the correct move
-- Do NOT start with "Incorrect"
+STEP 2: Apply these 3 moves in sequence:
+Move 1: ${moves[0]} 
+Move 2: ${moves[1]} 
+Move 3: ${moves[2]}
 
-Good example explanations:
-- "This move hangs your bishop to the enemy knight."
-- "Playing this allows the opponent's queen to fork your king and bishop."
-- "This move permits a back-rank mate threat."
+STEP 3: In the resulting position, the student (playing as ${playingAs === 'white' ? 'White' : 'Black'}) played: ${userMove}
 
-Write exactly 1-2 sentences explaining why ${userMove} is tactically weak. End with "Try again."
+CRITICAL ANALYSIS RULES:
+- ONLY mention pieces that exist on the board AFTER applying moves 1, 2, and 3
+- Look at what immediate threats or material loss ${userMove} allows
+- Be specific about which pieces can capture what AFTER the student's move
+- Do NOT mention pieces from the starting position that may no longer exist
+- Do NOT reveal the correct move (${correctMove})
+
+EXAMPLE FORMAT: "This move allows [opponent's piece] to capture your [piece] on [square]."
+
+Analyze the position after the 3 preliminary moves, then explain why ${userMove} is tactically weak. Keep to 1-2 sentences and end with "Try again."
 `.trim();
   }
 
+  console.log('📝 Generated prompt:');
+  console.log('==========================================');
+  console.log(prompt);
+  console.log('==========================================');
+
   try {
+    console.log('🚀 Sending request to OpenAI...');
+    
     // Call OpenAI's chat completion
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: 'You are a helpful chess coach who gives clear, concise explanations in 1-2 sentences only.' },
+        { 
+          role: 'system', 
+          content: 'You are a helpful chess coach who gives clear, concise explanations in 1-2 sentences only. You carefully analyze chess positions step by step and only mention pieces that actually exist on the board.' 
+        },
         { role: 'user', content: prompt },
       ],
       temperature: 0.7,
-      max_tokens: 100, // Reduced from 200 to force shorter responses
+      max_tokens: 100, // Keep responses short
+    });
+
+    console.log('✅ OpenAI response received');
+    console.log('📤 Response data:', {
+      model: response.model,
+      usage: response.usage,
+      choices: response.choices.length
     });
 
     // Extract the explanation text
     const explanation = response.choices[0].message.content.trim();
+    
+    console.log('🎯 Generated explanation:');
+    console.log('==========================================');
+    console.log(explanation);
+    console.log('==========================================');
+    
+    console.log('✅ Sending explanation back to client');
     return res.status(200).json({ explanation });
+    
   } catch (err) {
-    console.error('OpenAI error:', err);
+    console.error('❌ OpenAI error:', err);
+    console.error('Error details:', {
+      name: err.name,
+      message: err.message,
+      status: err.status,
+      code: err.code
+    });
+    
     return res
       .status(500)
       .json({ error: 'OpenAI request failed. Please try again later.' });

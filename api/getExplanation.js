@@ -71,20 +71,24 @@ You are a strong chess coach. Here's a tactical puzzle position:
 
 Starting position (FEN): ${originalFen}
 The puzzle sequence so far:
-1. ${moves[0]} (opponent's move creating a tactical opportunity)
+1. ${moves[0]} (opponent's move)
 2. ${moves[1]} (${playingAs === 'white' ? 'White' : 'Black'} plays)
 3. ${moves[2]} (opponent responds)
 
-Now ${playingAs === 'white' ? 'White' : 'Black'} must find move 4. The student tried "${userMove}", but the best move was "${correctMove}".
+Now ${playingAs === 'white' ? 'White' : 'Black'} must find move 4. The student tried "${userMove}".
 
-Important notes:
-- The student is playing as ${playingAs === 'white' ? 'White' : 'Black'}
-- When playing as Black, the board is visually flipped on screen, but algebraic notation remains standard (a1 is always bottom-left from White's perspective)
-- Use standard chess notation in your explanation
+CRITICAL RULES:
+- Do NOT mention, hint at, or describe what the correct move would be
+- Do NOT say what the student "should" do or "needs" to do
+- Do NOT mention the correct move "${correctMove}" in any way
+- Focus ONLY on the specific weakness of their chosen move
 
-In 1–2 clear sentences, explain why "${userMove}" fails to capitalize on the tactical opportunity, without revealing what the correct move achieves. Focus on what the student's move allows the opponent to do or what opportunity it misses.
+Explain in 1-2 sentences what SPECIFIC problem the move "${userMove}" creates. Be concrete:
+- Name specific pieces and squares (e.g., "leaves your knight on e5 undefended")
+- Mention specific threats it allows (e.g., "allows White's bishop to pin your rook to the king")
+- Point out specific weaknesses it creates (e.g., "weakens the f7 square")
 
-Finish your explanation with: "Try again."
+End with: "Try again."
 `.trim();
   }
 

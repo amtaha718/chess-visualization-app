@@ -1,17 +1,12 @@
-// src/ai.js - TEMPORARY VERSION THAT SKIPS CACHE
+// src/ai.js - COMPREHENSIVE DEBUG VERSION
 
 /**
  * Calls our Vercel serverless function for incorrect move explanations.
- * Provides full puzzle context for better explanations.
  */
 export async function getIncorrectMoveExplanation(originalFen, moves, userMove, correctMove, playingAs = 'white') {
   try {
-    console.log('🤖 Getting incorrect move explanation...');
-    console.log('- Original FEN:', originalFen);
-    console.log('- Moves:', moves);
-    console.log('- User move:', userMove);
-    console.log('- Correct move:', correctMove);
-    console.log('- Playing as:', playingAs);
+    console.log('❌ === INCORRECT MOVE EXPLANATION ===');
+    console.log('📤 Request data:', { originalFen, moves, userMove, correctMove, playingAs });
     
     const response = await fetch('/api/getExplanation', {
       method: 'POST',
@@ -28,42 +23,54 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
       }),
     });
 
+    console.log('📥 Response status:', response.status);
+    console.log('📥 Response ok:', response.ok);
+
     if (!response.ok) {
       const errorJson = await response.json();
+      console.error('❌ API error:', errorJson);
       throw new Error(errorJson.error || 'Failed to fetch explanation');
     }
 
     const data = await response.json();
-    console.log('✅ AI explanation received:', data.explanation);
+    console.log('✅ Incorrect explanation received:', data.explanation);
     return data.explanation;
   } catch (error) {
-    console.error('Error calling /api/getExplanation:', error);
+    console.error('❌ Error in getIncorrectMoveExplanation:', error);
     return 'That move is suboptimal. Try to avoid losing material or weakening your position.';
   }
 }
 
 /**
  * Gets or generates AI explanation for correct answers.
- * TEMPORARILY DISABLED CACHE - ALWAYS GENERATES NEW EXPLANATION
  */
 export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
+  console.log('✅ === CORRECT MOVE EXPLANATION START ===');
+  console.log('📋 Input parameters:', {
+    puzzleId: puzzle.id,
+    playingAs: playingAs,
+    hasAiExplanation: !!puzzle.ai_explanation,
+    hasCachedExplanation: puzzle.ai_explanation ? 'YES' : 'NO',
+    userSystemExists: !!userSystem
+  });
+
   try {
-    console.log('🤖 Getting correct move explanation...');
-    console.log('- Puzzle ID:', puzzle.id);
-    console.log('- Playing as:', playingAs);
-    console.log('- Has cached explanation:', !!puzzle.ai_explanation);
+    // TEMPORARILY SKIP CACHE FOR TESTING
+    console.log('🔄 SKIPPING CACHE - Generating fresh explanation');
     
-    // TEMPORARILY SKIP CACHE TO TEST NEW PROMPTS
-    console.log('🔄 FORCING NEW EXPLANATION (cache disabled for testing)');
-    
-    console.log('📤 Generating new AI explanation for puzzle', puzzle.id);
-    console.log('📋 Puzzle data:', {
-      fen: puzzle.fen,
+    console.log('🚀 Starting AI explanation generation...');
+    console.log('📤 Request data will be:', {
+      originalFen: puzzle.fen,
       moves: puzzle.moves,
-      playingAs: playingAs
+      userMove: puzzle.moves[3], 
+      correctMove: puzzle.moves[3],
+      playingAs: playingAs,
+      isCorrect: true
     });
     
     // Generate new explanation
+    console.log('📡 Making fetch request to /api/getExplanation...');
+    
     const response = await fetch('/api/getExplanation', {
       method: 'POST',
       headers: {
@@ -79,30 +86,79 @@ export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
       }),
     });
 
-    console.log('📥 API response status:', response.status);
+    console.log('📥 Fetch response received:');
+    console.log('- Status:', response.status);
+    console.log('- StatusText:', response.statusText);
+    console.log('- OK:', response.ok);
+    console.log('- Headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
+      console.error('❌ Response not OK, getting error text...');
       const errorText = await response.text();
-      console.error('❌ API error response:', errorText);
-      throw new Error('Failed to generate explanation');
+      console.error('❌ Error response body:', errorText);
+      
+      // Try to parse as JSON for more details
+      try {
+        const errorJson = JSON.parse(errorText);
+        console.error('❌ Parsed error JSON:', errorJson);
+      } catch (parseError) {
+        console.error('❌ Could not parse error as JSON');
+      }
+      
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 
+    console.log('✅ Response OK, parsing JSON...');
     const data = await response.json();
+    console.log('📦 Response data:', data);
+    
     const aiExplanation = data.explanation;
-    console.log('✅ Generated explanation:', aiExplanation);
+    console.log('🎯 Extracted explanation:', aiExplanation);
+    console.log('🎯 Explanation type:', typeof aiExplanation);
+    console.log('🎯 Explanation length:', aiExplanation ? aiExplanation.length : 'null/undefined');
 
-    // Save to database for future use (optional - you can comment this out during testing)
-    if (userSystem && puzzle.id) {
-      console.log('💾 Saving new explanation to database...');
-      await userSystem.savePuzzleExplanation(puzzle.id, aiExplanation);
+    if (!aiExplanation) {
+      console.error('❌ No explanation in response data');
+      throw new Error('No explanation in response');
     }
 
+    // Save to database
+    if (userSystem && puzzle.id) {
+      console.log('💾 Attempting to save explanation to database...');
+      try {
+        await userSystem.savePuzzleExplanation(puzzle.id, aiExplanation);
+        console.log('✅ Explanation saved to database successfully');
+      } catch (saveError) {
+        console.error('❌ Failed to save to database:', saveError);
+        // Don't throw - we still have the explanation
+      }
+    } else {
+      console.log('⚠️ Not saving to database (userSystem or puzzle.id missing)');
+    }
+
+    console.log('✅ === CORRECT MOVE EXPLANATION SUCCESS ===');
+    console.log('🎯 Returning explanation:', aiExplanation);
     return aiExplanation;
+    
   } catch (error) {
-    console.error('❌ Error getting correct move explanation:', error);
-    console.error('Full error details:', error.message, error.stack);
-    // Fall back to original explanation
-    console.log('🔄 Falling back to original explanation:', puzzle.explanation);
+    console.error('❌ === CORRECT MOVE EXPLANATION ERROR ===');
+    console.error('❌ Error type:', error.name);
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error stack:', error.stack);
+    
+    // Check if it's a network error
+    if (error.message.includes('fetch')) {
+      console.error('🌐 This appears to be a network/fetch error');
+    }
+    
+    // Check if it's a server error
+    if (error.message.includes('HTTP')) {
+      console.error('🔌 This appears to be an HTTP server error');
+    }
+    
+    console.log('🔄 Falling back to original explanation...');
+    console.log('📝 Original explanation:', puzzle.explanation);
+    
     return puzzle.explanation;
   }
 }

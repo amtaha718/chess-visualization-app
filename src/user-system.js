@@ -127,7 +127,7 @@ class UserSystem {
 
   // ===== PUZZLE PROGRESS =====
   
-  async getPuzzlesForUser(difficulty = 'all', limit = 20) {
+  async getPuzzlesForUser(difficulty = 'all', limit = 100) {
     try {
       const user = await this.getCurrentUser();
       
@@ -141,13 +141,14 @@ class UserSystem {
         .from('puzzles')
         .select(`
           *,
-          user_puzzle_progress (
+          user_puzzle_progress!left (
             status,
             best_time,
             attempts_count,
             first_solved_at
           )
         `)
+        .order('id', { ascending: true })
         .limit(limit);
 
       if (difficulty !== 'all') {
@@ -167,9 +168,9 @@ class UserSystem {
         difficulty: puzzle.difficulty,
         rating: puzzle.rating,
         themes: puzzle.themes,
-        // User progress info
-        solved: puzzle.user_puzzle_progress?.[0]?.status === 'solved',
-        attempted: puzzle.user_puzzle_progress?.[0]?.status !== 'not_attempted' && puzzle.user_puzzle_progress?.[0]?.status != null,
+        // User progress info - handle left join nulls
+        solved: puzzle.user_puzzle_progress?.[0]?.status === 'solved' || false,
+        attempted: puzzle.user_puzzle_progress?.[0]?.attempts_count > 0 || false,
         bestTime: puzzle.user_puzzle_progress?.[0]?.best_time,
         attemptCount: puzzle.user_puzzle_progress?.[0]?.attempts_count || 0
       }));

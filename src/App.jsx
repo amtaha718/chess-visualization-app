@@ -1,4 +1,4 @@
-// src/App.js
+// src/App.jsx
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Chess } from 'chess.js';
@@ -151,31 +151,55 @@ const App = () => {
     };
   }, [userSystem]);
 
-  // PUZZLE LOADING USEEFFECT - Updated to skip solved puzzles
+  // ENHANCED PUZZLE LOADING USEEFFECT
   useEffect(() => {
     async function loadPuzzles() {
       try {
-        console.log('Loading puzzles from Supabase...');
+        console.log('🔍 DEBUG: Loading puzzles from Supabase...');
+        console.log('🔍 DEBUG: Auth loading state:', isLoadingAuth);
+        console.log('🔍 DEBUG: User:', user?.id);
+        console.log('🔍 DEBUG: Selected difficulty:', selectedDifficulty);
         
         let fetchedPuzzles = [];
         
         if (user) {
+          console.log('📊 DEBUG: User is logged in, getting puzzles with progress...');
           // Get puzzles with user progress if logged in
-          fetchedPuzzles = await userSystem.getPuzzlesForUser(selectedDifficulty, 100); // Fetch more to ensure we have unsolved ones
+          fetchedPuzzles = await userSystem.getPuzzlesForUser(selectedDifficulty, 100);
+          console.log('📊 DEBUG: Received', fetchedPuzzles.length, 'puzzles from getPuzzlesForUser');
         } else {
+          console.log('👤 DEBUG: Guest user, getting public puzzles...');
           // Guest user - get puzzles without progress tracking
           fetchedPuzzles = await userSystem.getPublicPuzzles(selectedDifficulty, 50);
+          console.log('📊 DEBUG: Received', fetchedPuzzles.length, 'puzzles from getPublicPuzzles');
         }
         
         if (fetchedPuzzles.length > 0) {
           setPuzzles(fetchedPuzzles);
           
+          console.log('🔍 DEBUG: Analyzing puzzle progress...');
+          const solvedCount = fetchedPuzzles.filter(p => p.solved).length;
+          const attemptedCount = fetchedPuzzles.filter(p => p.attempted).length;
+          console.log('📊 DEBUG: Solved puzzles:', solvedCount);
+          console.log('📊 DEBUG: Attempted puzzles:', attemptedCount);
+          
+          // Log first 10 puzzles' status for debugging
+          console.log('📋 DEBUG: First 10 puzzles status:');
+          fetchedPuzzles.slice(0, 10).forEach((puzzle, i) => {
+            console.log(`  ${i + 1}. ID:${puzzle.id} Solved:${puzzle.solved} Attempted:${puzzle.attempted}`);
+          });
+          
           // Find first unsolved puzzle
           const firstUnsolvedIndex = fetchedPuzzles.findIndex(p => !p.solved);
+          console.log('🎯 DEBUG: First unsolved index found:', firstUnsolvedIndex);
+          
           if (firstUnsolvedIndex !== -1) {
+            console.log('🎯 DEBUG: Setting puzzle index to:', firstUnsolvedIndex);
+            console.log('🎯 DEBUG: This is puzzle ID:', fetchedPuzzles[firstUnsolvedIndex].id);
             setCurrentPuzzleIndex(firstUnsolvedIndex);
           } else {
             // All puzzles solved, start at 0
+            console.log('🏆 DEBUG: All puzzles solved! Starting at index 0');
             setCurrentPuzzleIndex(0);
             setFeedbackMessage('All puzzles in this difficulty have been solved!');
           }
@@ -188,7 +212,7 @@ const App = () => {
         }
         
       } catch (error) {
-        console.error('Failed to load puzzles:', error);
+        console.error('❌ Failed to load puzzles:', error);
         setFeedbackMessage('Failed to load puzzles. Please refresh the page.');
       } finally {
         setIsLoadingPuzzles(false);
@@ -197,7 +221,10 @@ const App = () => {
 
     // Only load puzzles after auth state is determined
     if (!isLoadingAuth) {
+      console.log('🚀 DEBUG: Auth state determined, loading puzzles...');
       loadPuzzles();
+    } else {
+      console.log('⏳ DEBUG: Still loading auth state...');
     }
   }, [isLoadingAuth, user, userSystem, selectedDifficulty]);
 
@@ -380,7 +407,7 @@ const App = () => {
     }
   };
 
-  // ENHANCED EVALUATEUSERMOVE with full context for AI
+  // ENHANCED EVALUATEUSERMOVE with improved rating refresh and full context for AI
   const evaluateUserMove = async (from, to, userGuess, correctMove) => {
     console.log('Current FEN:', internalGameRef.current.fen());
     console.log('Attempting move from', from, 'to', to);
@@ -407,6 +434,11 @@ const App = () => {
     // Record attempt if user is logged in
     if (user && currentPuzzle.id) {
       try {
+        console.log('🔍 DEBUG: Before recording attempt');
+        console.log('- Current profile rating:', userProfile?.current_rating);
+        console.log('- Puzzle ID:', currentPuzzle.id);
+        console.log('- Solved:', solved);
+        
         const result = await userSystem.recordPuzzleAttempt(
           currentPuzzle.id,
           solved,
@@ -414,11 +446,29 @@ const App = () => {
           [userGuess]
         );
         
+        console.log('🔍 DEBUG: After recording attempt');
+        console.log('- Result:', result);
+        
         if (result) {
-          // Force refresh of user profile to get updated stats
-          const updatedProfile = await userSystem.getUserProfile();
-          setUserProfile(updatedProfile);
-          setProfileUpdateKey(prev => prev + 1); // Force header re-render
+          // Enhanced profile refresh with retry logic
+          const refreshProfile = async (attempts = 3) => {
+            for (let i = 0; i < attempts; i++) {
+              await new Promise(resolve => setTimeout(resolve, 300 * (i + 1))); // Progressive delay
+              console.log(`🔄 DEBUG: Refreshing user profile (attempt ${i + 1})...`);
+              const updatedProfile = await userSystem.getUserProfile();
+              console.log('🔄 DEBUG: Updated profile:', updatedProfile);
+              console.log('🔄 DEBUG: Rating changed from', userProfile?.current_rating, 'to', updatedProfile?.current_rating);
+              
+              if (updatedProfile && updatedProfile.current_rating !== userProfile?.current_rating) {
+                setUserProfile(updatedProfile);
+                setProfileUpdateKey(prev => prev + 1);
+                console.log('✅ DEBUG: Profile successfully updated');
+                break;
+              }
+            }
+          };
+          
+          refreshProfile();
           
           if (result.ratingChange !== 0) {
             const ratingText = result.ratingChange > 0 ? `(+${result.ratingChange})` : `(${result.ratingChange})`;

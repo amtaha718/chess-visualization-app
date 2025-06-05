@@ -69,33 +69,31 @@ Keep it concise and clear.
     prompt = `
 You are a strong chess coach analyzing a tactical puzzle. 
 
+STEP 1: Analyze the position after 3 moves
 Starting position (FEN): ${originalFen}
+After playing these 3 moves in sequence:
+1. ${moves[0]} 
+2. ${moves[1]} 
+3. ${moves[2]}
 
-The puzzle sequence:
-1. ${moves[0]} (${playingAs === 'white' ? 'Black' : 'White'} plays)
-2. ${moves[1]} (${playingAs === 'white' ? 'White' : 'Black'} responds)
-3. ${moves[2]} (${playingAs === 'white' ? 'Black' : 'White'} plays)
+STEP 2: Evaluate the student's move
+The student (playing as ${playingAs === 'white' ? 'White' : 'Black'}) tried: ${userMove}
 
-Now ${playingAs === 'white' ? 'White' : 'Black'} needs to play move 4. The student tried: ${userMove}
-
-To analyze this:
-1. Play through the first 3 moves from the starting position
-2. From that position, play the student's move ${userMove}
-3. Analyze why this move is weak
-
-CRITICAL RULES:
-- You are analyzing why ${userMove} is bad for ${playingAs === 'white' ? 'White' : 'Black'}
-- Focus on what ${playingAs === 'white' ? 'Black' : 'White'} can do AFTER the student's move
-- Be specific about pieces and squares
-- Do NOT reveal or hint at the correct move
+CRITICAL INSTRUCTIONS:
+- First, mentally play through moves 1-3 from the starting position to understand the current board
+- Then analyze what happens after the student plays ${userMove}
+- Focus on immediate tactical threats or material loss that ${userMove} allows
+- Be specific about which pieces can attack what after ${userMove}
+- Do NOT mention pieces that aren't on the board
+- Do NOT reveal the correct move
 - Do NOT start with "Incorrect"
 
-Example good explanations:
-- "This allows Black to play Qxf7+, forking your king and rook."
-- "After this move, your bishop on c4 hangs to Black's knight."
-- "This permits Black's rook to infiltrate on the 7th rank with devastating effect."
+Good example explanations:
+- "This move hangs your bishop to the enemy knight."
+- "Playing this allows the opponent's queen to fork your king and bishop."
+- "This move permits a back-rank mate threat."
 
-Write 1-2 sentences explaining the specific tactical problem with ${userMove}. End with "Try again."
+Write exactly 1-2 sentences explaining why ${userMove} is tactically weak. End with "Try again."
 `.trim();
   }
 

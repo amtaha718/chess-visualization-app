@@ -95,6 +95,7 @@ const App = () => {
   const [isLoadingPuzzles, setIsLoadingPuzzles] = useState(true);
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [profileUpdateKey, setProfileUpdateKey] = useState(0); // Force re-render of header
   const [userSystem] = useState(() => new UserSystem());
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -176,9 +177,11 @@ const App = () => {
           } else {
             // All puzzles solved, start at 0
             setCurrentPuzzleIndex(0);
+            setFeedbackMessage('All puzzles in this difficulty have been solved!');
           }
           
           console.log(`✅ Loaded ${fetchedPuzzles.length} ${selectedDifficulty} puzzles from Supabase`);
+          console.log(`📍 Starting at puzzle ${firstUnsolvedIndex !== -1 ? firstUnsolvedIndex + 1 : 1}`);
         } else {
           console.error('❌ No puzzles found for difficulty:', selectedDifficulty);
           setFeedbackMessage(`No ${selectedDifficulty} puzzles available.`);
@@ -414,6 +417,7 @@ const App = () => {
           // Force refresh of user profile to get updated stats
           const updatedProfile = await userSystem.getUserProfile();
           setUserProfile(updatedProfile);
+          setProfileUpdateKey(prev => prev + 1); // Force header re-render
           
           if (solved) {
             const ratingChange = result.ratingChange;
@@ -521,6 +525,7 @@ const App = () => {
     setUser(user);
     const profile = await userSystem.getUserProfile();
     setUserProfile(profile);
+    setProfileUpdateKey(prev => prev + 1); // Force header re-render
     setShowAuthModal(false);
     
     const userPuzzles = await userSystem.getPuzzlesForUser(selectedDifficulty, 100);
@@ -530,6 +535,9 @@ const App = () => {
       const firstUnsolvedIndex = userPuzzles.findIndex(p => !p.solved);
       if (firstUnsolvedIndex !== -1) {
         setCurrentPuzzleIndex(firstUnsolvedIndex);
+      } else {
+        setCurrentPuzzleIndex(0);
+        setFeedbackMessage('All puzzles in this difficulty have been solved!');
       }
     }
   };
@@ -629,6 +637,7 @@ const App = () => {
       }}
     >
       <AuthHeader
+        key={profileUpdateKey}
         user={user}
         profile={userProfile}
         onShowAuth={() => {
@@ -683,9 +692,6 @@ const App = () => {
         )}
         {puzzles[currentPuzzleIndex]?.solved && (
           <span style={{ color: '#4CAF50', marginLeft: '10px' }}>✓ Solved</span>
-        )}
-        {puzzles[currentPuzzleIndex]?.attempted && !puzzles[currentPuzzleIndex]?.solved && (
-          <span style={{ color: '#FF9800', marginLeft: '10px' }}>⚬ Attempted</span>
         )}
       </p>
       <div style={{ position: 'relative', width: boardSize, height: boardSize }}>

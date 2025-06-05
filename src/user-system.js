@@ -136,6 +136,8 @@ class UserSystem {
         return await this.getPublicPuzzles(difficulty, limit);
       }
 
+      console.log('🔍 DEBUG: Getting puzzles for user', user.id, 'difficulty:', difficulty);
+
       // Get puzzles with user progress
       let query = this.supabase
         .from('puzzles')
@@ -156,24 +158,69 @@ class UserSystem {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Query error:', error);
+        throw error;
+      }
+
+      console.log('🔍 DEBUG: Raw data from query (first 3):');
+      data.slice(0, 3).forEach((puzzle, i) => {
+        console.log(`Puzzle ${i + 1}:`, {
+          id: puzzle.id,
+          user_puzzle_progress: puzzle.user_puzzle_progress,
+          progressLength: puzzle.user_puzzle_progress?.length,
+          progressStatus: puzzle.user_puzzle_progress?.[0]?.status
+        });
+      });
 
       // Transform data to include progress info
-      return data.map(puzzle => ({
-        id: puzzle.id,
-        fen: puzzle.fen,
-        moves: puzzle.moves,
-        explanation: puzzle.explanation,
-        ai_explanation: puzzle.ai_explanation,
-        difficulty: puzzle.difficulty,
-        rating: puzzle.rating,
-        themes: puzzle.themes,
-        // User progress info - handle left join nulls
-        solved: puzzle.user_puzzle_progress?.[0]?.status === 'solved' || false,
-        attempted: puzzle.user_puzzle_progress?.[0]?.attempts_count > 0 || false,
-        bestTime: puzzle.user_puzzle_progress?.[0]?.best_time,
-        attemptCount: puzzle.user_puzzle_progress?.[0]?.attempts_count || 0
-      }));
+      const transformedPuzzles = data.map(puzzle => {
+        // Handle the LEFT JOIN result more carefully
+        const progressArray = puzzle.user_puzzle_progress;
+        const hasProgress = progressArray && progressArray.length > 0 && progressArray[0] !== null;
+        const progressRecord = hasProgress ? progressArray[0] : null;
+        
+        const result = {
+          id: puzzle.id,
+          fen: puzzle.fen,
+          moves: puzzle.moves,
+          explanation: puzzle.explanation,
+          ai_explanation: puzzle.ai_explanation,
+          difficulty: puzzle.difficulty,
+          rating: puzzle.rating,
+          themes: puzzle.themes,
+          // User progress info - handle LEFT JOIN nulls more carefully
+          solved: progressRecord?.status === 'solved' || false,
+          attempted: (progressRecord?.attempts_count || 0) > 0,
+          bestTime: progressRecord?.best_time,
+          attemptCount: progressRecord?.attempts_count || 0
+        };
+        
+        return result;
+      });
+
+      console.log('🔍 DEBUG: Transformed puzzles (first 5 solved status):');
+      transformedPuzzles.slice(0, 5).forEach((puzzle, i) => {
+        console.log(`Puzzle ${i + 1}:`, {
+          id: puzzle.id,
+          solved: puzzle.solved,
+          attempted: puzzle.attempted,
+          attemptCount: puzzle.attemptCount
+        });
+      });
+
+      // Find first unsolved puzzle
+      const firstUnsolvedIndex = transformedPuzzles.findIndex(p => !p.solved);
+      console.log('🎯 DEBUG: First unsolved puzzle index:', firstUnsolvedIndex);
+      if (firstUnsolvedIndex !== -1) {
+        console.log('🎯 DEBUG: First unsolved puzzle:', {
+          index: firstUnsolvedIndex,
+          id: transformedPuzzles[firstUnsolvedIndex].id,
+          solved: transformedPuzzles[firstUnsolvedIndex].solved
+        });
+      }
+
+      return transformedPuzzles;
 
     } catch (error) {
       console.error('❌ Get puzzles for user error:', error);

@@ -67,28 +67,35 @@ Keep the explanation concise and educational.
   } else {
     // Generate explanation for incorrect answer
     prompt = `
-You are a strong chess coach. Here's a tactical puzzle position:
+You are a strong chess coach analyzing a tactical puzzle. 
 
 Starting position (FEN): ${originalFen}
-The puzzle sequence so far:
-1. ${moves[0]} (${playingAs === 'white' ? 'Black' : 'White'}'s move)
-2. ${moves[1]} (${playingAs === 'white' ? 'White' : 'Black'} plays)
-3. ${moves[2]} (${playingAs === 'white' ? 'Black' : 'White'} responds)
 
-Now ${playingAs === 'white' ? 'White' : 'Black'} must find move 4. The student (playing ${playingAs === 'white' ? 'White' : 'Black'}) tried "${userMove}".
+The puzzle sequence:
+1. ${moves[0]} (${playingAs === 'white' ? 'Black' : 'White'} plays)
+2. ${moves[1]} (${playingAs === 'white' ? 'White' : 'Black'} responds)
+3. ${moves[2]} (${playingAs === 'white' ? 'Black' : 'White'} plays)
+
+Now ${playingAs === 'white' ? 'White' : 'Black'} needs to play move 4. The student tried: ${userMove}
+
+To analyze this:
+1. Play through the first 3 moves from the starting position
+2. From that position, play the student's move ${userMove}
+3. Analyze why this move is weak
 
 CRITICAL RULES:
-- The student is playing ${playingAs === 'white' ? 'White' : 'Black'}, so refer to opponent as ${playingAs === 'white' ? 'Black' : 'White'}
-- Do NOT mention or hint at what the correct move would be
-- Focus ONLY on the specific weakness of their chosen move
-- Do NOT start with "Incorrect" (this will be added separately)
+- You are analyzing why ${userMove} is bad for ${playingAs === 'white' ? 'White' : 'Black'}
+- Focus on what ${playingAs === 'white' ? 'Black' : 'White'} can do AFTER the student's move
+- Be specific about pieces and squares
+- Do NOT reveal or hint at the correct move
+- Do NOT start with "Incorrect"
 
-Explain in 1-2 sentences what SPECIFIC problem the move "${userMove}" creates for ${playingAs === 'white' ? 'White' : 'Black'}. Be concrete:
-- Name specific pieces and squares (e.g., "leaves your knight on e5 undefended")
-- Mention specific threats it allows the opponent (e.g., "allows Black's bishop to pin your rook")
-- Point out specific weaknesses it creates (e.g., "weakens the f7 square")
+Example good explanations:
+- "This allows Black to play Qxf7+, forking your king and rook."
+- "After this move, your bishop on c4 hangs to Black's knight."
+- "This permits Black's rook to infiltrate on the 7th rank with devastating effect."
 
-End with: "Try again."
+Write 1-2 sentences explaining the specific tactical problem with ${userMove}. End with "Try again."
 `.trim();
   }
 

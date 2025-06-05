@@ -377,21 +377,23 @@ async recordPuzzleAttempt(puzzleId, solved, timeTaken, movesTried = []) {
     }
     return user;
   }
-}
-async savePuzzleExplanation(puzzleId, aiExplanation) {
-  try {
-    const { error } = await this.supabase
-      .from('puzzles')
-      .update({ ai_explanation: aiExplanation })
-      .eq('id', puzzleId);
 
-    if (error) {
-      console.error('Error saving AI explanation:', error);
-    } else {
-      console.log('✅ AI explanation saved for puzzle', puzzleId);
+  async savePuzzleExplanation(puzzleId, aiExplanation) {
+    try {
+      const { error } = await this.supabase
+        .from('puzzles')
+        .update({ ai_explanation: aiExplanation })
+        .eq('id', puzzleId);
+      
+      if (error) {
+        console.error('Error saving AI explanation:', error);
+      } else {
+        console.log('✅ AI explanation saved for puzzle', puzzleId);
+      }
+    } catch (error) {
+      console.error('Failed to save AI explanation:', error);
     }
-  } catch (error) {
-    console.error('Failed to save AI explanation:', error);
   }
-}
+} // This closes the UserSystem class
+
 export default UserSystem;

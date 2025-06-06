@@ -1,4 +1,4 @@
-// src/user-system.js - Modified to use Stockfish puzzles instead of Lichess
+// src/user-system.js - Modified to fetch puzzles from database instead of generating
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -129,20 +129,20 @@ class UserSystem {
     }
   }
 
-  // ===== STOCKFISH PUZZLE GENERATION =====
+  // ===== PUZZLE FETCHING FROM DATABASE =====
   
   async getPuzzlesForUser(difficulty = 'intermediate', limit = 50) {
     try {
       const user = await this.getCurrentUser();
       
-      console.log('🎯 Generating Stockfish puzzles for user:', user?.id || 'guest');
+      console.log('🎯 Fetching puzzles from database for user:', user?.id || 'guest');
       console.log('- Difficulty:', difficulty);
       console.log('- Requested:', limit);
       
-      // Generate puzzles using Stockfish API
-      const puzzles = await this.generateStockfishPuzzles(difficulty, limit);
+      // Fetch puzzles from database
+      const puzzles = await this.fetchPuzzlesFromDatabase(difficulty, limit, user?.id);
       
-      if (user) {
+      if (user && puzzles.length > 0) {
         // Add user progress tracking for logged-in users
         return await this.addUserProgress(puzzles, user.id);
       } else {
@@ -163,82 +163,57 @@ class UserSystem {
   }
 
   async getPublicPuzzles(difficulty = 'intermediate', limit = 25) {
-    // For guest users, generate Stockfish puzzles
-    return this.generateStockfishPuzzles(difficulty, limit);
+    // For guest users, fetch from database
+    return this.fetchPuzzlesFromDatabase(difficulty, limit);
   }
 
-  async generateStockfishPuzzles(difficulty, count) {
+  async fetchPuzzlesFromDatabase(difficulty, limit, userId = null) {
     try {
-      console.log(`🐟 Generating ${count} Stockfish puzzles (${difficulty})`);
+      console.log(`📚 Fetching puzzles from database`);
       
-      const puzzles = [];
-      
-      // Generate puzzles in batches to avoid timeout
-      const batchSize = 10;
-      const batches = Math.ceil(count / batchSize);
-      
-      for (let batch = 0; batch < batches; batch++) {
-        const batchCount = Math.min(batchSize, count - (batch * batchSize));
-        console.log(`📦 Generating batch ${batch + 1}/${batches} (${batchCount} puzzles)`);
-        
-        const batchPromises = [];
-        for (let i = 0; i < batchCount; i++) {
-          batchPromises.push(this.generateSinglePuzzle(difficulty));
-        }
-        
-        const batchPuzzles = await Promise.all(batchPromises);
-        puzzles.push(...batchPuzzles.filter(p => p !== null));
-        
-        // Small delay between batches
-        if (batch < batches - 1) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      }
-      
-      console.log(`✅ Generated ${puzzles.length} Stockfish puzzles`);
-      return puzzles;
-      
-    } catch (error) {
-      console.error('❌ Stockfish puzzle generation failed:', error);
-      return [];
-    }
-  }
-
-  async generateSinglePuzzle(difficulty) {
-    try {
-      const response = await fetch('/api/generate-puzzle', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          difficulty,
-          userRating: this.getDifficultyRating(difficulty)
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const puzzle = await response.json();
-      
-      // Ensure puzzle has the format your app expects
-      return {
-        id: puzzle.id,
-        fen: puzzle.fen,
-        moves: puzzle.moves,
-        explanation: puzzle.explanation,
-        ai_explanation: puzzle.ai_explanation || null,
-        difficulty: puzzle.difficulty,
-        rating: puzzle.rating,
-        themes: puzzle.themes || ['tactics'],
-        source: puzzle.source || 'stockfish'
+      // Define rating ranges for each difficulty
+      const ratingRanges = {
+        beginner: { min: 1000, max: 1400 },
+        intermediate: { min: 1400, max: 1700 },
+        advanced: { min: 1700, max: 2000 },
+        expert: { min: 2000, max: 2500 }
       };
       
+      const range = ratingRanges[difficulty] || ratingRanges.intermediate;
+      
+      // Build query
+      let query = this.supabase
+        .from('puzzles')
+        .select('*')
+        .gte('rating', range.min)
+        .lte('rating', range.max)
+        .eq('is_validated', true)
+        .eq('move_count', 4);
+      
+      // Get puzzles
+      const { data: puzzles, error } = await query;
+      
+      if (error) {
+        console.error('❌ Database query error:', error);
+        throw error;
+      }
+      
+      console.log(`📦 Found ${puzzles?.length || 0} puzzles in database`);
+      
+      if (!puzzles || puzzles.length === 0) {
+        console.warn('⚠️ No puzzles found for difficulty:', difficulty);
+        return [];
+      }
+      
+      // Shuffle puzzles to get random selection
+      const shuffled = puzzles.sort(() => Math.random() - 0.5);
+      
+      // Return requested limit
+      return shuffled.slice(0, limit);
+      
     } catch (error) {
-      console.error('❌ Single puzzle generation failed:', error);
-      return null;
+      console.error('❌ Failed to fetch puzzles from database:', error);
+      return [];
     }
   }
 
@@ -254,15 +229,38 @@ class UserSystem {
 
   async addUserProgress(puzzles, userId) {
     try {
-      // Get user's progress on these puzzle IDs (though they're generated, so likely none)
-      // For now, just return puzzles with no progress since they're freshly generated
-      return puzzles.map(puzzle => ({
-        ...puzzle,
-        solved: false,
-        attempted: false,
-        bestTime: null,
-        attemptCount: 0
-      }));
+      // Get user's progress on these puzzle IDs
+      const puzzleIds = puzzles.map(p => p.id);
+      
+      const { data: progress, error } = await this.supabase
+        .from('user_puzzle_progress')
+        .select('puzzle_id, solved, attempt_count, best_time')
+        .eq('user_id', userId)
+        .in('puzzle_id', puzzleIds);
+      
+      if (error) {
+        console.error('❌ Error fetching user progress:', error);
+      }
+      
+      // Create a map for quick lookup
+      const progressMap = new Map();
+      if (progress) {
+        progress.forEach(p => {
+          progressMap.set(p.puzzle_id, p);
+        });
+      }
+      
+      // Merge progress with puzzles
+      return puzzles.map(puzzle => {
+        const userProgress = progressMap.get(puzzle.id);
+        return {
+          ...puzzle,
+          solved: userProgress?.solved || false,
+          attempted: userProgress?.attempt_count > 0 || false,
+          bestTime: userProgress?.best_time || null,
+          attemptCount: userProgress?.attempt_count || 0
+        };
+      });
       
     } catch (error) {
       console.error('❌ Error adding user progress:', error);
@@ -296,9 +294,8 @@ class UserSystem {
       const ratingBefore = profile?.current_rating || 1200;
       console.log('- Rating before:', ratingBefore);
 
-      // For Stockfish puzzles, we'll create a simple rating change
-      // since we don't have historical data
-      const ratingChange = this.calculateStockfishRatingChange(solved, ratingBefore);
+      // Calculate rating change
+      const ratingChange = this.calculateRatingChange(solved, ratingBefore);
       const newRating = ratingBefore + ratingChange;
 
       // Update user's rating in profile
@@ -313,7 +310,7 @@ class UserSystem {
       return {
         newRating,
         ratingChange,
-        attemptId: `stockfish_${Date.now()}`
+        attemptId: `attempt_${Date.now()}`
       };
       
     } catch (error) {
@@ -322,7 +319,7 @@ class UserSystem {
     }
   }
 
-  calculateStockfishRatingChange(solved, currentRating) {
+  calculateRatingChange(solved, currentRating) {
     if (solved) {
       // Positive rating change for solving
       if (currentRating < 1400) return 20;
@@ -349,8 +346,8 @@ class UserSystem {
       
       return {
         profile,
-        recentHistory: [], // Stockfish puzzles don't have history yet
-        weaknesses: [] // Could be implemented later
+        recentHistory: [],
+        weaknesses: []
       };
 
     } catch (error) {
@@ -389,9 +386,8 @@ class UserSystem {
   }
 
   async savePuzzleExplanation(puzzleId, aiExplanation) {
-    // For Stockfish puzzles, we could cache these in memory
-    // or implement a temporary storage solution
-    console.log('💾 Caching AI explanation for Stockfish puzzle:', puzzleId);
+    // Cache AI explanations
+    console.log('💾 Caching AI explanation for puzzle:', puzzleId);
     this.puzzleCache.set(`explanation_${puzzleId}`, aiExplanation);
   }
 }

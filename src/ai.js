@@ -136,11 +136,11 @@ export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
       body: JSON.stringify({ 
         originalFen: puzzle.fen,
         moves: puzzle.moves,
-        userMove: puzzle.moves[3], 
-        correctMove: puzzle.moves[3],
+        correctMove: puzzle.moves[3], // Only send the correct move
         playingAs: playingAs,
         isCorrect: true,
         positionAfter3Moves // Include the calculated position
+        // NOTE: No userMove for correct explanations!
       }),
     });
 

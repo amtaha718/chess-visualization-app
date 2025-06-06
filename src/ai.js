@@ -1,17 +1,17 @@
-// src/ai.js - FIXED to analyze position AFTER user's incorrect move
+// src/ai.js - UPDATED WITH STOCKFISH + CLAUDE ANALYSIS
 
 import { Chess } from 'chess.js';
 
 /**
- * Calls our Vercel serverless function for incorrect move explanations.
- * Now calculates the position AFTER the user's move for accurate analysis.
+ * Calls our new Stockfish + Claude analysis endpoint for incorrect move explanations.
+ * Now provides engine-verified analysis with concise explanations.
  */
 export async function getIncorrectMoveExplanation(originalFen, moves, userMove, correctMove, playingAs = 'white') {
   try {
-    console.log('❌ === INCORRECT MOVE EXPLANATION ===');
+    console.log('❌ === STOCKFISH + CLAUDE ANALYSIS ===');
     console.log('📤 Request data:', { originalFen, moves, userMove, correctMove, playingAs });
     
-    // Calculate the position after 3 moves
+    // Calculate positions
     let positionAfter3Moves = null;
     let positionAfterUserMove = null;
     
@@ -25,7 +25,7 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
         positionAfter3Moves = tempGame.fen();
         console.log('📍 Position after 3 moves:', positionAfter3Moves);
         
-        // Now apply the user's incorrect move
+        // Apply user's move
         const userMoveResult = tempGame.move({ 
           from: userMove.slice(0, 2), 
           to: userMove.slice(2, 4) 
@@ -34,52 +34,52 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
         if (userMoveResult) {
           positionAfterUserMove = tempGame.fen();
           console.log('📍 Position after user\'s move:', positionAfterUserMove);
-        } else {
-          console.warn('⚠️ User move is illegal, will analyze pre-move position');
         }
       }
     } catch (error) {
       console.warn('⚠️ Could not calculate positions:', error);
     }
     
-    const response = await fetch('/api/getExplanation', {
+    // Use new Stockfish + Claude analysis endpoint
+    const response = await fetch('/api/analyzeIncorrectMove', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ 
-        originalFen,
-        moves,
+        positionAfter3Moves,
+        positionAfterUserMove,
         userMove, 
         correctMove, 
-        playingAs,
-        isCorrect: false,
-        positionAfter3Moves, // Position before user's move
-        positionAfterUserMove // NEW: Position after user's move for analysis
+        playingAs
       }),
     });
 
     console.log('📥 Response status:', response.status);
-    console.log('📥 Response ok:', response.ok);
 
     if (!response.ok) {
       const errorJson = await response.json();
       console.error('❌ API error:', errorJson);
-      throw new Error(errorJson.error || 'Failed to fetch explanation');
+      // Use fallback if available
+      return errorJson.fallback || 'This move creates tactical problems. Try again.';
     }
 
     const data = await response.json();
-    console.log('✅ Incorrect explanation received:', data.explanation);
+    console.log('✅ Stockfish + Claude analysis received:', data);
+    console.log('🎯 Explanation:', data.explanation);
+    console.log('📊 Analysis method:', data.method);
+    
     return data.explanation;
+    
   } catch (error) {
-    console.error('❌ Error in getIncorrectMoveExplanation:', error);
-    return 'That move is suboptimal. Try to avoid losing material or weakening your position.';
+    console.error('❌ Error in Stockfish + Claude analysis:', error);
+    return 'This move creates tactical problems. Try again.';
   }
 }
 
 /**
  * Gets or generates AI explanation for correct answers.
- * Now includes the position after 3 moves for better accuracy.
+ * Uses Claude to explain why the correct move is good.
  */
 export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
   console.log('✅ === CORRECT MOVE EXPLANATION START ===');
@@ -98,7 +98,7 @@ export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
       return puzzle.ai_explanation;
     }
     
-    console.log('🚀 Starting AI explanation generation...');
+    console.log('🚀 Starting Claude explanation generation...');
     
     // Calculate the position after 3 moves
     let positionAfter3Moves = null;
@@ -115,17 +115,15 @@ export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
       console.warn('⚠️ Could not calculate position after 3 moves:', error);
     }
     
-    console.log('📤 Request data will be:', {
-      originalFen: puzzle.fen,
-      moves: puzzle.moves,
-      userMove: puzzle.moves[3], 
-      correctMove: puzzle.moves[3],
-      playingAs: playingAs,
-      isCorrect: true,
-      positionAfter3Moves
-    });
+    console.log('📤 Request data:');
+    console.log('- originalFen:', puzzle.fen);
+    console.log('- moves array:', puzzle.moves);
+    console.log('- correctMove (moves[3]):', puzzle.moves[3]);
+    console.log('- playingAs:', playingAs);
+    console.log('- isCorrect:', true);
+    console.log('- positionAfter3Moves:', positionAfter3Moves);
     
-    // Generate new explanation
+    // Generate new explanation using Claude
     console.log('📡 Making fetch request to /api/getExplanation...');
     
     const response = await fetch('/api/getExplanation', {
@@ -148,7 +146,6 @@ export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
     console.log('- Status:', response.status);
     console.log('- StatusText:', response.statusText);
     console.log('- OK:', response.ok);
-    console.log('- Headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       console.error('❌ Response not OK, getting error text...');

@@ -1,9 +1,9 @@
-// api/getExplanation.js
+// api/getExplanation.js - Updated for Claude API
 
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
 /**
- * A Vercel Serverless Function that returns explanations for chess moves.
+ * A Vercel Serverless Function that returns explanations for chess moves using Claude.
  * Can handle both incorrect move explanations and correct move explanations.
  *
  * Expects a POST request with JSON body:
@@ -37,7 +37,7 @@ export default async function handler(req, res) {
     positionAfter3Moves // New optional parameter
   } = req.body;
   
-  console.log('🤖 AI EXPLANATION REQUEST RECEIVED:');
+  console.log('🤖 CLAUDE EXPLANATION REQUEST RECEIVED:');
   console.log('==========================================');
   console.log('📋 Request Data:');
   console.log('- originalFen:', originalFen);
@@ -64,94 +64,84 @@ export default async function handler(req, res) {
     });
   }
 
-  // Log each move for clarity
-  console.log('🔍 MOVE SEQUENCE ANALYSIS:');
-  console.log('Starting position FEN:', originalFen);
-  console.log('Move 1 (opponent):', moves[0]);
-  console.log('Move 2 (solution start):', moves[1]);
-  console.log('Move 3 (opponent response):', moves[2]);
-  console.log('Move 4 (what should be played):', moves[3]);
-  console.log('User attempted:', userMove);
-  console.log('Playing as:', playingAs);
-  if (positionAfter3Moves) {
-    console.log('Position after 3 moves:', positionAfter3Moves);
-  }
-
   // Read the secret key from environment
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    console.error('❌ OPENAI_API_KEY is not set in environment');
+    console.error('❌ ANTHROPIC_API_KEY is not set in environment');
     return res
       .status(500)
       .json({ error: 'Server misconfiguration: missing API key' });
   }
 
-  // Initialize the OpenAI client
-  const openai = new OpenAI({ apiKey });
+  // Initialize the Anthropic client
+  const anthropic = new Anthropic({ 
+    apiKey: apiKey 
+  });
 
   let prompt;
-  let systemPrompt = 'You are a helpful chess coach who gives clear, concise explanations in 1-2 sentences only. You carefully analyze chess positions and never mention pieces that do not exist on the board.';
   
   if (isCorrect) {
     console.log('✅ Generating CORRECT answer explanation');
     
-    // For correct answers, we can use either the position after 3 moves or describe the sequence
+    // For correct answers, use the position after 3 moves if available
     if (positionAfter3Moves) {
-      prompt = `
-Chess position (FEN): ${positionAfter3Moves}
-The correct move ${moves[3]} was just played by ${playingAs === 'white' ? 'White' : 'Black'}.
+      prompt = `You are a chess expert analyzing a puzzle solution.
 
-In 1-2 sentences, explain why this move wins or gives a significant advantage. Focus on the main tactical theme or strategic benefit.
-`.trim();
+Current position (FEN): ${positionAfter3Moves}
+The winning move ${correctMove} was just played by ${playingAs === 'white' ? 'White' : 'Black'}.
+
+Analyze this exact FEN position and explain in 1-2 concise sentences why ${correctMove} (moving from ${correctMove.slice(0,2)} to ${correctMove.slice(2,4)}) wins or gives a decisive advantage.
+
+Important: Only reference pieces that actually exist in this FEN position. Focus on the main tactical theme (fork, pin, skewer, back-rank mate, etc.) or strategic benefit.
+
+Keep your explanation clear and under 40 words.`;
     } else {
-      prompt = `
+      prompt = `You are a chess expert analyzing a puzzle solution.
+
 Starting position (FEN): ${originalFen}
-Moves played:
-1. ${moves[0]} (opponent's move that creates the tactical opportunity)
-2. ${moves[1]} (first correct move by ${playingAs === 'white' ? 'White' : 'Black'})
+
+Move sequence:
+1. ${moves[0]} (creates the tactical opportunity)
+2. ${moves[1]} (correct move by ${playingAs === 'white' ? 'White' : 'Black'})
 3. ${moves[2]} (opponent's response)
 4. ${moves[3]} (the winning move by ${playingAs === 'white' ? 'White' : 'Black'})
 
-Explain in exactly 1-2 short sentences why this move sequence wins. Focus on the main tactical theme (fork, pin, discovered attack, etc.) and the key advantage gained.
+Explain in 1-2 sentences why this move sequence wins. Focus on the main tactical theme and the decisive advantage gained.
 
-Keep it concise and clear.
-`.trim();
+Keep it concise and under 40 words.`;
     }
   } else {
     console.log('❌ Generating INCORRECT answer explanation');
-    console.log('🔍 Building analysis prompt...');
     
-    // For incorrect answers, prefer using the exact position if available
     if (positionAfter3Moves) {
-      prompt = `
-Current chess position (FEN): ${positionAfter3Moves}
+      prompt = `You are a chess expert analyzing a student's mistake.
+
+Current position (FEN): ${positionAfter3Moves}
 It is ${playingAs === 'white' ? 'White' : 'Black'}'s turn.
-The player attempted: ${userMove} (moving from ${userMove.slice(0,2)} to ${userMove.slice(2,4)})
+The student attempted: ${userMove} (from ${userMove.slice(0,2)} to ${userMove.slice(2,4)})
+The correct move was: ${correctMove}
 
-Looking at this exact position:
-1. What piece is on square ${userMove.slice(0,2)}?
-2. Why is moving it to ${userMove.slice(2,4)} a mistake?
+Looking at this exact FEN position, explain in 1-2 sentences why ${userMove} is a mistake. What immediate threat or disadvantage does this move allow?
 
-Explain in 1-2 sentences what immediate threat or loss this move allows. Only mention pieces visible in the FEN above. End with "Try again."
-`.trim();
+Important: Only reference pieces that actually exist in this FEN position. Be specific about what goes wrong after this move.
+
+End with "Try again." Keep under 40 words.`;
     } else {
-      // Fallback to move sequence if position not provided
-      prompt = `
-Starting position FEN: ${originalFen}
+      prompt = `You are a chess expert analyzing a student's mistake.
 
-Apply these 3 moves in order:
-1. ${moves[0]} (${moves[0].slice(0,2)} to ${moves[0].slice(2,4)})
-2. ${moves[1]} (${moves[1].slice(0,2)} to ${moves[1].slice(2,4)})  
-3. ${moves[2]} (${moves[2].slice(0,2)} to ${moves[2].slice(2,4)})
+Starting FEN: ${originalFen}
 
-After these 3 moves, it is ${playingAs === 'white' ? 'White' : 'Black'}'s turn.
-The student tried: ${userMove} (${userMove.slice(0,2)} to ${userMove.slice(2,4)})
+After these moves:
+1. ${moves[0]}
+2. ${moves[1]}
+3. ${moves[2]}
 
-CRITICAL: Before analyzing, identify what piece is ACTUALLY on ${userMove.slice(0,2)} after the 3 moves above.
-Then explain in 1-2 sentences why ${userMove} is a mistake - what does it allow the opponent to do?
-Do NOT guess at pieces - only mention pieces you are certain about from the move sequence.
-End with "Try again."
-`.trim();
+The student (playing as ${playingAs === 'white' ? 'White' : 'Black'}) tried: ${userMove}
+The correct move was: ${correctMove}
+
+Explain in 1-2 sentences why ${userMove} is inferior to ${correctMove}. What tactical opportunity or advantage does the student miss?
+
+End with "Try again." Keep under 40 words.`;
     }
   }
 
@@ -161,31 +151,30 @@ End with "Try again."
   console.log('==========================================');
 
   try {
-    console.log('🚀 Sending request to OpenAI...');
+    console.log('🚀 Sending request to Claude...');
     
-    // Call OpenAI's chat completion
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    // Call Claude's message API
+    const response = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 100,
+      temperature: 0.3,
       messages: [
-        { 
-          role: 'system', 
-          content: systemPrompt
-        },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 100, // Keep responses short
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
     });
 
-    console.log('✅ OpenAI response received');
+    console.log('✅ Claude response received');
     console.log('📤 Response data:', {
       model: response.model,
       usage: response.usage,
-      choices: response.choices.length
+      stop_reason: response.stop_reason
     });
 
     // Extract the explanation text
-    const explanation = response.choices[0].message.content.trim();
+    const explanation = response.content[0].text.trim();
     
     console.log('🎯 Generated explanation:');
     console.log('==========================================');
@@ -193,19 +182,22 @@ End with "Try again."
     console.log('==========================================');
     
     console.log('✅ Sending explanation back to client');
-    return res.status(200).json({ explanation });
+    return res.status(200).json({ 
+      explanation,
+      model: 'claude-3.5-sonnet'
+    });
     
   } catch (err) {
-    console.error('❌ OpenAI error:', err);
+    console.error('❌ Claude API error:', err);
     console.error('Error details:', {
       name: err.name,
       message: err.message,
       status: err.status,
-      code: err.code
+      type: err.type
     });
     
     return res
       .status(500)
-      .json({ error: 'OpenAI request failed. Please try again later.' });
+      .json({ error: 'Claude request failed. Please try again later.' });
   }
 }

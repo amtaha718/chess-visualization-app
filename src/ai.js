@@ -1,18 +1,20 @@
-// src/ai.js - IMPROVED WITH POSITION TRACKING
+// src/ai.js - FIXED to analyze position AFTER user's incorrect move
 
 import { Chess } from 'chess.js';
 
 /**
  * Calls our Vercel serverless function for incorrect move explanations.
- * Now includes the position after 3 moves for better accuracy.
+ * Now calculates the position AFTER the user's move for accurate analysis.
  */
 export async function getIncorrectMoveExplanation(originalFen, moves, userMove, correctMove, playingAs = 'white') {
   try {
     console.log('❌ === INCORRECT MOVE EXPLANATION ===');
     console.log('📤 Request data:', { originalFen, moves, userMove, correctMove, playingAs });
     
-    // Calculate the position after 3 moves to avoid hallucinations
+    // Calculate the position after 3 moves
     let positionAfter3Moves = null;
+    let positionAfterUserMove = null;
+    
     try {
       const tempGame = new Chess(originalFen);
       // Apply the first 3 moves
@@ -22,9 +24,22 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
         tempGame.move({ from: moves[2].slice(0, 2), to: moves[2].slice(2, 4) });
         positionAfter3Moves = tempGame.fen();
         console.log('📍 Position after 3 moves:', positionAfter3Moves);
+        
+        // Now apply the user's incorrect move
+        const userMoveResult = tempGame.move({ 
+          from: userMove.slice(0, 2), 
+          to: userMove.slice(2, 4) 
+        });
+        
+        if (userMoveResult) {
+          positionAfterUserMove = tempGame.fen();
+          console.log('📍 Position after user\'s move:', positionAfterUserMove);
+        } else {
+          console.warn('⚠️ User move is illegal, will analyze pre-move position');
+        }
       }
     } catch (error) {
-      console.warn('⚠️ Could not calculate position after 3 moves:', error);
+      console.warn('⚠️ Could not calculate positions:', error);
     }
     
     const response = await fetch('/api/getExplanation', {
@@ -39,7 +54,8 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
         correctMove, 
         playingAs,
         isCorrect: false,
-        positionAfter3Moves // Include the calculated position
+        positionAfter3Moves, // Position before user's move
+        positionAfterUserMove // NEW: Position after user's move for analysis
       }),
     });
 

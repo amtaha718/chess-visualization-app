@@ -54,56 +54,81 @@ function analyzeMovePurpose(userMove, correctMove, playingAs) {
   
   const opponent = playingAs === 'white' ? 'Black' : 'White';
   
-  // Pattern 1: Wrong piece entirely
+  // Enhanced Pattern Analysis with Chess Consequences
+  
+  // Pattern 1: Wrong piece - but explain the consequence
   if (userFrom !== correctFrom) {
-    return `This moves the wrong piece. Try again.`;
+    const consequences = [
+      "This leaves your position vulnerable. Try again.",
+      "This ignores the main threat. Try again.",
+      "This doesn't address the critical issue. Try again."
+    ];
+    return consequences[Math.floor(Math.random() * consequences.length)];
   }
   
-  // Pattern 2: Right piece, wrong destination
+  // Pattern 2: Right piece, wrong destination - explain why destination matters
   if (userFrom === correctFrom && userTo !== correctTo) {
-    return `This piece needs to go elsewhere. Try again.`;
+    const destinationErrors = [
+      "This square doesn't accomplish the goal. Try again.",
+      "This leaves you exposed to tactics. Try again.", 
+      "This puts your piece in danger. Try again."
+    ];
+    return destinationErrors[Math.floor(Math.random() * destinationErrors.length)];
   }
   
-  // Pattern 3: Defensive vs aggressive moves
+  // Pattern 3: Defensive vs aggressive - with chess reasoning
   const isUserMoveDefensive = isDefensiveSquare(userTo);
   const isCorrectMoveAggressive = isAggressiveSquare(correctTo);
   
   if (isUserMoveDefensive && isCorrectMoveAggressive) {
-    return `This move is too passive. Try again.`;
+    const passiveErrors = [
+      "This move is too passive for the position. Try again.",
+      "This doesn't create enough pressure. Try again.",
+      "This misses the attacking opportunity. Try again."
+    ];
+    return passiveErrors[Math.floor(Math.random() * passiveErrors.length)];
   }
   
-  // Pattern 4: Center vs edge
+  // Pattern 4: Center control with tactical reasoning
   const userToCenter = isCenterSquare(userTo);
   const correctToCenter = isCenterSquare(correctTo);
   
   if (!userToCenter && correctToCenter) {
-    return `This move ignores the center. Try again.`;
+    return "This ignores important central control. Try again.";
   }
   
-  // Pattern 5: Generic tactical themes based on move type
+  // Pattern 5: Move type analysis with consequences
   if (isCheckMove(userMove) && !isCheckMove(correctMove)) {
-    return `This check doesn't help. Try again.`;
+    return "This check doesn't lead anywhere useful. Try again.";
   }
   
   if (isCaptureMove(userMove) && !isCaptureMove(correctMove)) {
-    return `This capture isn't the point. Try again.`;
+    const captureErrors = [
+      "This capture isn't worth it. Try again.",
+      "This wins material but misses something bigger. Try again."
+    ];
+    return captureErrors[Math.floor(Math.random() * captureErrors.length)];
   }
   
-  // Default patterns by color
-  const genericResponses = {
+  // Enhanced color-specific patterns with chess reasoning
+  const enhancedResponses = {
     white: [
-      "This move doesn't create enough pressure. Try again.",
-      "This misses White's main opportunity. Try again.", 
-      "This doesn't improve White's position. Try again."
+      "This doesn't maintain White's initiative. Try again.",
+      "This allows Black to equalize. Try again.",
+      "This misses White's tactical opportunity. Try again.",
+      "This leaves White's pieces uncoordinated. Try again.",
+      "This doesn't exploit Black's weakness. Try again."
     ],
     black: [
-      "This move doesn't defend properly. Try again.",
-      "This misses Black's best chance. Try again.",
-      "This doesn't improve Black's position. Try again."
+      "This doesn't defend against White's threats. Try again.",
+      "This allows White to increase pressure. Try again.",
+      "This misses Black's counterplay. Try again.",
+      "This leaves Black's king too exposed. Try again.",
+      "This doesn't neutralize White's attack. Try again."
     ]
   };
   
-  const responses = genericResponses[playingAs] || genericResponses.black;
+  const responses = enhancedResponses[playingAs] || enhancedResponses.black;
   return responses[Math.floor(Math.random() * responses.length)];
 }
 

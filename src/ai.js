@@ -78,15 +78,14 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
 }
 
 /**
- * Simple correct move response - just returns "Correct!" message
- * No more AI explanations for correct answers
+ * Simple correct move response - returns empty string
+ * The "Correct!" message is handled by the main app logic
  */
 export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
   console.log('✅ === SIMPLE CORRECT RESPONSE ===');
   console.log('📋 Puzzle ID:', puzzle.id);
-  console.log('📋 No AI explanation needed - just "Correct!" message');
+  console.log('📋 No AI explanation needed - returning empty string');
 
-  // Just return a simple "Correct!" message
-  // The rating change will be shown by the calling code
-  return "Correct!";
+  // Return empty string since "Correct!" is already shown by the main app
+  return "";
 }

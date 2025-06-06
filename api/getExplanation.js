@@ -34,7 +34,8 @@ export default async function handler(req, res) {
     correctMove, 
     playingAs = 'white', 
     isCorrect = false,
-    positionAfter3Moves // New optional parameter
+    positionAfter3Moves, // Position before user's move
+    positionAfterUserMove // NEW: Position after user's move
   } = req.body;
   
   console.log('🤖 CLAUDE EXPLANATION REQUEST RECEIVED:');
@@ -47,6 +48,7 @@ export default async function handler(req, res) {
   console.log('- playingAs:', playingAs);
   console.log('- isCorrect:', isCorrect);
   console.log('- positionAfter3Moves:', positionAfter3Moves || 'Not provided');
+  console.log('- positionAfterUserMove:', positionAfterUserMove || 'Not provided');
   console.log('==========================================');
   
   if (!originalFen || !moves || !correctMove) {

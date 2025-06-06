@@ -58,6 +58,14 @@ export default async function handler(req, res) {
     });
   }
 
+  // For incorrect moves, userMove is required
+  if (!isCorrect && !userMove) {
+    console.error('❌ Missing userMove for incorrect explanation');
+    return res.status(400).json({
+      error: 'userMove is required for incorrect move explanations',
+    });
+  }
+
   // Validate moves array
   if (!Array.isArray(moves) || moves.length !== 4) {
     console.error('❌ Invalid moves array:', moves);
@@ -85,30 +93,26 @@ export default async function handler(req, res) {
   if (isCorrect) {
     console.log('✅ Generating CORRECT answer explanation');
     
-    // For correct answers, use the position after 3 moves if available
+    // For correct answers, only analyze why the correct move is good
     if (positionAfter3Moves) {
-      prompt = `You are a chess expert analyzing a puzzle solution.
+      prompt = `You are a chess expert explaining why a move is correct.
 
-Current position (FEN): ${positionAfter3Moves}
-The winning move ${correctMove} was just played by ${playingAs === 'white' ? 'White' : 'Black'}.
+Position before the move (FEN): ${positionAfter3Moves}
+The winning move is: ${correctMove} (moving from ${correctMove.slice(0,2)} to ${correctMove.slice(2,4)})
 
-Analyze this exact FEN position and explain in 1-2 concise sentences why ${correctMove} (moving from ${correctMove.slice(0,2)} to ${correctMove.slice(2,4)}) wins or gives a decisive advantage.
+Explain in 1-2 concise sentences why this move wins or gives a decisive advantage. Focus on the main tactical theme (fork, pin, skewer, checkmate, etc.) or strategic benefit.
 
-Important: Only reference pieces that actually exist in this FEN position. Focus on the main tactical theme (fork, pin, skewer, back-rank mate, etc.) or strategic benefit.
+Important: Only reference pieces that actually exist in this FEN position.
 
 Keep your explanation clear and under 40 words.`;
     } else {
-      prompt = `You are a chess expert analyzing a puzzle solution.
+      prompt = `You are a chess expert explaining a puzzle solution.
 
 Starting position (FEN): ${originalFen}
+Move sequence: ${moves.join(', ')}
+The final winning move is: ${correctMove}
 
-Move sequence:
-1. ${moves[0]} (creates the tactical opportunity)
-2. ${moves[1]} (correct move by ${playingAs === 'white' ? 'White' : 'Black'})
-3. ${moves[2]} (opponent's response)
-4. ${moves[3]} (the winning move by ${playingAs === 'white' ? 'White' : 'Black'})
-
-Explain in 1-2 sentences why this move sequence wins. Focus on the main tactical theme and the decisive advantage gained.
+Explain in 1-2 sentences why this move sequence (especially the final move) wins. Focus on the main tactical theme.
 
 Keep it concise and under 40 words.`;
     }

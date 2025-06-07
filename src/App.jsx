@@ -987,16 +987,10 @@ const App = () => {
         disabled={isLoadingPuzzles}
       />
 
-      {userPlayingAs && (
-        <p style={{ 
-          fontWeight: 'bold', 
-          margin: '10px 0',
-          color: userPlayingAs === 'white' ? '#333' : '#000',
-          fontSize: '16px'
-        }}>
-          Playing as {userPlayingAs === 'white' ? 'White' : 'Black'}
-        </p>
-      )}
+      <FeedbackCard 
+        message={userPlayingAs ? `Playing as ${userPlayingAs === 'white' ? 'White' : 'Black'}. ${feedbackMessage}` : feedbackMessage} 
+        type={feedbackType} 
+      />
 
       <div style={{ position: 'relative', width: boardSize, height: boardSize }}>
         <Chessboard
@@ -1013,8 +1007,6 @@ const App = () => {
           customLightSquareStyle={{ backgroundColor: '#f1f1e6' }}
         />
       </div>
-
-      <FeedbackCard message={feedbackMessage} type={feedbackType} />
 
       {/* Icon Button Controls */}
       <div style={{

@@ -153,6 +153,7 @@ const SettingsDropdown = ({ isOpen, onClose, playSpeed, onSpeedChange, buttonRef
     </div>
   );
 };
+
 const FeedbackCard = ({ message, type = 'info' }) => {
   if (!message) return null;
   
@@ -948,14 +949,65 @@ const App = () => {
         position: 'relative'
       }}
     >
-      <AuthHeader
-        key={profileUpdateKey}
-        user={user}
-        profile={userProfile}
-        onShowAuth={() => setShowAuthModal(true)}
-        onShowProfile={() => setShowProfileModal(true)}
-        onSignOut={handleSignOut}
-      />
+      {/* User profile section in top right */}
+      <div style={{
+        position: 'absolute',
+        top: '10px',
+        right: '10px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        zIndex: 100
+      }}>
+        {user ? (
+          <div 
+            onClick={() => setShowProfileModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              backgroundColor: 'rgba(255,255,255,0.9)',
+              padding: '8px 12px',
+              borderRadius: '20px',
+              border: '1px solid #ddd',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(240,240,240,0.9)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.9)'}
+          >
+            <div style={{ fontSize: '0.9rem', color: '#666' }}>
+              <strong>{userProfile?.display_name || 'Player'}</strong>
+            </div>
+            <div style={{
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              padding: '4px 8px',
+              borderRadius: '12px',
+              fontSize: '0.8rem',
+              fontWeight: 'bold'
+            }}>
+              {userProfile?.current_rating || 1200}
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowAuthModal(true)}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '20px',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              fontWeight: 'bold'
+            }}
+          >
+            Sign In
+          </button>
+        )}
+      </div>
 
       <img
         src="/logo.png"

@@ -85,7 +85,6 @@ const SettingsDropdown = ({ isOpen, onClose, playSpeed, onSpeedChange, buttonRef
 
   return (
     <div 
-      onMouseLeave={onClose}
       style={{
         position: 'absolute',
         top: buttonRef.current ? buttonRef.current.offsetTop + buttonRef.current.offsetHeight + 5 : '50px',
@@ -118,6 +117,9 @@ const SettingsDropdown = ({ isOpen, onClose, playSpeed, onSpeedChange, buttonRef
           step="250"
           value={3500 - playSpeed} // Invert the value so left = slow, right = fast
           onChange={(e) => onSpeedChange(3500 - Number(e.target.value))} // Invert back
+          onMouseDown={(e) => e.stopPropagation()} // Prevent dropdown from closing
+          onMouseUp={(e) => e.stopPropagation()} // Prevent dropdown from closing
+          onClick={(e) => e.stopPropagation()} // Prevent dropdown from closing
           style={{
             width: '100%',
             height: '4px',
@@ -868,22 +870,19 @@ const App = () => {
     width: '36px',
     height: '36px',
     border: 'none',
-    borderRadius: '8px',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'transparent',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     transition: 'all 0.2s ease',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
     margin: '0 3px'
   };
 
   const disabledIconButtonStyle = {
     ...iconButtonStyle,
-    backgroundColor: '#e0e0e0',
     cursor: 'not-allowed',
-    opacity: 0.6
+    opacity: 0.4
   };
 
   // Loading states
@@ -1031,8 +1030,6 @@ const App = () => {
           onClick={goToPreviousPuzzle}
           disabled={currentPuzzleIndex === 0}
           title="Previous Puzzle"
-          onMouseEnter={(e) => e.target.style.backgroundColor = '#e0e0e0'}
-          onMouseLeave={(e) => e.target.style.backgroundColor = currentPuzzleIndex > 0 ? '#f5f5f5' : '#e0e0e0'}
         >
           <PrevIcon />
         </button>
@@ -1042,8 +1039,6 @@ const App = () => {
           style={iconButtonStyle}
           onClick={isAutoPlaying ? pauseAutoPlay : startAutoPlay}
           title={isAutoPlaying ? "Pause" : puzzlePhase === 'ready' ? "Watch Moves 1-3" : "Replay Sequence"}
-          onMouseEnter={(e) => e.target.style.backgroundColor = '#e0e0e0'}
-          onMouseLeave={(e) => e.target.style.backgroundColor = '#f5f5f5'}
         >
           <PlayIcon isPlaying={isAutoPlaying} />
         </button>
@@ -1055,8 +1050,6 @@ const App = () => {
             style={iconButtonStyle}
             onClick={() => setShowSettings(!showSettings)}
             title="Settings"
-            onMouseEnter={(e) => e.target.style.backgroundColor = '#e0e0e0'}
-            onMouseLeave={(e) => e.target.style.backgroundColor = '#f5f5f5'}
           >
             <GearIcon />
           </button>
@@ -1076,8 +1069,6 @@ const App = () => {
           onClick={handleHint}
           disabled={puzzlePhase !== 'playing'}
           title="Hint"
-          onMouseEnter={(e) => e.target.style.backgroundColor = '#e0e0e0'}
-          onMouseLeave={(e) => e.target.style.backgroundColor = puzzlePhase === 'playing' ? '#f5f5f5' : '#e0e0e0'}
         >
           <HintIcon />
         </button>
@@ -1088,8 +1079,6 @@ const App = () => {
           onClick={handleRevealSolution}
           disabled={puzzlePhase !== 'playing' && puzzlePhase !== 'complete'}
           title="Reveal Solution"
-          onMouseEnter={(e) => e.target.style.backgroundColor = '#e0e0e0'}
-          onMouseLeave={(e) => e.target.style.backgroundColor = (puzzlePhase === 'playing' || puzzlePhase === 'complete') ? '#f5f5f5' : '#e0e0e0'}
         >
           <RevealIcon />
         </button>
@@ -1099,8 +1088,6 @@ const App = () => {
           style={iconButtonStyle}
           onClick={skipToNextPuzzle}
           title="Next Puzzle"
-          onMouseEnter={(e) => e.target.style.backgroundColor = '#e0e0e0'}
-          onMouseLeave={(e) => e.target.style.backgroundColor = '#f5f5f5'}
         >
           <NextIcon />
         </button>

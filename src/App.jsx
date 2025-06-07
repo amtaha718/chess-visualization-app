@@ -197,10 +197,11 @@ const DifficultyToggle = ({ currentDifficulty, onDifficultyChange, disabled }) =
   return (
     <div style={{
       display: 'flex',
-      gap: '10px',
+      gap: '8px',
       margin: '20px 0',
       flexWrap: 'wrap',
-      justifyContent: 'center'
+      justifyContent: 'center',
+      maxWidth: '100%'
     }}>
       {difficulties.map(diff => (
         <button
@@ -208,17 +209,19 @@ const DifficultyToggle = ({ currentDifficulty, onDifficultyChange, disabled }) =
           onClick={() => onDifficultyChange(diff.value)}
           disabled={disabled}
           style={{
-            padding: '8px 16px',
+            padding: '6px 12px',
             border: '2px solid',
             borderColor: currentDifficulty === diff.value ? diff.color : '#ddd',
             backgroundColor: currentDifficulty === diff.value ? diff.color : 'white',
             color: currentDifficulty === diff.value ? 'white' : '#333',
-            borderRadius: '20px',
+            borderRadius: '16px',
             cursor: disabled ? 'not-allowed' : 'pointer',
-            fontSize: '14px',
+            fontSize: '12px',
             fontWeight: currentDifficulty === diff.value ? 'bold' : 'normal',
             transition: 'all 0.3s ease',
-            opacity: disabled ? 0.6 : 1
+            opacity: disabled ? 0.6 : 1,
+            minWidth: '70px',
+            whiteSpace: 'nowrap'
           }}
         >
           {diff.label}
@@ -984,18 +987,16 @@ const App = () => {
         disabled={isLoadingPuzzles}
       />
 
-      <p>
-        Puzzle {currentPuzzleIndex + 1} of {puzzles.length}
-        {userPlayingAs && (
-          <span style={{ 
-            fontWeight: 'bold', 
-            marginLeft: '10px',
-            color: userPlayingAs === 'white' ? '#333' : '#000'
-          }}>
-            Playing as {userPlayingAs === 'white' ? 'White' : 'Black'}
-          </span>
-        )}
-      </p>
+      {userPlayingAs && (
+        <p style={{ 
+          fontWeight: 'bold', 
+          margin: '10px 0',
+          color: userPlayingAs === 'white' ? '#333' : '#000',
+          fontSize: '16px'
+        }}>
+          Playing as {userPlayingAs === 'white' ? 'White' : 'Black'}
+        </p>
+      )}
 
       <div style={{ position: 'relative', width: boardSize, height: boardSize }}>
         <Chessboard

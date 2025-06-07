@@ -1,4 +1,4 @@
-// src/App.jsx - Your main chess app now using Stockfish puzzles
+// src/App.jsx - Complete with Auto-Play and Icon Buttons
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Chess } from 'chess.js';
@@ -37,20 +37,120 @@ const loadSessionData = () => {
   }
 };
 
-const getSquareCoordinates = (square, boardSize, isFlipped = false) => {
-  let file = square.charCodeAt(0) - 'a'.charCodeAt(0);
-  let rank = 8 - parseInt(square[1], 10);
+// Icon Components (SVG)
+const PrevIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="black">
+    <path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/>
+  </svg>
+);
+
+const PlayIcon = ({ isPlaying }) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="black">
+    {isPlaying ? (
+      <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+    ) : (
+      <path d="M8 5v14l11-7z"/>
+    )}
+  </svg>
+);
+
+const HintIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="black">
+    <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/>
+    <circle cx="12" cy="9" r="1" fill="white"/>
+  </svg>
+);
+
+const RevealIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="black">
+    <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm-1 13h2v-6h-2v6zm0-8h2V5h-2v2z"/>
+  </svg>
+);
+
+const NextIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="black">
+    <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+  </svg>
+);
+
+// UI Components
+const ProgressBar = ({ currentStep, totalSteps }) => (
+  <div style={{
+    width: '300px',
+    height: '8px',
+    backgroundColor: '#e0e0e0',
+    borderRadius: '4px',
+    margin: '10px auto',
+    overflow: 'hidden'
+  }}>
+    <div style={{
+      width: `${(currentStep / totalSteps) * 100}%`,
+      height: '100%',
+      backgroundColor: '#4CAF50',
+      borderRadius: '4px',
+      transition: 'width 0.3s ease'
+    }} />
+  </div>
+);
+
+const StepIndicator = ({ currentStep, phase }) => (
+  <div style={{ 
+    display: 'flex', 
+    justifyContent: 'center', 
+    gap: '15px',
+    margin: '15px 0',
+    flexWrap: 'wrap'
+  }}>
+    {['Move 1', 'Move 2', 'Move 3', 'Your Move'].map((label, index) => (
+      <div key={index} style={{
+        padding: '8px 16px',
+        borderRadius: '20px',
+        backgroundColor: index < currentStep ? '#4CAF50' : 
+                        index === currentStep && phase === 'watching' ? '#FF9800' :
+                        index === currentStep && phase === 'playing' ? '#2196F3' : '#e0e0e0',
+        color: index <= currentStep ? 'white' : '#666',
+        fontSize: '13px',
+        fontWeight: 'bold',
+        transition: 'all 0.3s ease',
+        minWidth: '80px',
+        textAlign: 'center'
+      }}>
+        {index < 3 ? label : phase === 'playing' ? '🎯 Your Move' : label}
+      </div>
+    ))}
+  </div>
+);
+
+const FeedbackCard = ({ message, type = 'info' }) => {
+  if (!message) return null;
   
-  if (isFlipped) {
-    file = 7 - file;
-    rank = 7 - rank;
-  }
-  
-  const squareSize = boardSize / 8;
-  return {
-    x: file * squareSize + squareSize / 2,
-    y: rank * squareSize + squareSize / 2
+  const colors = {
+    success: { bg: '#d4edda', border: '#c3e6cb', text: '#155724' },
+    error: { bg: '#f8d7da', border: '#f5c6cb', text: '#721c24' },
+    info: { bg: '#d1ecf1', border: '#bee5eb', text: '#0c5460' },
+    warning: { bg: '#fff3cd', border: '#ffeaa7', text: '#856404' }
   };
+  
+  const style = colors[type] || colors.info;
+  
+  return (
+    <div style={{
+      backgroundColor: style.bg,
+      border: `2px solid ${style.border}`,
+      color: style.text,
+      padding: '15px 20px',
+      borderRadius: '12px',
+      margin: '15px auto',
+      maxWidth: '600px',
+      fontSize: '15px',
+      fontWeight: '500',
+      textAlign: 'center',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      lineHeight: '1.4'
+    }}>
+      {message}
+    </div>
+  );
 };
 
 // Difficulty Toggle Component
@@ -101,11 +201,16 @@ const App = () => {
   const [boardSize, setBoardSize] = useState(getBoardSize());
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [boardPosition, setBoardPosition] = useState('');
-  const [arrows, setArrows] = useState([]);
+  const [currentMove, setCurrentMove] = useState(null); // For gradient highlighting
   const [highlightedSquares, setHighlightedSquares] = useState({});
   const [selectedSquares, setSelectedSquares] = useState([]);
   const [isUserTurnToMove, setIsUserTurnToMove] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackType, setFeedbackType] = useState('info');
+  const [puzzlePhase, setPuzzlePhase] = useState('ready'); // 'ready', 'watching', 'playing', 'complete'
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const [playSpeed] = useState(1500); // 1.5 seconds between moves
+  const autoPlayRef = useRef(null);
   const internalGameRef = useRef(null);
 
   // USER SYSTEM STATE VARIABLES
@@ -163,7 +268,6 @@ const App = () => {
           setUserProfile(profile);
         }
         
-        // Set up auth state listener - ignore token refresh events
         subscription = userSystem.onAuthStateChange(async (event, user) => {
           if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
             return;
@@ -197,13 +301,13 @@ const App = () => {
     };
   }, [userSystem]);
 
-  // STOCKFISH PUZZLE LOADING
+  // PUZZLE LOADING
   const loadPuzzles = useCallback(async () => {
     if (isLoadingAuth || isLoadingPuzzles) {
       return;
     }
 
-    console.log('🐟 Loading Stockfish puzzles:', selectedDifficulty, 'for user:', user?.id || 'guest');
+    console.log('🐟 Loading puzzles:', selectedDifficulty, 'for user:', user?.id || 'guest');
     setIsLoadingPuzzles(true);
     
     try {
@@ -215,22 +319,21 @@ const App = () => {
         fetchedPuzzles = await userSystem.getPublicPuzzles(selectedDifficulty, 25);
       }
       
-      console.log('📦 Received Stockfish puzzles:', fetchedPuzzles.length);
+      console.log('📦 Received puzzles:', fetchedPuzzles.length);
       
       if (fetchedPuzzles.length > 0) {
         setPuzzles(fetchedPuzzles);
-        
-        // Start at first puzzle (since these are freshly generated)
         setCurrentPuzzleIndex(0);
-        console.log(`✅ Ready! ${selectedDifficulty} Stockfish puzzles loaded`);
-        
+        console.log(`✅ Ready! ${selectedDifficulty} puzzles loaded`);
       } else {
-        setFeedbackMessage(`Failed to generate ${selectedDifficulty} puzzles.`);
+        setFeedbackMessage(`Failed to load ${selectedDifficulty} puzzles.`);
+        setFeedbackType('error');
       }
       
     } catch (error) {
-      console.error('❌ Failed to load Stockfish puzzles:', error);
-      setFeedbackMessage('Failed to generate puzzles. Please refresh the page.');
+      console.error('❌ Failed to load puzzles:', error);
+      setFeedbackMessage('Failed to load puzzles. Please refresh the page.');
+      setFeedbackType('error');
     } finally {
       setIsLoadingPuzzles(false);
     }
@@ -278,8 +381,9 @@ const App = () => {
     const puzzle = puzzles[index];
     
     if (!validatePuzzle(puzzle)) {
-      setFeedbackMessage('This puzzle appears to be invalid. Generating new puzzles...');
-      loadPuzzles(); // Generate new puzzles
+      setFeedbackMessage('This puzzle appears to be invalid. Loading new puzzles...');
+      setFeedbackType('error');
+      loadPuzzles();
       return;
     }
 
@@ -298,11 +402,19 @@ const App = () => {
     internalGameRef.current = game;
     setBoardPosition(puzzle.fen);
     setCurrentMoveIndex(0);
-    setArrows([]);
+    setCurrentMove(null);
     setHighlightedSquares({});
     setSelectedSquares([]);
     setIsUserTurnToMove(false);
-    setFeedbackMessage('');
+    setIsAutoPlaying(false);
+    setPuzzlePhase('ready');
+    setFeedbackMessage('Watch the first 3 moves, then find the best 4th move!');
+    setFeedbackType('info');
+    
+    // Clear any running timers
+    if (autoPlayRef.current) {
+      clearTimeout(autoPlayRef.current);
+    }
   }, [puzzles, loadPuzzles]);
 
   // Reset puzzle when index changes
@@ -312,65 +424,96 @@ const App = () => {
     }
   }, [currentPuzzleIndex, puzzles, resetCurrentPuzzle]);
 
-  const handleShowMove = () => {
-    if (currentMoveIndex === 0) setPuzzleStartTime(Date.now());
-
-    const puzzle = puzzles[currentPuzzleIndex];
+  // AUTO-PLAY FUNCTIONALITY
+  const startAutoPlay = () => {
+    if (isAutoPlaying || isUserTurnToMove) return;
     
-    if (!puzzle.moves || puzzle.moves.length !== 4) {
-      setFeedbackMessage('This puzzle appears to be invalid. Please try another.');
+    setIsAutoPlaying(true);
+    setPuzzlePhase('watching');
+    setPuzzleStartTime(Date.now());
+    setFeedbackMessage('Watch carefully... memorize these moves!');
+    setFeedbackType('warning');
+    
+    // Start the sequence
+    playMoveSequence(0);
+  };
+
+  const playMoveSequence = (moveIndex) => {
+    if (moveIndex >= 3) {
+      // After move 3, set up for user's turn
+      setupUserTurn();
       return;
     }
 
-    const move = puzzle.moves[currentMoveIndex];
+    const puzzle = puzzles[currentPuzzleIndex];
+    const move = puzzle.moves[moveIndex];
     const from = move.slice(0, 2);
     const to = move.slice(2, 4);
 
-    setArrows([{ from, to }]);
+    // Show move with gradient highlighting
+    setCurrentMove({ from, to });
+    setCurrentMoveIndex(moveIndex + 1);
 
-    if (currentMoveIndex < 3) {
-      setCurrentMoveIndex((i) => i + 1);
-    } else {
-      // Apply first 3 moves
-      const game = new Chess(puzzle.fen);
-      const move1 = puzzle.moves[0];
-      const move2 = puzzle.moves[1];
-      const move3 = puzzle.moves[2];
+    // Schedule next move
+    autoPlayRef.current = setTimeout(() => {
+      playMoveSequence(moveIndex + 1);
+    }, playSpeed);
+  };
 
-      const moveResult1 = game.move({ from: move1.slice(0, 2), to: move1.slice(2, 4) });
-      const moveResult2 = game.move({ from: move2.slice(0, 2), to: move2.slice(2, 4) });
-      const moveResult3 = game.move({ from: move3.slice(0, 2), to: move3.slice(2, 4) });
+  const setupUserTurn = () => {
+    setIsAutoPlaying(false);
+    setPuzzlePhase('playing');
+    
+    // Apply first 3 moves to the game state
+    const puzzle = puzzles[currentPuzzleIndex];
+    const game = new Chess(puzzle.fen);
+    
+    const move1 = puzzle.moves[0];
+    const move2 = puzzle.moves[1];
+    const move3 = puzzle.moves[2];
 
-      if (!moveResult1 || !moveResult2 || !moveResult3) {
-        setFeedbackMessage('This puzzle contains invalid moves. Please try another.');
-        return;
-      }
+    const moveResult1 = game.move({ from: move1.slice(0, 2), to: move1.slice(2, 4) });
+    const moveResult2 = game.move({ from: move2.slice(0, 2), to: move2.slice(2, 4) });
+    const moveResult3 = game.move({ from: move3.slice(0, 2), to: move3.slice(2, 4) });
 
-      console.log('Moves 1-3 applied:', move1, move2, move3);
-      console.log('Game state after 3 moves:', game.fen());
+    if (!moveResult1 || !moveResult2 || !moveResult3) {
+      setFeedbackMessage('This puzzle contains invalid moves. Please try another.');
+      setFeedbackType('error');
+      return;
+    }
 
-      internalGameRef.current = game;
-      
-      const currentTurn = game.turn();
-      const playingAs = currentTurn === 'w' ? 'white' : 'black';
-      setUserPlayingAs(playingAs);
+    internalGameRef.current = game;
+    setCurrentMove(null); // Clear highlighting
+    setIsUserTurnToMove(true);
+    setFeedbackMessage(`Your turn! Find the best move 4 as ${userPlayingAs === 'white' ? 'White' : 'Black'}.`);
+    setFeedbackType('info');
+  };
 
-      setIsUserTurnToMove(true);
-      setFeedbackMessage(
-        `Recall moves 1, 2, and 3 in your mind—then choose the squares for the strongest move 4 as ${playingAs === 'white' ? 'White' : 'Black'}.`
-      );
-      setArrows([]);
+  const pauseAutoPlay = () => {
+    setIsAutoPlaying(false);
+    if (autoPlayRef.current) {
+      clearTimeout(autoPlayRef.current);
     }
   };
 
-  const skipToNextPuzzle = () => {
-    if (currentPuzzleIndex < puzzles.length - 1) {
-      setCurrentPuzzleIndex(currentPuzzleIndex + 1);
-    } else {
-      // Generate new puzzles when we reach the end
-      loadPuzzles();
-      setCurrentPuzzleIndex(0);
-    }
+  // Render gradient move highlighting
+  const renderMoveHighlights = () => {
+    if (!currentMove) return {};
+    
+    const { from, to } = currentMove;
+    
+    return {
+      [from]: { 
+        background: 'linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%)',
+        opacity: 0.8,
+        transition: 'all 0.3s ease'
+      },
+      [to]: { 
+        background: 'linear-gradient(135deg, #ffa500 0%, #4ecdc4 100%)',
+        opacity: 0.8,
+        transition: 'all 0.3s ease'
+      }
+    };
   };
 
   const handleSquareClick = (square) => {
@@ -382,6 +525,7 @@ const App = () => {
         [square]: { backgroundColor: 'rgba(173, 216, 230, 0.6)' }
       });
       setFeedbackMessage('Select the destination square of your move.');
+      setFeedbackType('info');
     } else {
       const from = selectedSquares[0];
       const to = square;
@@ -408,11 +552,14 @@ const App = () => {
 
     if (!moveResult) {
       setFeedbackMessage('Illegal move.');
+      setFeedbackType('error');
       return;
     }
 
     setIsUserTurnToMove(false);
+    setPuzzlePhase('complete');
     setFeedbackMessage('Analyzing your move…');
+    setFeedbackType('info');
 
     const timeTaken = puzzleStartTime ? Math.round((Date.now() - puzzleStartTime) / 1000) : null;
     const solved = userGuess === correctMove;
@@ -444,9 +591,11 @@ const App = () => {
           
           if (solved) {
             const aiExplanation = await getCorrectMoveExplanation(currentPuzzle, userSystem, userPlayingAs);
-            setFeedbackMessage(`Correct!${ratingText}. ${aiExplanation}`);
+            setFeedbackMessage(`Correct!${ratingText}`);
+            setFeedbackType('success');
           } else {
             setFeedbackMessage(`Incorrect.${ratingText}`);
+            setFeedbackType('error');
           }
         }
       } catch (error) {
@@ -454,18 +603,16 @@ const App = () => {
       }
     } else if (!user) {
       if (solved) {
-        setFeedbackMessage(`Correct! ${currentPuzzle.explanation}`);
+        setFeedbackMessage('Correct!');
+        setFeedbackType('success');
+      } else {
+        setFeedbackMessage('Incorrect.');
+        setFeedbackType('error');
       }
     }
 
-    // Play all 4 moves
-    const sequence = [
-      currentPuzzle.moves[0],
-      currentPuzzle.moves[1],
-      currentPuzzle.moves[2],
-      userGuess
-    ];
-    playMoveSequence(sequence, solved);
+    // Play all 4 moves for visualization
+    playFullSequence([...currentPuzzle.moves.slice(0, 3), userGuess]);
 
     if (!solved) {
       try {
@@ -477,22 +624,22 @@ const App = () => {
           userPlayingAs
         );
         
-        setFeedbackMessage(prev => prev + ' ' + explanation);
+        setTimeout(() => {
+          setFeedbackMessage(prev => prev + ' ' + explanation);
+        }, 2000);
       } catch (err) {
-        setFeedbackMessage(prev => prev + ' (Failed to fetch explanation; try again.)');
+        console.error('Failed to get explanation:', err);
       }
     }
   };
 
-  const playMoveSequence = (moves, isCorrect) => {
+  const playFullSequence = (moves) => {
     const puzzle = puzzles[currentPuzzleIndex];
     const game = new Chess(puzzle.fen);
     setBoardPosition(puzzle.fen);
-    setArrows([]);
+    setCurrentMove(null);
 
-    const movesToPlay = moves.slice(0, 4);
-
-    movesToPlay.forEach((move, i) => {
+    moves.forEach((move, i) => {
       setTimeout(() => {
         const from = move.slice(0, 2);
         const to = move.slice(2, 4);
@@ -500,77 +647,69 @@ const App = () => {
         
         if (moveResult) {
           setBoardPosition(game.fen());
-          setArrows([{ from, to }]);
+          setCurrentMove({ from, to });
         }
       }, i * 1000);
     });
 
     setTimeout(() => {
-      setArrows([]);
-    }, movesToPlay.length * 1000 + 700);
+      setCurrentMove(null);
+    }, moves.length * 1000 + 700);
   };
 
   const handleRevealSolution = async () => {
     const puzzle = puzzles[currentPuzzleIndex];
-    const correctMove = puzzle.moves[3];
     
-    // Set feedback to indicate this is a reveal, not a correct answer
     setFeedbackMessage('Revealing solution...');
+    setFeedbackType('info');
     
     // Play all 4 moves
-    const game = new Chess(puzzle.fen);
-    setBoardPosition(puzzle.fen);
-    setArrows([]);
+    playFullSequence(puzzle.moves);
 
-    const movesToPlay = puzzle.moves.slice(0, 4);
-
-    movesToPlay.forEach((move, i) => {
-      setTimeout(() => {
-        const from = move.slice(0, 2);
-        const to = move.slice(2, 4);
-        const moveResult = game.move({ from, to });
-        
-        if (moveResult) {
-          setBoardPosition(game.fen());
-          setArrows([{ from, to }]);
-          
-          // Highlight the final move
-          if (i === 3) {
-            setHighlightedSquares({
-              [from]: { backgroundColor: 'rgba(255, 215, 0, 0.6)' }, // Gold highlight
-              [to]: { backgroundColor: 'rgba(255, 215, 0, 0.6)' }
-            });
-          }
-        }
-      }, i * 1000);
-    });
-
-    // After showing all moves, explain why move 4 is best
+    // Show explanation after sequence
     setTimeout(async () => {
       try {
-        // Determine who played move 4
-        const tempGame = new Chess(puzzle.fen);
-        tempGame.move({ from: puzzle.moves[0].slice(0, 2), to: puzzle.moves[0].slice(2, 4) });
-        tempGame.move({ from: puzzle.moves[1].slice(0, 2), to: puzzle.moves[1].slice(2, 4) });
-        tempGame.move({ from: puzzle.moves[2].slice(0, 2), to: puzzle.moves[2].slice(2, 4) });
-        const playingAs = tempGame.turn() === 'w' ? 'white' : 'black';
-        
-        // Get AI explanation for the correct move
-        const explanation = await getCorrectMoveExplanation(puzzle, userSystem, playingAs);
-        
-        setFeedbackMessage(`The solution is ${correctMove}. ${explanation}`);
-        
-        // Clear highlights after a delay
-        setTimeout(() => {
-          setArrows([]);
-          setHighlightedSquares({});
-        }, 2000);
-        
+        const explanation = await getCorrectMoveExplanation(puzzle, userSystem, userPlayingAs);
+        setFeedbackMessage(`The solution is ${puzzle.moves[3]}. ${explanation}`);
+        setFeedbackType('info');
       } catch (error) {
-        console.error('Failed to get explanation:', error);
-        setFeedbackMessage(`The solution is ${correctMove}. ${puzzle.explanation}`);
+        setFeedbackMessage(`The solution is ${puzzle.moves[3]}.`);
+        setFeedbackType('info');
       }
-    }, movesToPlay.length * 1000 + 300);
+    }, puzzle.moves.length * 1000 + 300);
+  };
+
+  const handleHint = () => {
+    const puzzle = puzzles[currentPuzzleIndex];
+    const correctMove = puzzle.moves[3];
+    const from = correctMove.slice(0, 2);
+    
+    setFeedbackMessage(`Hint: Look at the piece on ${from.toUpperCase()}`);
+    setFeedbackType('warning');
+    
+    // Briefly highlight the piece that should move
+    setHighlightedSquares({
+      [from]: { backgroundColor: 'rgba(255, 193, 7, 0.6)' }
+    });
+    
+    setTimeout(() => {
+      setHighlightedSquares({});
+    }, 3000);
+  };
+
+  const skipToNextPuzzle = () => {
+    if (currentPuzzleIndex < puzzles.length - 1) {
+      setCurrentPuzzleIndex(currentPuzzleIndex + 1);
+    } else {
+      loadPuzzles();
+      setCurrentPuzzleIndex(0);
+    }
+  };
+
+  const goToPreviousPuzzle = () => {
+    if (currentPuzzleIndex > 0) {
+      setCurrentPuzzleIndex(currentPuzzleIndex - 1);
+    }
   };
 
   // Difficulty change handler
@@ -599,58 +738,26 @@ const App = () => {
     localStorage.removeItem(STORAGE_KEY);
   };
 
-  const buttonStyle = {
-    margin: '5px',
-    padding: '8px 16px',
-    fontSize: '14px',
+  const iconButtonStyle = {
+    width: '50px',
+    height: '50px',
     border: 'none',
-    borderRadius: '8px',
-    backgroundColor: '#4CAF50',
-    color: 'white',
+    borderRadius: '50%',
+    backgroundColor: '#f5f5f5',
     cursor: 'pointer',
-    boxShadow: '2px 2px 6px rgba(0,0,0,0.2)',
-    transition: 'background-color 0.3s ease'
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    margin: '0 5px'
   };
 
-  const renderArrows = () => {
-    const isFlipped = boardOrientation === 'black';
-    
-    return (
-      <svg
-        width={boardSize}
-        height={boardSize}
-        style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
-      >
-        <defs>
-          <marker
-            id="arrowhead"
-            markerWidth="5"
-            markerHeight="3.5"
-            refX="5"
-            refY="1.75"
-            orient="auto"
-          >
-            <polygon points="0 0, 5 1.75, 0 3.5" fill="rgba(30, 144, 255, 0.7)" />
-          </marker>
-        </defs>
-        {arrows.map(({ from, to }, i) => {
-          const start = getSquareCoordinates(from, boardSize, isFlipped);
-          const end = getSquareCoordinates(to, boardSize, isFlipped);
-          return (
-            <line
-              key={i}
-              x1={start.x}
-              y1={start.y}
-              x2={end.x}
-              y2={end.y}
-              stroke="rgba(30, 144, 255, 0.7)"
-              strokeWidth="5"
-              markerEnd="url(#arrowhead)"
-            />
-          );
-        })}
-      </svg>
-    );
+  const disabledIconButtonStyle = {
+    ...iconButtonStyle,
+    backgroundColor: '#e0e0e0',
+    cursor: 'not-allowed',
+    opacity: 0.6
   };
 
   // Loading states
@@ -677,9 +784,9 @@ const App = () => {
         height: '100vh',
         flexDirection: 'column'
       }}>
-        <h2>Generating Stockfish Puzzles...</h2>
+        <h2>Loading Puzzles...</h2>
         <p>Difficulty: {selectedDifficulty}</p>
-        <p>🐟 Creating challenging visualization puzzles...</p>
+        <p>🧩 Preparing challenging visualization puzzles...</p>
       </div>
     );
   }
@@ -693,9 +800,9 @@ const App = () => {
         height: '100vh',
         flexDirection: 'column'
       }}>
-        <h2>Failed to Generate Puzzles</h2>
+        <h2>Failed to Load Puzzles</h2>
         <p>Difficulty: {selectedDifficulty}</p>
-        <button onClick={() => loadPuzzles()} style={buttonStyle}>
+        <button onClick={() => loadPuzzles()} style={iconButtonStyle}>
           Try Again
         </button>
       </div>
@@ -743,7 +850,7 @@ const App = () => {
       >
         Strengthen your chess memory and tactical foresight. Watch the first three
         moves play out, then use your recall skills to find the best fourth move
-        without any visual aids. Now powered by Stockfish for better puzzle quality!
+        without any visual aids.
       </p>
 
       <DifficultyToggle 
@@ -753,7 +860,7 @@ const App = () => {
       />
 
       <p>
-        Puzzle {currentPuzzleIndex + 1} of {puzzles.length} (Stockfish Generated)
+        Puzzle {currentPuzzleIndex + 1} of {puzzles.length}
         {userPlayingAs && (
           <span style={{ 
             fontWeight: 'bold', 
@@ -764,6 +871,10 @@ const App = () => {
           </span>
         )}
       </p>
+
+      <StepIndicator currentStep={currentMoveIndex} phase={puzzlePhase} />
+      <ProgressBar currentStep={currentMoveIndex} totalSteps={4} />
+
       <div style={{ position: 'relative', width: boardSize, height: boardSize }}>
         <Chessboard
           position={boardPosition}
@@ -771,66 +882,84 @@ const App = () => {
           boardWidth={boardSize}
           boardOrientation={boardOrientation}
           arePiecesDraggable={false}
-          customSquareStyles={highlightedSquares}
+          customSquareStyles={{
+            ...highlightedSquares,
+            ...renderMoveHighlights()
+          }}
           customDarkSquareStyle={{ backgroundColor: '#4caf50' }}
           customLightSquareStyle={{ backgroundColor: '#f1f1e6' }}
         />
-        {renderArrows()}
       </div>
-      <p style={{ 
-        maxWidth: '600px', 
-        textAlign: 'center', 
-        wordWrap: 'break-word',
-        padding: '0 10px'
-      }}>
-        {feedbackMessage}
-      </p>
-      <div
-        style={{
-          marginTop: 10,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '10px'
-        }}
-      >
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          gap: '5px'
-        }}>
-          <button style={buttonStyle} onClick={handleShowMove}>
-            {currentMoveIndex < 3 ? `Show Move ${currentMoveIndex + 1}` : 'Your Move'}
-          </button>
-          <button style={buttonStyle} onClick={() => resetCurrentPuzzle(currentPuzzleIndex)}>
-            Replay
-          </button>
-          <button style={buttonStyle} onClick={handleRevealSolution}>
-            Reveal Solution
-          </button>
-        </div>
 
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '5px'
-        }}>
-          <button
-            style={buttonStyle}
-            onClick={() =>
-              setCurrentPuzzleIndex(Math.max(0, currentPuzzleIndex - 1))
-            }
-          >
-            Previous Puzzle
-          </button>
-          <button
-            style={buttonStyle}
-            onClick={skipToNextPuzzle}
-          >
-            Next Puzzle
-          </button>
-        </div>
+      <FeedbackCard message={feedbackMessage} type={feedbackType} />
+
+      {/* Icon Button Controls */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '10px',
+        marginTop: '20px',
+        marginBottom: '20px'
+      }}>
+        {/* Previous Puzzle */}
+        <button 
+          style={currentPuzzleIndex > 0 ? iconButtonStyle : disabledIconButtonStyle}
+          onClick={goToPreviousPuzzle}
+          disabled={currentPuzzleIndex === 0}
+          title="Previous Puzzle"
+          onMouseEnter={(e) => e.target.style.backgroundColor = '#e0e0e0'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = currentPuzzleIndex > 0 ? '#f5f5f5' : '#e0e0e0'}
+        >
+          <PrevIcon />
+        </button>
+
+        {/* Play/Pause Button */}
+        <button 
+          style={puzzlePhase === 'ready' ? iconButtonStyle : disabledIconButtonStyle}
+          onClick={isAutoPlaying ? pauseAutoPlay : startAutoPlay}
+          disabled={puzzlePhase !== 'ready'}
+          title={isAutoPlaying ? "Pause" : "Watch Moves 1-3"}
+          onMouseEnter={(e) => e.target.style.backgroundColor = '#e0e0e0'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = puzzlePhase === 'ready' ? '#f5f5f5' : '#e0e0e0'}
+        >
+          <PlayIcon isPlaying={isAutoPlaying} />
+        </button>
+
+        {/* Hint Button */}
+        <button 
+          style={puzzlePhase === 'playing' ? iconButtonStyle : disabledIconButtonStyle}
+          onClick={handleHint}
+          disabled={puzzlePhase !== 'playing'}
+          title="Hint"
+          onMouseEnter={(e) => e.target.style.backgroundColor = '#e0e0e0'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = puzzlePhase === 'playing' ? '#f5f5f5' : '#e0e0e0'}
+        >
+          <HintIcon />
+        </button>
+
+        {/* Reveal Solution Button */}
+        <button 
+          style={puzzlePhase === 'playing' || puzzlePhase === 'complete' ? iconButtonStyle : disabledIconButtonStyle}
+          onClick={handleRevealSolution}
+          disabled={puzzlePhase !== 'playing' && puzzlePhase !== 'complete'}
+          title="Reveal Solution"
+          onMouseEnter={(e) => e.target.style.backgroundColor = '#e0e0e0'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = (puzzlePhase === 'playing' || puzzlePhase === 'complete') ? '#f5f5f5' : '#e0e0e0'}
+        >
+          <RevealIcon />
+        </button>
+
+        {/* Next Puzzle */}
+        <button 
+          style={iconButtonStyle}
+          onClick={skipToNextPuzzle}
+          title="Next Puzzle"
+          onMouseEnter={(e) => e.target.style.backgroundColor = '#e0e0e0'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = '#f5f5f5'}
+        >
+          <NextIcon />
+        </button>
       </div>
 
       <AuthModal

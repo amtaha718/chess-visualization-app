@@ -6,7 +6,7 @@ import { Chessboard } from 'react-chessboard';
 import { getIncorrectMoveExplanation, getCorrectMoveExplanation } from './ai';
 import './index.css';
 import UserSystem from './user-system';
-import { AuthModal, UserProfile, AuthHeader } from './auth-components';
+import { AuthModal, UserProfile } from './auth-components';
 
 const getBoardSize = () => (window.innerWidth < 500 ? window.innerWidth - 40 : 400);
 

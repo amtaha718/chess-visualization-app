@@ -454,7 +454,7 @@ const App = () => {
     return path;
   };
 
-  // Render gradient path highlighting with yellow base
+  // Render gradient path highlighting with blue shades
   const renderMoveHighlights = () => {
     if (!currentMove) return {};
     
@@ -464,15 +464,15 @@ const App = () => {
     
     pathSquares.forEach((square, index) => {
       const intensity = (index / (pathSquares.length - 1)); // 0 to 1
-      const opacity = 0.6 + (intensity * 0.3); // 0.6 to 0.9
-      // Yellow gradient: light yellow to dark yellow/orange
-      const red = Math.round(255 - (intensity * 50)); // 255 to 205
-      const green = Math.round(255 - (intensity * 100)); // 255 to 155
-      const blue = Math.round(0 + (intensity * 50)); // 0 to 50
+      // Blue gradient: light blue to deep blue - no opacity, pure color shades
+      const red = Math.round(173 - (intensity * 100)); // 173 to 73 (light blue to deep blue)
+      const green = Math.round(216 - (intensity * 150)); // 216 to 66
+      const blue = Math.round(230 - (intensity * 50)); // 230 to 180 (keeps blue dominant)
       
       highlights[square] = {
-        backgroundColor: `rgba(${red}, ${green}, ${blue}, ${opacity})`,
-        transition: 'all 0.3s ease'
+        backgroundColor: `rgb(${red}, ${green}, ${blue})`,
+        transition: 'all 0.3s ease',
+        border: '2px solid rgba(0, 100, 200, 0.4)' // Subtle blue border for definition
       };
     });
     

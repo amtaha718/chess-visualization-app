@@ -949,75 +949,80 @@ const App = () => {
         position: 'relative'
       }}
     >
-      {/* User profile section in top right */}
+      {/* Header Row with Logo and Profile */}
       <div style={{
-        position: 'absolute',
-        top: '10px',
-        right: '10px',
+        width: '100%',
         display: 'flex',
         alignItems: 'center',
-        gap: '10px',
-        zIndex: 100
+        justifyContent: 'space-between',
+        padding: '10px 20px',
+        marginBottom: '10px'
       }}>
-        {user ? (
-          <div 
-            onClick={() => setShowProfileModal(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              backgroundColor: 'rgba(255,255,255,0.9)',
-              padding: '8px 12px',
-              borderRadius: '20px',
-              border: '1px solid #ddd',
-              cursor: 'pointer',
-              transition: 'background-color 0.2s ease'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(240,240,240,0.9)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.9)'}
-          >
-            <div style={{ fontSize: '0.9rem', color: '#666' }}>
-              <strong>{userProfile?.display_name || 'Player'}</strong>
-            </div>
-            <div style={{
-              backgroundColor: '#4CAF50',
-              color: 'white',
-              padding: '4px 8px',
-              borderRadius: '12px',
-              fontSize: '0.8rem',
-              fontWeight: 'bold'
-            }}>
-              {userProfile?.current_rating || 1200}
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setShowAuthModal(true)}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#4CAF50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '20px',
-              cursor: 'pointer',
-              fontSize: '0.9rem',
-              fontWeight: 'bold'
-            }}
-          >
-            Sign In
-          </button>
-        )}
-      </div>
+        {/* Logo on the left */}
+        <img
+          src="/logo.png"
+          alt="Visualize 3 Logo"
+          style={{
+            height: boardSize > 360 ? '80px' : '50px'
+          }}
+        />
 
-      <img
-        src="/logo.png"
-        alt="Visualize 3 Logo"
-        style={{
-          height: boardSize > 360 ? '100px' : '60px',
-          marginTop: '2px',
-          marginBottom: '2px'
-        }}
-      />
+        {/* Profile section on the right */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
+        }}>
+          {user ? (
+            <div 
+              onClick={() => setShowProfileModal(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                backgroundColor: 'rgba(255,255,255,0.9)',
+                padding: '8px 12px',
+                borderRadius: '20px',
+                border: '1px solid #ddd',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(240,240,240,0.9)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.9)'}
+            >
+              <div style={{ fontSize: '0.9rem', color: '#666' }}>
+                <strong>{userProfile?.display_name || 'Player'}</strong>
+              </div>
+              <div style={{
+                backgroundColor: '#4CAF50',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '12px',
+                fontSize: '0.8rem',
+                fontWeight: 'bold'
+              }}>
+                {userProfile?.current_rating || 1200}
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAuthModal(true)}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#4CAF50',
+                color: 'white',
+                border: 'none',
+                borderRadius: '20px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: 'bold'
+              }}
+            >
+              Sign In
+            </button>
+          )}
+        </div>
+      </div>
       <h1 style={{ fontSize: '22px', marginTop: '2px', marginBottom: '4px' }}>
         Chess Visualization Trainer
       </h1>

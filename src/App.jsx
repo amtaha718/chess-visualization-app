@@ -372,11 +372,11 @@ const App = () => {
     
     pathSquares.forEach((square, index) => {
       const intensity = (index / (pathSquares.length - 1)); // 0 to 1
-      const opacity = 0.3 + (intensity * 0.5); // 0.3 to 0.8
-      const blueIntensity = Math.round(100 + (intensity * 155)); // 100 to 255
+      const opacity = 0.6 + (intensity * 0.3); // 0.6 to 0.9 (darker)
+      const blueIntensity = Math.round(70 + (intensity * 185)); // 70 to 255 (darker start)
       
       highlights[square] = {
-        backgroundColor: `rgba(33, 150, ${blueIntensity}, ${opacity})`,
+        backgroundColor: `rgba(33, 100, ${blueIntensity}, ${opacity})`,
         transition: 'all 0.3s ease'
       };
     });

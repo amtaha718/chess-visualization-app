@@ -85,6 +85,7 @@ const SettingsDropdown = ({ isOpen, onClose, playSpeed, onSpeedChange, buttonRef
 
   return (
     <div 
+      onMouseLeave={onClose}
       style={{
         position: 'absolute',
         top: buttonRef.current ? buttonRef.current.offsetTop + buttonRef.current.offsetHeight + 5 : '50px',
@@ -115,8 +116,8 @@ const SettingsDropdown = ({ isOpen, onClose, playSpeed, onSpeedChange, buttonRef
           min="500"
           max="3000"
           step="250"
-          value={playSpeed}
-          onChange={(e) => onSpeedChange(Number(e.target.value))}
+          value={3500 - playSpeed} // Invert the value so left = slow, right = fast
+          onChange={(e) => onSpeedChange(3500 - Number(e.target.value))} // Invert back
           style={{
             width: '100%',
             height: '4px',
@@ -134,8 +135,8 @@ const SettingsDropdown = ({ isOpen, onClose, playSpeed, onSpeedChange, buttonRef
           color: '#666',
           marginTop: '4px'
         }}>
-          <span>Fast</span>
           <span>Slow</span>
+          <span>Fast</span>
         </div>
         
         <div style={{
@@ -426,30 +427,59 @@ const App = () => {
     const toRank = parseInt(to[1]);
     
     const path = [];
-    const dx = Math.sign(toFile - fromFile);
-    const dy = Math.sign(toRank - fromRank);
     
-    let currentFile = fromFile;
-    let currentRank = fromRank;
+    // Check if this is a knight move (L-shape: 2+1 or 1+2)
+    const fileDiff = Math.abs(toFile - fromFile);
+    const rankDiff = Math.abs(toRank - fromRank);
+    const isKnightMove = (fileDiff === 2 && rankDiff === 1) || (fileDiff === 1 && rankDiff === 2);
     
-    // Add starting square
-    path.push(from);
-    
-    // Add intermediate squares
-    while (currentFile !== toFile || currentRank !== toRank) {
-      if (currentFile !== toFile) currentFile += dx;
-      if (currentRank !== toRank) currentRank += dy;
+    if (isKnightMove) {
+      // Knight moves in L-shape: show the 4 squares (start, two intermediate, end)
+      path.push(from);
       
-      if (currentFile >= 0 && currentFile < 8 && currentRank >= 1 && currentRank <= 8) {
-        const square = files[currentFile] + currentRank;
-        if (square !== to) { // Don't add destination twice
-          path.push(square);
+      // Determine the L-shape path
+      if (fileDiff === 2) {
+        // Move 2 files first, then 1 rank
+        const midFile = fromFile + Math.sign(toFile - fromFile);
+        const midSquare1 = files[midFile] + fromRank;
+        const midSquare2 = files[toFile] + fromRank;
+        path.push(midSquare1, midSquare2);
+      } else {
+        // Move 1 file first, then 2 ranks
+        const midSquare1 = files[toFile] + fromRank;
+        const midRank = fromRank + Math.sign(toRank - fromRank);
+        const midSquare2 = files[toFile] + midRank;
+        path.push(midSquare1, midSquare2);
+      }
+      
+      path.push(to);
+    } else {
+      // Regular piece movement (straight lines, diagonals)
+      const dx = Math.sign(toFile - fromFile);
+      const dy = Math.sign(toRank - fromRank);
+      
+      let currentFile = fromFile;
+      let currentRank = fromRank;
+      
+      // Add starting square
+      path.push(from);
+      
+      // Add intermediate squares
+      while (currentFile !== toFile || currentRank !== toRank) {
+        if (currentFile !== toFile) currentFile += dx;
+        if (currentRank !== toRank) currentRank += dy;
+        
+        if (currentFile >= 0 && currentFile < 8 && currentRank >= 1 && currentRank <= 8) {
+          const square = files[currentFile] + currentRank;
+          if (square !== to) { // Don't add destination twice
+            path.push(square);
+          }
         }
       }
+      
+      // Add destination square
+      path.push(to);
     }
-    
-    // Add destination square
-    path.push(to);
     
     return path;
   };
@@ -471,8 +501,7 @@ const App = () => {
       
       highlights[square] = {
         backgroundColor: `rgb(${red}, ${green}, ${blue})`,
-        transition: 'all 0.3s ease',
-        border: '2px solid rgba(0, 100, 200, 0.4)' // Subtle blue border for definition
+        transition: 'all 0.3s ease'
       };
     });
     

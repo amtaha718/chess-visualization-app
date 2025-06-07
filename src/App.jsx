@@ -177,7 +177,7 @@ const FeedbackCard = ({ message, type = 'info' }) => {
       maxWidth: '600px',
       fontSize: '15px',
       fontWeight: '500',
-      textAlign: 'center',
+      textAlign: 'justify',
       boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
       lineHeight: '1.4'
     }}>
@@ -952,6 +952,7 @@ const App = () => {
       {/* Header Row with Logo and Profile */}
       <div style={{
         width: '100%',
+        maxWidth: '800px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',

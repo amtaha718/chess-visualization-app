@@ -1,4 +1,4 @@
-// src/App.jsx - Complete with Auto-Play and Icon Buttons
+// Settings// src/App.jsx - Complete with Auto-Play and Icon Buttons
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Chess } from 'chess.js';
@@ -79,137 +79,73 @@ const NextIcon = () => (
   </svg>
 );
 
-// Settings Modal Component
-const SettingsModal = ({ isOpen, onClose, playSpeed, onSpeedChange }) => {
+// Settings Dropdown Component
+const SettingsDropdown = ({ isOpen, onClose, playSpeed, onSpeedChange, buttonRef }) => {
   if (!isOpen) return null;
-
-  const speedOptions = [
-    { value: 500, label: 'Very Fast (0.5s)' },
-    { value: 1000, label: 'Fast (1s)' },
-    { value: 1500, label: 'Normal (1.5s)' },
-    { value: 2000, label: 'Slow (2s)' },
-    { value: 3000, label: 'Very Slow (3s)' }
-  ];
 
   return (
     <div 
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
       style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 1000
+        position: 'absolute',
+        top: buttonRef.current ? buttonRef.current.offsetTop + buttonRef.current.offsetHeight + 5 : '50px',
+        left: buttonRef.current ? buttonRef.current.offsetLeft : '50%',
+        transform: buttonRef.current ? 'none' : 'translateX(-50%)',
+        backgroundColor: 'white',
+        border: '1px solid #ddd',
+        borderRadius: '8px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        padding: '16px',
+        zIndex: 1000,
+        minWidth: '200px'
       }}
     >
-      <div style={{
-        backgroundColor: 'white',
-        padding: '2rem',
-        borderRadius: '12px',
-        boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-        width: '100%',
-        maxWidth: '400px',
-        margin: '1rem'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: '1.5rem'
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ 
+          display: 'block', 
+          marginBottom: '8px', 
+          fontWeight: 'bold',
+          fontSize: '14px',
+          color: '#333'
         }}>
-          <h2 style={{ margin: 0, color: '#333' }}>Settings</h2>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '1.5rem',
-              cursor: 'pointer',
-              color: '#666'
-            }}
-          >
-            ×
-          </button>
-        </div>
-
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ 
-            display: 'block', 
-            marginBottom: '1rem', 
-            fontWeight: 'bold',
-            color: '#333'
-          }}>
-            Sequence Speed
-          </label>
-          
-          <div style={{ marginBottom: '1rem' }}>
-            <input
-              type="range"
-              min="500"
-              max="3000"
-              step="250"
-              value={playSpeed}
-              onChange={(e) => onSpeedChange(Number(e.target.value))}
-              style={{
-                width: '100%',
-                height: '6px',
-                borderRadius: '3px',
-                background: '#ddd',
-                outline: 'none',
-                cursor: 'pointer'
-              }}
-            />
-          </div>
-          
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: '12px',
-            color: '#666',
-            marginBottom: '1rem'
-          }}>
-            <span>Very Fast</span>
-            <span>Very Slow</span>
-          </div>
-          
-          <div style={{
-            textAlign: 'center',
-            padding: '8px 16px',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            color: '#333'
-          }}>
-            Current: {playSpeed / 1000}s per move
-          </div>
-        </div>
-
-        <button
-          onClick={onClose}
+          Speed
+        </label>
+        
+        <input
+          type="range"
+          min="500"
+          max="3000"
+          step="250"
+          value={playSpeed}
+          onChange={(e) => onSpeedChange(Number(e.target.value))}
           style={{
             width: '100%',
-            padding: '12px',
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '16px',
-            fontWeight: 'bold',
+            height: '4px',
+            borderRadius: '2px',
+            background: '#ddd',
+            outline: 'none',
             cursor: 'pointer'
           }}
-        >
-          Done
-        </button>
+        />
+        
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          fontSize: '10px',
+          color: '#666',
+          marginTop: '4px'
+        }}>
+          <span>Fast</span>
+          <span>Slow</span>
+        </div>
+        
+        <div style={{
+          textAlign: 'center',
+          fontSize: '12px',
+          color: '#666',
+          marginTop: '8px'
+        }}>
+          {playSpeed / 1000}s per move
+        </div>
       </div>
     </div>
   );
@@ -304,6 +240,7 @@ const App = () => {
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [playSpeed, setPlaySpeed] = useState(1500); // 1.5 seconds between moves
   const [showSettings, setShowSettings] = useState(false);
+  const settingsButtonRef = useRef(null);
   const autoPlayRef = useRef(null);
   const internalGameRef = useRef(null);
 
@@ -441,6 +378,20 @@ const App = () => {
     }
   }, [puzzleLoadTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Close settings dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showSettings && settingsButtonRef.current && !settingsButtonRef.current.contains(event.target)) {
+        setShowSettings(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSettings]);
+
   // Update board size on resize
   useEffect(() => {
     const handleResize = () => setBoardSize(getBoardSize());
@@ -503,24 +454,7 @@ const App = () => {
     return path;
   };
 
-  // Helper function to get square coordinates for SVG overlay
-  const getSquareCoordinates = (square, boardSize, isFlipped = false) => {
-    let file = square.charCodeAt(0) - 'a'.charCodeAt(0);
-    let rank = 8 - parseInt(square[1], 10);
-    
-    if (isFlipped) {
-      file = 7 - file;
-      rank = 7 - rank;
-    }
-    
-    const squareSize = boardSize / 8;
-    return {
-      x: file * squareSize + squareSize / 2,
-      y: rank * squareSize + squareSize / 2
-    };
-  };
-
-  // Render move highlights with dots for path
+  // Render gradient path highlighting with yellow base
   const renderMoveHighlights = () => {
     if (!currentMove) return {};
     
@@ -529,58 +463,20 @@ const App = () => {
     const highlights = {};
     
     pathSquares.forEach((square, index) => {
-      if (index === 0) {
-        // Starting square - highlighted background
-        highlights[square] = {
-          backgroundColor: 'rgba(255, 193, 7, 0.7)', // Yellow/amber
-          transition: 'all 0.3s ease'
-        };
-      } else if (index === pathSquares.length - 1) {
-        // Ending square - highlighted background
-        highlights[square] = {
-          backgroundColor: 'rgba(76, 175, 80, 0.7)', // Green
-          transition: 'all 0.3s ease'
-        };
-      }
-      // Intermediate squares will be handled by SVG dots
+      const intensity = (index / (pathSquares.length - 1)); // 0 to 1
+      const opacity = 0.6 + (intensity * 0.3); // 0.6 to 0.9
+      // Yellow gradient: light yellow to dark yellow/orange
+      const red = Math.round(255 - (intensity * 50)); // 255 to 205
+      const green = Math.round(255 - (intensity * 100)); // 255 to 155
+      const blue = Math.round(0 + (intensity * 50)); // 0 to 50
+      
+      highlights[square] = {
+        backgroundColor: `rgba(${red}, ${green}, ${blue}, ${opacity})`,
+        transition: 'all 0.3s ease'
+      };
     });
     
     return highlights;
-  };
-
-  // Render SVG dots for movement path
-  const renderMovementDots = () => {
-    if (!currentMove) return null;
-    
-    const { from, to } = currentMove;
-    const pathSquares = getPathSquares(from, to);
-    const isFlipped = boardOrientation === 'black';
-    
-    // Get intermediate squares (exclude start and end)
-    const intermediateSquares = pathSquares.slice(1, -1);
-    
-    return (
-      <svg
-        width={boardSize}
-        height={boardSize}
-        style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 10 }}
-      >
-        {intermediateSquares.map((square, index) => {
-          const coords = getSquareCoordinates(square, boardSize, isFlipped);
-          return (
-            <circle
-              key={`${square}-${index}`}
-              cx={coords.x}
-              cy={coords.y}
-              r="8"
-              fill="rgba(33, 150, 243, 0.8)"
-              stroke="rgba(33, 150, 243, 1)"
-              strokeWidth="2"
-            />
-          );
-        })}
-      </svg>
-    );
   };
 
   // Reset puzzle function
@@ -1087,7 +983,6 @@ const App = () => {
           customDarkSquareStyle={{ backgroundColor: '#4caf50' }}
           customLightSquareStyle={{ backgroundColor: '#f1f1e6' }}
         />
-        {renderMovementDots()}
       </div>
 
       <FeedbackCard message={feedbackMessage} type={feedbackType} />
@@ -1125,15 +1020,26 @@ const App = () => {
         </button>
 
         {/* Settings Button */}
-        <button 
-          style={iconButtonStyle}
-          onClick={() => setShowSettings(true)}
-          title="Settings"
-          onMouseEnter={(e) => e.target.style.backgroundColor = '#e0e0e0'}
-          onMouseLeave={(e) => e.target.style.backgroundColor = '#f5f5f5'}
-        >
-          <GearIcon />
-        </button>
+        <div style={{ position: 'relative' }}>
+          <button 
+            ref={settingsButtonRef}
+            style={iconButtonStyle}
+            onClick={() => setShowSettings(!showSettings)}
+            title="Settings"
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#e0e0e0'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = '#f5f5f5'}
+          >
+            <GearIcon />
+          </button>
+          
+          <SettingsDropdown
+            isOpen={showSettings}
+            onClose={() => setShowSettings(false)}
+            playSpeed={playSpeed}
+            onSpeedChange={setPlaySpeed}
+            buttonRef={settingsButtonRef}
+          />
+        </div>
 
         {/* Hint Button */}
         <button 

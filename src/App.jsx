@@ -1077,13 +1077,6 @@ const App = () => {
         </button>
       </div>
 
-      <SettingsModal
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-        playSpeed={playSpeed}
-        onSpeedChange={setPlaySpeed}
-      />
-
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}

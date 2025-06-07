@@ -67,13 +67,153 @@ const RevealIcon = () => (
   </svg>
 );
 
+const GearIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="black">
+    <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5a3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97c0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1c0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/>
+  </svg>
+);
+
 const NextIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="black">
     <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
   </svg>
 );
 
-// UI Components
+// Settings Modal Component
+const SettingsModal = ({ isOpen, onClose, playSpeed, onSpeedChange }) => {
+  if (!isOpen) return null;
+
+  const speedOptions = [
+    { value: 500, label: 'Very Fast (0.5s)' },
+    { value: 1000, label: 'Fast (1s)' },
+    { value: 1500, label: 'Normal (1.5s)' },
+    { value: 2000, label: 'Slow (2s)' },
+    { value: 3000, label: 'Very Slow (3s)' }
+  ];
+
+  return (
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000
+      }}
+    >
+      <div style={{
+        backgroundColor: 'white',
+        padding: '2rem',
+        borderRadius: '12px',
+        boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+        width: '100%',
+        maxWidth: '400px',
+        margin: '1rem'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          marginBottom: '1.5rem'
+        }}>
+          <h2 style={{ margin: 0, color: '#333' }}>Settings</h2>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '1.5rem',
+              cursor: 'pointer',
+              color: '#666'
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '1rem', 
+            fontWeight: 'bold',
+            color: '#333'
+          }}>
+            Sequence Speed
+          </label>
+          
+          <div style={{ marginBottom: '1rem' }}>
+            <input
+              type="range"
+              min="500"
+              max="3000"
+              step="250"
+              value={playSpeed}
+              onChange={(e) => onSpeedChange(Number(e.target.value))}
+              style={{
+                width: '100%',
+                height: '6px',
+                borderRadius: '3px',
+                background: '#ddd',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            />
+          </div>
+          
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontSize: '12px',
+            color: '#666',
+            marginBottom: '1rem'
+          }}>
+            <span>Very Fast</span>
+            <span>Very Slow</span>
+          </div>
+          
+          <div style={{
+            textAlign: 'center',
+            padding: '8px 16px',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            color: '#333'
+          }}>
+            Current: {playSpeed / 1000}s per move
+          </div>
+        </div>
+
+        <button
+          onClick={onClose}
+          style={{
+            width: '100%',
+            padding: '12px',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            cursor: 'pointer'
+          }}
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  );
+};
 const FeedbackCard = ({ message, type = 'info' }) => {
   if (!message) return null;
   
@@ -162,7 +302,8 @@ const App = () => {
   const [feedbackType, setFeedbackType] = useState('info');
   const [puzzlePhase, setPuzzlePhase] = useState('ready'); // 'ready', 'watching', 'playing', 'complete'
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
-  const [playSpeed] = useState(1500); // 1.5 seconds between moves
+  const [playSpeed, setPlaySpeed] = useState(1500); // 1.5 seconds between moves
+  const [showSettings, setShowSettings] = useState(false);
   const autoPlayRef = useRef(null);
   const internalGameRef = useRef(null);
 
@@ -362,7 +503,24 @@ const App = () => {
     return path;
   };
 
-  // Render gradient path highlighting
+  // Helper function to get square coordinates for SVG overlay
+  const getSquareCoordinates = (square, boardSize, isFlipped = false) => {
+    let file = square.charCodeAt(0) - 'a'.charCodeAt(0);
+    let rank = 8 - parseInt(square[1], 10);
+    
+    if (isFlipped) {
+      file = 7 - file;
+      rank = 7 - rank;
+    }
+    
+    const squareSize = boardSize / 8;
+    return {
+      x: file * squareSize + squareSize / 2,
+      y: rank * squareSize + squareSize / 2
+    };
+  };
+
+  // Render move highlights with dots for path
   const renderMoveHighlights = () => {
     if (!currentMove) return {};
     
@@ -371,17 +529,58 @@ const App = () => {
     const highlights = {};
     
     pathSquares.forEach((square, index) => {
-      const intensity = (index / (pathSquares.length - 1)); // 0 to 1
-      const opacity = 0.6 + (intensity * 0.3); // 0.6 to 0.9 (darker)
-      const blueIntensity = Math.round(70 + (intensity * 185)); // 70 to 255 (darker start)
-      
-      highlights[square] = {
-        backgroundColor: `rgba(33, 100, ${blueIntensity}, ${opacity})`,
-        transition: 'all 0.3s ease'
-      };
+      if (index === 0) {
+        // Starting square - highlighted background
+        highlights[square] = {
+          backgroundColor: 'rgba(255, 193, 7, 0.7)', // Yellow/amber
+          transition: 'all 0.3s ease'
+        };
+      } else if (index === pathSquares.length - 1) {
+        // Ending square - highlighted background
+        highlights[square] = {
+          backgroundColor: 'rgba(76, 175, 80, 0.7)', // Green
+          transition: 'all 0.3s ease'
+        };
+      }
+      // Intermediate squares will be handled by SVG dots
     });
     
     return highlights;
+  };
+
+  // Render SVG dots for movement path
+  const renderMovementDots = () => {
+    if (!currentMove) return null;
+    
+    const { from, to } = currentMove;
+    const pathSquares = getPathSquares(from, to);
+    const isFlipped = boardOrientation === 'black';
+    
+    // Get intermediate squares (exclude start and end)
+    const intermediateSquares = pathSquares.slice(1, -1);
+    
+    return (
+      <svg
+        width={boardSize}
+        height={boardSize}
+        style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 10 }}
+      >
+        {intermediateSquares.map((square, index) => {
+          const coords = getSquareCoordinates(square, boardSize, isFlipped);
+          return (
+            <circle
+              key={`${square}-${index}`}
+              cx={coords.x}
+              cy={coords.y}
+              r="8"
+              fill="rgba(33, 150, 243, 0.8)"
+              stroke="rgba(33, 150, 243, 1)"
+              strokeWidth="2"
+            />
+          );
+        })}
+      </svg>
+    );
   };
 
   // Reset puzzle function
@@ -888,6 +1087,7 @@ const App = () => {
           customDarkSquareStyle={{ backgroundColor: '#4caf50' }}
           customLightSquareStyle={{ backgroundColor: '#f1f1e6' }}
         />
+        {renderMovementDots()}
       </div>
 
       <FeedbackCard message={feedbackMessage} type={feedbackType} />
@@ -922,6 +1122,17 @@ const App = () => {
           onMouseLeave={(e) => e.target.style.backgroundColor = '#f5f5f5'}
         >
           <PlayIcon isPlaying={isAutoPlaying} />
+        </button>
+
+        {/* Settings Button */}
+        <button 
+          style={iconButtonStyle}
+          onClick={() => setShowSettings(true)}
+          title="Settings"
+          onMouseEnter={(e) => e.target.style.backgroundColor = '#e0e0e0'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = '#f5f5f5'}
+        >
+          <GearIcon />
         </button>
 
         {/* Hint Button */}
@@ -959,6 +1170,13 @@ const App = () => {
           <NextIcon />
         </button>
       </div>
+
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        playSpeed={playSpeed}
+        onSpeedChange={setPlaySpeed}
+      />
 
       <AuthModal
         isOpen={showAuthModal}

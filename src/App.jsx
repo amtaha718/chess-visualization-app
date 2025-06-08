@@ -245,7 +245,7 @@ const App = () => {
   const [feedbackType, setFeedbackType] = useState('info');
   const [puzzlePhase, setPuzzlePhase] = useState('ready'); // 'ready', 'watching', 'playing', 'complete'
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
-  const [playSpeed, setPlaySpeed] = useState(1500); // 1.5 seconds between moves
+  const [playSpeed, setPlaySpeed] = useState(2250); // 2.25 seconds between moves
   const [showSettings, setShowSettings] = useState(false);
   const settingsButtonRef = useRef(null);
   const autoPlayRef = useRef(null);

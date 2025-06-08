@@ -490,28 +490,79 @@ const App = () => {
     return path;
   };
 
-  // Render gradient path highlighting with blue shades
-  const renderMoveHighlights = () => {
-    if (!currentMove) return {};
+  // Render SVG arrow for move visualization
+  const renderMoveArrow = () => {
+    if (!currentMove) return null;
     
     const { from, to } = currentMove;
-    const pathSquares = getPathSquares(from, to);
-    const highlights = {};
     
-    pathSquares.forEach((square, index) => {
-      const intensity = (index / (pathSquares.length - 1)); // 0 to 1
-      // Blue gradient: light blue to deep blue - no opacity, pure color shades
-      const red = Math.round(173 - (intensity * 100)); // 173 to 73 (light blue to deep blue)
-      const green = Math.round(216 - (intensity * 150)); // 216 to 66
-      const blue = Math.round(230 - (intensity * 50)); // 230 to 180 (keeps blue dominant)
-      
-      highlights[square] = {
-        backgroundColor: `rgb(${red}, ${green}, ${blue})`,
-        transition: 'all 0.3s ease'
-      };
-    });
+    // Calculate arrow positions
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const fromFile = files.indexOf(from[0]);
+    const fromRank = parseInt(from[1]);
+    const toFile = files.indexOf(to[0]);
+    const toRank = parseInt(to[1]);
     
-    return highlights;
+    // Convert to pixel coordinates (assuming standard 8x8 grid)
+    const squareSize = boardSize / 8;
+    const fromX = (boardOrientation === 'white' ? fromFile : 7 - fromFile) * squareSize + squareSize / 2;
+    const fromY = (boardOrientation === 'white' ? 8 - fromRank : fromRank - 1) * squareSize + squareSize / 2;
+    const toX = (boardOrientation === 'white' ? toFile : 7 - toFile) * squareSize + squareSize / 2;
+    const toY = (boardOrientation === 'white' ? 8 - toRank : toRank - 1) * squareSize + squareSize / 2;
+    
+    // Calculate arrow angle and length
+    const deltaX = toX - fromX;
+    const deltaY = toY - fromY;
+    const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+    const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: boardSize,
+          height: boardSize,
+          pointerEvents: 'none',
+          zIndex: 10
+        }}
+      >
+        <svg
+          width={boardSize}
+          height={boardSize}
+          style={{ position: 'absolute', top: 0, left: 0 }}
+        >
+          <defs>
+            <marker
+              id="arrowhead"
+              markerWidth="12"
+              markerHeight="8"
+              refX="11"
+              refY="4"
+              orient="auto"
+            >
+              <polygon
+                points="0 0, 12 4, 0 8"
+                fill="#2196F3"
+                stroke="#1976D2"
+                strokeWidth="1"
+              />
+            </marker>
+          </defs>
+          <line
+            x1={fromX}
+            y1={fromY}
+            x2={toX}
+            y2={toY}
+            stroke="#2196F3"
+            strokeWidth="4"
+            markerEnd="url(#arrowhead)"
+            strokeLinecap="round"
+          />
+        </svg>
+      </div>
+    );
   };
 
   // Reset puzzle function
@@ -1057,13 +1108,11 @@ const App = () => {
           boardWidth={boardSize}
           boardOrientation={boardOrientation}
           arePiecesDraggable={false}
-          customSquareStyles={{
-            ...highlightedSquares,
-            ...renderMoveHighlights()
-          }}
+          customSquareStyles={highlightedSquares}
           customDarkSquareStyle={{ backgroundColor: '#4caf50' }}
           customLightSquareStyle={{ backgroundColor: '#f1f1e6' }}
         />
+        {renderMoveArrow()}
       </div>
 
       {/* Icon Button Controls */}

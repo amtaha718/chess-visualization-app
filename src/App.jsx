@@ -605,7 +605,7 @@ const App = () => {
     setIsUserTurnToMove(false);
     setIsAutoPlaying(false);
     setPuzzlePhase('ready');
-    setFeedbackMessage('Watch the first 3 moves, then find the best 4th move!');
+    setFeedbackMessage('Click the play button to watch the first 3 moves!');
     setFeedbackType('info');
     
     // Reset puzzle tracking
@@ -642,7 +642,7 @@ const App = () => {
     setIsAutoPlaying(true);
     setPuzzlePhase('watching');
     setPuzzleStartTime(Date.now());
-    setFeedbackMessage('Watch carefully... memorize these moves!');
+    setFeedbackMessage('Watch carefully and memorize these moves!');
     setFeedbackType('warning');
     
     // Start the sequence
@@ -696,7 +696,7 @@ const App = () => {
     internalGameRef.current = game;
     setCurrentMove(null); // Clear highlighting
     setIsUserTurnToMove(true);
-    setFeedbackMessage(`Your turn! Find the best move 4.`);
+    setFeedbackMessage('Your turn! What\'s the best 4th move?');
     setFeedbackType('info');
   };
 
@@ -1117,9 +1117,21 @@ const App = () => {
       />
 
       <FeedbackCard 
-        message={userPlayingAs ? `Playing as ${userPlayingAs === 'white' ? 'White' : 'Black'}. ${feedbackMessage}` : feedbackMessage} 
+        message={feedbackMessage}
         type={feedbackType} 
       />
+
+      {userPlayingAs && (
+        <p style={{ 
+          fontWeight: 'bold', 
+          margin: '5px 0 15px 0',
+          color: userPlayingAs === 'white' ? '#333' : '#000',
+          fontSize: '14px',
+          textAlign: 'center'
+        }}>
+          Playing as {userPlayingAs === 'white' ? 'White' : 'Black'}
+        </p>
+      )}
 
       <div style={{ position: 'relative', width: boardSize, height: boardSize }}>
         <Chessboard

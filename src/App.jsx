@@ -696,7 +696,7 @@ const App = () => {
     internalGameRef.current = game;
     setCurrentMove(null); // Clear highlighting
     setIsUserTurnToMove(true);
-    setFeedbackMessage(`Your turn! Find the best move 4 as ${userPlayingAs === 'white' ? 'White' : 'Black'}.`);
+    setFeedbackMessage(`Your turn! Find the best move 4.`);
     setFeedbackType('info');
   };
 

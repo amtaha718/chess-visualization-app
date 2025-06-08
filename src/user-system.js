@@ -274,9 +274,9 @@ class UserSystem {
     }
   }
 
-  // ===== PUZZLE ATTEMPTS (Keep existing implementation) =====
+  // ===== PUZZLE ATTEMPTS WITH RATING PROTECTION =====
   
-  async recordPuzzleAttempt(puzzleId, solved, timeTaken, movesTried = []) {
+  async recordPuzzleAttempt(puzzleId, solved, timeTaken, movesTried = [], shouldChangeRating = true) {
     try {
       const user = await this.getCurrentUser();
       console.log('🔍 Debug recordPuzzleAttempt:');
@@ -284,6 +284,7 @@ class UserSystem {
       console.log('- User ID:', user?.id);
       console.log('- Puzzle ID:', puzzleId);
       console.log('- Solved:', solved);
+      console.log('- Should change rating:', shouldChangeRating);
       
       if (!user) {
         console.log('❌ No user found - not recording attempt');
@@ -294,18 +295,31 @@ class UserSystem {
       const ratingBefore = profile?.current_rating || 1200;
       console.log('- Rating before:', ratingBefore);
 
-      // Calculate rating change
-      const ratingChange = this.calculateRatingChange(solved, ratingBefore);
-      const newRating = ratingBefore + ratingChange;
+      let ratingChange = 0;
+      let newRating = ratingBefore;
 
-      // Update user's rating in profile
-      await this.updateUserProfile({
-        current_rating: newRating,
-        puzzles_attempted: (profile?.puzzles_attempted || 0) + 1,
-        puzzles_solved: (profile?.puzzles_solved || 0) + (solved ? 1 : 0)
-      });
+      // Only calculate rating change if shouldChangeRating is true
+      if (shouldChangeRating) {
+        ratingChange = this.calculateRatingChange(solved, ratingBefore);
+        newRating = ratingBefore + ratingChange;
 
-      console.log(`✅ Rating updated: ${ratingBefore} → ${newRating} (${ratingChange >= 0 ? '+' : ''}${ratingChange})`);
+        // Update user's rating in profile
+        await this.updateUserProfile({
+          current_rating: newRating,
+          puzzles_attempted: (profile?.puzzles_attempted || 0) + 1,
+          puzzles_solved: (profile?.puzzles_solved || 0) + (solved ? 1 : 0)
+        });
+
+        console.log(`✅ Rating updated: ${ratingBefore} → ${newRating} (${ratingChange >= 0 ? '+' : ''}${ratingChange})`);
+      } else {
+        // Still update attempt count and solved count, but not rating
+        await this.updateUserProfile({
+          puzzles_attempted: (profile?.puzzles_attempted || 0) + 1,
+          puzzles_solved: (profile?.puzzles_solved || 0) + (solved ? 1 : 0)
+        });
+
+        console.log(`📊 Stats updated (no rating change): attempts +1, solved +${solved ? 1 : 0}`);
+      }
       
       return {
         newRating,

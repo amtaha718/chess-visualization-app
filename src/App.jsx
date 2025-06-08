@@ -787,12 +787,6 @@ const App = () => {
           
           if (shouldChangeRating && result.ratingChange !== 0) {
             feedbackText += ` Rating: ${result.newRating} (${result.ratingChange >= 0 ? '+' : ''}${result.ratingChange})`;
-          } else if (!shouldChangeRating) {
-            if (puzzleAttempted) {
-              feedbackText += ' (No rating change - puzzle already attempted)';
-            } else if (hintUsed) {
-              feedbackText += ' (No rating change - hint was used)';
-            }
           }
           
           setFeedbackMessage(feedbackText);

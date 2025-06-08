@@ -696,7 +696,7 @@ const App = () => {
     internalGameRef.current = game;
     setCurrentMove(null); // Clear highlighting
     setIsUserTurnToMove(true);
-    setFeedbackMessage('Your turn! What\'s the best 4th move?');
+    setFeedbackMessage('Recall the position after 3 moves and play the best 4th move!');
     setFeedbackType('info');
   };
 

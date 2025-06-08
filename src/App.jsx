@@ -261,6 +261,10 @@ const App = () => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [puzzleStartTime, setPuzzleStartTime] = useState(null);
   
+  // PUZZLE ATTEMPT TRACKING
+  const [puzzleAttempted, setPuzzleAttempted] = useState(false); // Has user tried this puzzle before?
+  const [hintUsed, setHintUsed] = useState(false); // Has user used hint on this puzzle?
+  
   // LOADING STATES
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPuzzles, setIsLoadingPuzzles] = useState(false);
@@ -604,6 +608,10 @@ const App = () => {
     setFeedbackMessage('Watch the first 3 moves, then find the best 4th move!');
     setFeedbackType('info');
     
+    // Reset puzzle tracking
+    setPuzzleAttempted(false);
+    setHintUsed(false);
+    
     // Clear any running timers
     if (autoPlayRef.current) {
       clearTimeout(autoPlayRef.current);
@@ -748,14 +756,21 @@ const App = () => {
     const solved = userGuess === correctMove;
     const currentPuzzle = puzzles[currentPuzzleIndex];
 
+    // Mark that user has attempted this puzzle
+    setPuzzleAttempted(true);
+
     // Record attempt if user is logged in
     if (user && currentPuzzle.id) {
       try {
+        // Determine if rating should change
+        const shouldChangeRating = !puzzleAttempted && !hintUsed;
+        
         const result = await userSystem.recordPuzzleAttempt(
           currentPuzzle.id,
           solved,
           timeTaken,
-          [userGuess]
+          [userGuess],
+          shouldChangeRating // Pass flag to indicate if rating should change
         );
         
         if (result) {
@@ -768,18 +783,20 @@ const App = () => {
             }
           }, 500);
           
-          const ratingText = result.ratingChange !== 0 ? 
-            ` Rating: ${result.newRating} (${result.ratingChange >= 0 ? '+' : ''}${result.ratingChange})` : 
-            '';
+          let feedbackText = solved ? 'Correct!' : 'Incorrect.';
           
-          if (solved) {
-            const aiExplanation = await getCorrectMoveExplanation(currentPuzzle, userSystem, userPlayingAs);
-            setFeedbackMessage(`Correct!${ratingText}`);
-            setFeedbackType('success');
-          } else {
-            setFeedbackMessage(`Incorrect.${ratingText}`);
-            setFeedbackType('error');
+          if (shouldChangeRating && result.ratingChange !== 0) {
+            feedbackText += ` Rating: ${result.newRating} (${result.ratingChange >= 0 ? '+' : ''}${result.ratingChange})`;
+          } else if (!shouldChangeRating) {
+            if (puzzleAttempted) {
+              feedbackText += ' (No rating change - puzzle already attempted)';
+            } else if (hintUsed) {
+              feedbackText += ' (No rating change - hint was used)';
+            }
           }
+          
+          setFeedbackMessage(feedbackText);
+          setFeedbackType(solved ? 'success' : 'error');
         }
       } catch (error) {
         console.error('Failed to record attempt:', error);
@@ -867,7 +884,10 @@ const App = () => {
     const correctMove = puzzle.moves[3];
     const from = correctMove.slice(0, 2);
     
-    setFeedbackMessage(`Hint: Look at the piece on ${from.toUpperCase()}`);
+    // Mark that hint was used
+    setHintUsed(true);
+    
+    setFeedbackMessage(`Hint: Look at the piece on ${from.toUpperCase()} (Note: Using hints prevents rating increases)`);
     setFeedbackType('warning');
     
     // Briefly highlight the piece that should move

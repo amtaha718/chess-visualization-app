@@ -536,14 +536,14 @@ const App = () => {
           <defs>
             <marker
               id="arrowhead"
-              markerWidth="12"
-              markerHeight="8"
-              refX="11"
-              refY="4"
+              markerWidth="8.4"
+              markerHeight="5.6"
+              refX="7.7"
+              refY="2.8"
               orient="auto"
             >
               <polygon
-                points="0 0, 12 4, 0 8"
+                points="0 0, 8.4 2.8, 0 5.6"
                 fill="#2196F3"
                 stroke="#1976D2"
                 strokeWidth="1"

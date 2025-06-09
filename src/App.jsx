@@ -1,4 +1,9 @@
-// Settings// src/App.jsx - Complete with Auto-Play and Icon Buttons
+// Helper function to get ordinal suffix (4th, 6th, 8th)
+  const getOrdinalSuffix = (num) => {
+    const suffixes = ['th', 'st', 'nd', 'rd'];
+    const v = num % 100;
+    return suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0];
+  };// Settings// src/App.jsx - Complete with Auto-Play and Icon Buttons
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Chess } from 'chess.js';
@@ -80,7 +85,7 @@ const NextIcon = () => (
 );
 
 // Settings Dropdown Component
-const SettingsDropdown = ({ isOpen, onClose, playSpeed, onSpeedChange, buttonRef }) => {
+const SettingsDropdown = ({ isOpen, onClose, playSpeed, onSpeedChange, sequenceLength, onSequenceLengthChange, buttonRef }) => {
   if (!isOpen) return null;
 
   return (
@@ -96,10 +101,11 @@ const SettingsDropdown = ({ isOpen, onClose, playSpeed, onSpeedChange, buttonRef
         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
         padding: '16px',
         zIndex: 1000,
-        minWidth: '200px'
+        minWidth: '220px'
       }}
     >
-      <div style={{ marginBottom: '12px' }}>
+      {/* Speed Setting */}
+      <div style={{ marginBottom: '16px' }}>
         <label style={{ 
           display: 'block', 
           marginBottom: '8px', 
@@ -148,6 +154,59 @@ const SettingsDropdown = ({ isOpen, onClose, playSpeed, onSpeedChange, buttonRef
           marginTop: '8px'
         }}>
           {playSpeed / 1000}s per move
+        </div>
+      </div>
+
+      {/* Sequence Length Setting */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ 
+          display: 'block', 
+          marginBottom: '8px', 
+          fontWeight: 'bold',
+          fontSize: '14px',
+          color: '#333'
+        }}>
+          Sequence Moves
+        </label>
+        
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          justifyContent: 'center'
+        }}>
+          {[4, 6, 8].map(length => (
+            <button
+              key={length}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSequenceLengthChange(length);
+              }}
+              style={{
+                padding: '6px 12px',
+                border: '2px solid',
+                borderColor: sequenceLength === length ? '#4CAF50' : '#ddd',
+                backgroundColor: sequenceLength === length ? '#4CAF50' : 'white',
+                color: sequenceLength === length ? 'white' : '#333',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: sequenceLength === length ? 'bold' : 'normal',
+                transition: 'all 0.2s ease',
+                minWidth: '36px'
+              }}
+            >
+              {length}
+            </button>
+          ))}
+        </div>
+        
+        <div style={{
+          textAlign: 'center',
+          fontSize: '11px',
+          color: '#666',
+          marginTop: '6px'
+        }}>
+          Watch {sequenceLength - 1} moves, play move {sequenceLength}
         </div>
       </div>
     </div>
@@ -246,6 +305,7 @@ const App = () => {
   const [puzzlePhase, setPuzzlePhase] = useState('ready'); // 'ready', 'watching', 'playing', 'complete'
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [playSpeed, setPlaySpeed] = useState(2250); // 2.25 seconds between moves
+  const [sequenceLength, setSequenceLength] = useState(4); // Number of moves in sequence
   const [showSettings, setShowSettings] = useState(false);
   const settingsButtonRef = useRef(null);
   const autoPlayRef = useRef(null);
@@ -349,16 +409,16 @@ const App = () => {
       return;
     }
 
-    console.log('🐟 Loading puzzles:', selectedDifficulty, 'for user:', user?.id || 'guest');
+    console.log('🐟 Loading puzzles:', selectedDifficulty, `${sequenceLength}-move`, 'for user:', user?.id || 'guest');
     setIsLoadingPuzzles(true);
     
     try {
       let fetchedPuzzles = [];
       
       if (user) {
-        fetchedPuzzles = await userSystem.getPuzzlesForUser(selectedDifficulty, 50);
+        fetchedPuzzles = await userSystem.getPuzzlesForUser(selectedDifficulty, 50, sequenceLength);
       } else {
-        fetchedPuzzles = await userSystem.getPublicPuzzles(selectedDifficulty, 25);
+        fetchedPuzzles = await userSystem.getPublicPuzzles(selectedDifficulty, 25, sequenceLength);
       }
       
       console.log('📦 Received puzzles:', fetchedPuzzles.length);
@@ -366,9 +426,9 @@ const App = () => {
       if (fetchedPuzzles.length > 0) {
         setPuzzles(fetchedPuzzles);
         setCurrentPuzzleIndex(0);
-        console.log(`✅ Ready! ${selectedDifficulty} puzzles loaded`);
+        console.log(`✅ Ready! ${selectedDifficulty} ${sequenceLength}-move puzzles loaded`);
       } else {
-        setFeedbackMessage(`Failed to load ${selectedDifficulty} puzzles.`);
+        setFeedbackMessage(`Failed to load ${selectedDifficulty} ${sequenceLength}-move puzzles.`);
         setFeedbackType('error');
       }
       
@@ -379,10 +439,10 @@ const App = () => {
     } finally {
       setIsLoadingPuzzles(false);
     }
-  }, [isLoadingAuth, user, userSystem, selectedDifficulty, isLoadingPuzzles]);
+  }, [isLoadingAuth, user, userSystem, selectedDifficulty, sequenceLength, isLoadingPuzzles]);
 
   // Trigger puzzle loading
-  const puzzleLoadTrigger = `${!isLoadingAuth}-${user?.id || 'guest'}-${selectedDifficulty}`;
+  const puzzleLoadTrigger = `${!isLoadingAuth}-${user?.id || 'guest'}-${selectedDifficulty}-${sequenceLength}`;
   useEffect(() => {
     if (!isLoadingAuth) {
       loadPuzzles();
@@ -412,14 +472,14 @@ const App = () => {
 
   // Helper function to validate puzzle data
   const validatePuzzle = (puzzle) => {
-    if (!puzzle.moves || puzzle.moves.length !== 4) {
-      console.warn('Puzzle does not have exactly 4 moves:', puzzle);
+    if (!puzzle.moves || puzzle.moves.length !== sequenceLength) {
+      console.warn(`Puzzle does not have exactly ${sequenceLength} moves:`, puzzle);
       return false;
     }
     
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < sequenceLength; i++) {
       const move = puzzle.moves[i];
-      if (!move || move.length !== 4) {
+      if (!move || move.length < 4) {
         console.warn(`Invalid move format at index ${i}:`, move);
         return false;
       }
@@ -586,11 +646,11 @@ const App = () => {
 
     const game = new Chess(puzzle.fen);
     
-    // Determine who plays move 4
+    // Determine who plays the final move
     const tempGame = new Chess(puzzle.fen);
-    tempGame.move({ from: puzzle.moves[0].slice(0, 2), to: puzzle.moves[0].slice(2, 4) });
-    tempGame.move({ from: puzzle.moves[1].slice(0, 2), to: puzzle.moves[1].slice(2, 4) });
-    tempGame.move({ from: puzzle.moves[2].slice(0, 2), to: puzzle.moves[2].slice(2, 4) });
+    for (let i = 0; i < sequenceLength - 1; i++) {
+      tempGame.move({ from: puzzle.moves[i].slice(0, 2), to: puzzle.moves[i].slice(2, 4) });
+    }
     
     const userPlaysAs = tempGame.turn() === 'w' ? 'white' : 'black';
     setUserPlayingAs(userPlaysAs);
@@ -605,7 +665,7 @@ const App = () => {
     setIsUserTurnToMove(false);
     setIsAutoPlaying(false);
     setPuzzlePhase('ready');
-    setFeedbackMessage('Click the play button to watch the first 3 moves!');
+    setFeedbackMessage(`Click the play button to watch the first ${sequenceLength - 1} moves!`);
     setFeedbackType('info');
     
     // Reset puzzle tracking
@@ -650,8 +710,8 @@ const App = () => {
   };
 
   const playMoveSequence = (moveIndex) => {
-    if (moveIndex >= 3) {
-      // After move 3, set up for user's turn
+    if (moveIndex >= sequenceLength - 1) {
+      // After all setup moves, set up for user's turn
       setupUserTurn();
       return;
     }
@@ -661,7 +721,7 @@ const App = () => {
     const from = move.slice(0, 2);
     const to = move.slice(2, 4);
 
-    // Show move with gradient highlighting
+    // Show move with arrow highlighting
     setCurrentMove({ from, to });
     setCurrentMoveIndex(moveIndex + 1);
 
@@ -675,28 +735,27 @@ const App = () => {
     setIsAutoPlaying(false);
     setPuzzlePhase('playing');
     
-    // Apply first 3 moves to the game state
+    // Apply all setup moves to the game state
     const puzzle = puzzles[currentPuzzleIndex];
     const game = new Chess(puzzle.fen);
     
-    const move1 = puzzle.moves[0];
-    const move2 = puzzle.moves[1];
-    const move3 = puzzle.moves[2];
-
-    const moveResult1 = game.move({ from: move1.slice(0, 2), to: move1.slice(2, 4) });
-    const moveResult2 = game.move({ from: move2.slice(0, 2), to: move2.slice(2, 4) });
-    const moveResult3 = game.move({ from: move3.slice(0, 2), to: move3.slice(2, 4) });
-
-    if (!moveResult1 || !moveResult2 || !moveResult3) {
-      setFeedbackMessage('This puzzle contains invalid moves. Please try another.');
-      setFeedbackType('error');
-      return;
+    const setupMoves = puzzle.moves.slice(0, sequenceLength - 1);
+    
+    for (let i = 0; i < setupMoves.length; i++) {
+      const move = setupMoves[i];
+      const moveResult = game.move({ from: move.slice(0, 2), to: move.slice(2, 4) });
+      
+      if (!moveResult) {
+        setFeedbackMessage('This puzzle contains invalid moves. Please try another.');
+        setFeedbackType('error');
+        return;
+      }
     }
 
     internalGameRef.current = game;
     setCurrentMove(null); // Clear highlighting
     setIsUserTurnToMove(true);
-    setFeedbackMessage('Recall the position after 3 moves and play the best 4th move!');
+    setFeedbackMessage(`Recall the position after ${sequenceLength - 1} moves and play the best ${sequenceLength}${getOrdinalSuffix(sequenceLength)} move!`);
     setFeedbackType('info');
   };
 
@@ -721,7 +780,7 @@ const App = () => {
       const from = selectedSquares[0];
       const to = square;
       const userGuess = from + to;
-      const correctMove = puzzles[currentPuzzleIndex].moves[3];
+      const correctMove = puzzles[currentPuzzleIndex].moves[sequenceLength - 1];
 
       setHighlightedSquares({
         [from]: { backgroundColor: 'rgba(173, 216, 230, 0.6)' },
@@ -805,8 +864,8 @@ const App = () => {
       }
     }
 
-    // Play all 4 moves for visualization
-    playFullSequence([...currentPuzzle.moves.slice(0, 3), userGuess]);
+    // Play all moves for visualization
+    playFullSequence([...currentPuzzle.moves.slice(0, sequenceLength - 1), userGuess]);
 
     if (!solved) {
       try {
@@ -857,17 +916,17 @@ const App = () => {
     setFeedbackMessage('Revealing solution...');
     setFeedbackType('info');
     
-    // Play all 4 moves
+    // Play all moves
     playFullSequence(puzzle.moves);
 
     // Show explanation after sequence
     setTimeout(async () => {
       try {
         const explanation = await getCorrectMoveExplanation(puzzle, userSystem, userPlayingAs);
-        setFeedbackMessage(`The solution is ${puzzle.moves[3]}.`);
+        setFeedbackMessage(`The solution is ${puzzle.moves[sequenceLength - 1]}.`);
         setFeedbackType('info');
       } catch (error) {
-        setFeedbackMessage(`The solution is ${puzzle.moves[3]}.`);
+        setFeedbackMessage(`The solution is ${puzzle.moves[sequenceLength - 1]}.`);
         setFeedbackType('info');
       }
     }, puzzle.moves.length * 1000 + 300);
@@ -875,7 +934,7 @@ const App = () => {
 
   const handleHint = () => {
     const puzzle = puzzles[currentPuzzleIndex];
-    const correctMove = puzzle.moves[3];
+    const correctMove = puzzle.moves[sequenceLength - 1];
     const from = correctMove.slice(0, 2);
     
     // Mark that hint was used
@@ -1185,6 +1244,8 @@ const App = () => {
             onClose={() => setShowSettings(false)}
             playSpeed={playSpeed}
             onSpeedChange={setPlaySpeed}
+            sequenceLength={sequenceLength}
+            onSequenceLengthChange={setSequenceLength}
             buttonRef={settingsButtonRef}
           />
         </div>

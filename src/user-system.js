@@ -131,16 +131,17 @@ class UserSystem {
 
   // ===== PUZZLE FETCHING FROM DATABASE =====
   
-  async getPuzzlesForUser(difficulty = 'intermediate', limit = 50) {
+  async getPuzzlesForUser(difficulty = 'intermediate', limit = 50, sequenceLength = 4) {
     try {
       const user = await this.getCurrentUser();
       
       console.log('🎯 Fetching puzzles from database for user:', user?.id || 'guest');
       console.log('- Difficulty:', difficulty);
+      console.log('- Sequence Length:', sequenceLength);
       console.log('- Requested:', limit);
       
       // Fetch puzzles from database
-      const puzzles = await this.fetchPuzzlesFromDatabase(difficulty, limit, user?.id);
+      const puzzles = await this.fetchPuzzlesFromDatabase(difficulty, limit, user?.id, sequenceLength);
       
       if (user && puzzles.length > 0) {
         // Add user progress tracking for logged-in users
@@ -162,12 +163,12 @@ class UserSystem {
     }
   }
 
-  async getPublicPuzzles(difficulty = 'intermediate', limit = 25) {
+  async getPublicPuzzles(difficulty = 'intermediate', limit = 25, sequenceLength = 4) {
     // For guest users, fetch from database
-    return this.fetchPuzzlesFromDatabase(difficulty, limit);
+    return this.fetchPuzzlesFromDatabase(difficulty, limit, null, sequenceLength);
   }
 
-  async fetchPuzzlesFromDatabase(difficulty, limit, userId = null) {
+  async fetchPuzzlesFromDatabase(difficulty, limit, userId = null, sequenceLength = 4) {
     try {
       console.log(`📚 Fetching puzzles from database`);
       
@@ -188,7 +189,7 @@ class UserSystem {
         .gte('rating', range.min)
         .lte('rating', range.max)
         .eq('is_validated', true)
-        .eq('move_count', 4);
+        .eq('move_count', sequenceLength);
       
       // Get puzzles
       const { data: puzzles, error } = await query;
@@ -198,10 +199,10 @@ class UserSystem {
         throw error;
       }
       
-      console.log(`📦 Found ${puzzles?.length || 0} puzzles in database`);
+      console.log(`📦 Found ${puzzles?.length || 0} puzzles in database for ${sequenceLength}-move sequences`);
       
       if (!puzzles || puzzles.length === 0) {
-        console.warn('⚠️ No puzzles found for difficulty:', difficulty);
+        console.warn(`⚠️ No ${sequenceLength}-move puzzles found for difficulty:`, difficulty);
         return [];
       }
       

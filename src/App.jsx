@@ -3,9 +3,7 @@
     const suffixes = ['th', 'st', 'nd', 'rd'];
     const v = num % 100;
     return suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0];
-  };// Settings// src/App.jsx - Complete with Auto-Play and Icon Buttons
-
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+  };import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { getIncorrectMoveExplanation, getCorrectMoveExplanation } from './ai';

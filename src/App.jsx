@@ -340,7 +340,7 @@ const SettingsContainer = ({
           color: '#333',
           cursor: 'pointer'
         }}>
-          ⚙️ Settings
+          Settings
         </label>
         
         <CollapseIcon isCollapsed={isCollapsed} />
@@ -357,7 +357,7 @@ const SettingsContainer = ({
               fontSize: '13px',
               color: '#333'
             }}>
-              🏆 Difficulty Level
+              Difficulty Level
             </label>
             
             <div style={{
@@ -412,7 +412,7 @@ const SettingsContainer = ({
                 fontSize: '13px',
                 color: '#333'
               }}>
-                🎯 Puzzle Themes
+                Puzzle Themes
               </label>
               
               <div style={{
@@ -764,6 +764,9 @@ const App = () => {
   // BOARD ORIENTATION STATE
   const [boardOrientation, setBoardOrientation] = useState('white');
   const [userPlayingAs, setUserPlayingAs] = useState('white');
+
+  // Add state for settings collapse
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Save session data when things change
   useEffect(() => {
@@ -1609,6 +1612,315 @@ const App = () => {
         moves play out, then use your recall skills to find the best fourth move
         without any visual aids.
       </p>
+
+      {/* Settings and Playing Color Row */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: boardSize,
+        marginBottom: '15px'
+      }}>
+        {/* Settings Toggle Button */}
+        <div 
+          style={{
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '8px',
+            border: '1px solid #e9ecef'
+          }}
+          onClick={() => setIsCollapsed(!isCollapsed)}
+        >
+          <label style={{
+            fontSize: '14px',
+            fontWeight: 'bold',
+            color: '#333',
+            cursor: 'pointer'
+          }}>
+            Settings
+          </label>
+          <CollapseIcon isCollapsed={isCollapsed} />
+        </div>
+
+        {/* Playing As Info */}
+        {userPlayingAs && (
+          <p style={{ 
+            fontWeight: 'bold', 
+            margin: 0,
+            color: userPlayingAs === 'white' ? '#333' : '#000',
+            fontSize: '14px'
+          }}>
+            Playing as {userPlayingAs === 'white' ? 'White' : 'Black'}
+          </p>
+        )}
+      </div>
+
+      {/* Settings Container - Now without header */}
+      {!isCollapsed && (
+        <div style={{
+          margin: '0 0 15px 0',
+          padding: '12px',
+          backgroundColor: '#f8f9fa',
+          borderRadius: '8px',
+          border: '1px solid #e9ecef',
+          width: boardSize,
+          boxSizing: 'border-box'
+        }}>
+          {/* Difficulty Selection */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '10px',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              color: '#333'
+            }}>
+              Difficulty Level
+            </label>
+            
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              flexWrap: 'wrap',
+              justifyContent: 'flex-start'
+            }}>
+              {difficulties.map(diff => (
+                <button
+                  key={diff.value}
+                  onClick={() => handleDifficultyChange(diff.value)}
+                  disabled={isLoadingPuzzles}
+                  style={{
+                    padding: '6px 12px',
+                    border: '2px solid',
+                    borderColor: selectedDifficulty === diff.value ? diff.color : '#ddd',
+                    backgroundColor: selectedDifficulty === diff.value ? diff.color : 'white',
+                    color: selectedDifficulty === diff.value ? 'white' : '#333',
+                    borderRadius: '16px',
+                    cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    fontWeight: selectedDifficulty === diff.value ? 'bold' : 'normal',
+                    transition: 'all 0.3s ease',
+                    opacity: isLoadingPuzzles ? 0.6 : 1,
+                    minWidth: '70px',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {diff.label}
+                </button>
+              ))}
+            </div>
+            
+            <div style={{
+              textAlign: 'left',
+              fontSize: '11px',
+              color: '#666',
+              marginTop: '8px'
+            }}>
+              Current: {difficulties.find(d => d.value === selectedDifficulty)?.label || 'Intermediate'}
+            </div>
+          </div>
+
+          {/* Theme Selection - Only show if themes are available */}
+          {availableThemes && availableThemes.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '10px',
+                fontWeight: 'bold',
+                fontSize: '13px',
+                color: '#333'
+              }}>
+                Puzzle Themes
+              </label>
+              
+              <div style={{
+                display: 'flex',
+                gap: '6px',
+                flexWrap: 'wrap',
+                justifyContent: 'flex-start'
+              }}>
+                {/* All Themes Button */}
+                <button
+                  onClick={() => handleThemeChange('all')}
+                  disabled={isLoadingPuzzles}
+                  style={{
+                    padding: '6px 12px',
+                    border: '2px solid',
+                    borderColor: selectedTheme === 'all' ? '#2196F3' : '#ddd',
+                    backgroundColor: selectedTheme === 'all' ? '#2196F3' : 'white',
+                    color: selectedTheme === 'all' ? 'white' : '#333',
+                    borderRadius: '16px',
+                    cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    fontWeight: selectedTheme === 'all' ? 'bold' : 'normal',
+                    transition: 'all 0.2s ease',
+                    opacity: isLoadingPuzzles ? 0.6 : 1
+                  }}
+                >
+                  All Themes
+                </button>
+
+                {/* Popular Themes */}
+                {availableThemes.filter(theme => THEME_DISPLAY_NAMES[theme.name]).slice(0, 8).map(theme => {
+                  const isSelected = selectedTheme === theme.name;
+                  const displayName = THEME_DISPLAY_NAMES[theme.name] || theme.name.charAt(0).toUpperCase() + theme.name.slice(1);
+                  
+                  return (
+                    <button
+                      key={theme.name}
+                      onClick={() => handleThemeChange(theme.name)}
+                      disabled={isLoadingPuzzles}
+                      title={`${theme.count} puzzles`}
+                      style={{
+                        padding: '6px 12px',
+                        border: '2px solid',
+                        borderColor: isSelected ? '#4CAF50' : '#ddd',
+                        backgroundColor: isSelected ? '#4CAF50' : 'white',
+                        color: isSelected ? 'white' : '#333',
+                        borderRadius: '16px',
+                        cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                        fontSize: '12px',
+                        fontWeight: isSelected ? 'bold' : 'normal',
+                        transition: 'all 0.2s ease',
+                        opacity: isLoadingPuzzles ? 0.6 : 1
+                      }}
+                    >
+                      {displayName}
+                      <span style={{
+                        fontSize: '10px',
+                        opacity: 0.7,
+                        marginLeft: '4px'
+                      }}>
+                        ({theme.count})
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedTheme !== 'all' && (
+                <div style={{
+                  textAlign: 'left',
+                  fontSize: '11px',
+                  color: '#666',
+                  marginTop: '8px'
+                }}>
+                  Showing puzzles with "{THEME_DISPLAY_NAMES[selectedTheme] || selectedTheme}" theme
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Speed Control */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: 'bold',
+              fontSize: '13px',
+              color: '#333'
+            }}>
+              Move Speed
+            </label>
+            
+            <input
+              type="range"
+              min="500"
+              max="3000"
+              step="250"
+              value={3500 - playSpeed}
+              onChange={(e) => setPlaySpeed(3500 - Number(e.target.value))}
+              disabled={isLoadingPuzzles}
+              style={{
+                width: '100%',
+                height: '4px',
+                borderRadius: '2px',
+                background: '#ddd',
+                outline: 'none',
+                cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                opacity: isLoadingPuzzles ? 0.6 : 1
+              }}
+            />
+            
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '10px',
+              color: '#666',
+              marginTop: '4px'
+            }}>
+              <span>Slow</span>
+              <span>Fast</span>
+            </div>
+            
+            <div style={{
+              textAlign: 'left',
+              fontSize: '12px',
+              color: '#666',
+              marginTop: '6px'
+            }}>
+              {playSpeed / 1000}s per move
+            </div>
+          </div>
+
+          {/* Sequence Length Control */}
+          <div style={{ marginBottom: '8px' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: 'bold',
+              fontSize: '13px',
+              color: '#333'
+            }}>
+              Sequence Length
+            </label>
+            
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              justifyContent: 'flex-start',
+              flexWrap: 'wrap'
+            }}>
+              {[4, 6, 8].map(length => (
+                <button
+                  key={length}
+                  onClick={() => setSequenceLength(length)}
+                  disabled={isLoadingPuzzles}
+                  style={{
+                    padding: '6px 12px',
+                    border: '2px solid',
+                    borderColor: sequenceLength === length ? '#4CAF50' : '#ddd',
+                    backgroundColor: sequenceLength === length ? '#4CAF50' : 'white',
+                    color: sequenceLength === length ? 'white' : '#333',
+                    borderRadius: '12px',
+                    cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    fontWeight: sequenceLength === length ? 'bold' : 'normal',
+                    transition: 'all 0.2s ease',
+                    minWidth: '36px',
+                    opacity: isLoadingPuzzles ? 0.6 : 1
+                  }}
+                >
+                  {length}
+                </button>
+              ))}
+            </div>
+            
+            <div style={{
+              textAlign: 'left',
+              fontSize: '11px',
+              color: '#666',
+              marginTop: '8px'
+            }}>
+              Watch {sequenceLength - 1} moves, play move {sequenceLength}
+            </div>
+          </div>
+        </div>
+      )}
 
       <SettingsContainer
         currentDifficulty={selectedDifficulty}

@@ -1050,16 +1050,6 @@ const App = () => {
               marginRight: '15px'
             }}
           />
-          {!isMobile() && (
-            <h1 style={{
-              fontSize: '18px',
-              fontWeight: 'bold',
-              margin: 0,
-              color: 'white'
-            }}>
-              Chess Visualization Trainer
-            </h1>
-          )}
         </div>
 
         {!isMobile() && (

@@ -1441,7 +1441,7 @@ const App = () => {
         )}
 
         <div style={styles.boardContainer}>
-          <div style={{ position: 'relative', marginBottom: '20px' }}>
+          <div style={{ position: 'relative' }}>
             <Chessboard
               position={boardPosition}
               onSquareClick={handleSquareClick}
@@ -1453,66 +1453,6 @@ const App = () => {
               customLightSquareStyle={{ backgroundColor: isDarkMode ? '#eeeed2' : '#f1f1e6' }}
             />
             {renderMoveArrow()}
-          </div>
-
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            marginTop: '20px',
-            marginBottom: '20px'
-          }}>
-            <button 
-              style={currentPuzzleIndex > 0 ? iconButtonStyle : disabledIconButtonStyle}
-              onClick={goToPreviousPuzzle}
-              disabled={currentPuzzleIndex === 0}
-              title="Previous Puzzle"
-            >
-              <PrevIcon />
-            </button>
-
-            <button 
-              style={iconButtonStyle}
-              onClick={isAutoPlaying ? pauseAutoPlay : startAutoPlay}
-              title={isAutoPlaying ? "Pause" : puzzlePhase === 'ready' ? "Watch Moves 1-3" : "Replay Sequence"}
-            >
-              <PlayIcon isPlaying={isAutoPlaying} />
-            </button>
-
-            <button 
-              style={iconButtonStyle}
-              onClick={toggleBoardExpansion}
-              title={isExpanded ? "Normal Size" : "Expand Board"}
-            >
-              <ExpandIcon isExpanded={isExpanded} />
-            </button>
-
-            <button 
-              style={puzzlePhase === 'playing' ? iconButtonStyle : disabledIconButtonStyle}
-              onClick={handleHint}
-              disabled={puzzlePhase !== 'playing'}
-              title="Hint"
-            >
-              <HintIcon />
-            </button>
-
-            <button 
-              style={puzzlePhase === 'playing' || puzzlePhase === 'complete' ? iconButtonStyle : disabledIconButtonStyle}
-              onClick={handleRevealSolution}
-              disabled={puzzlePhase !== 'playing' && puzzlePhase !== 'complete'}
-              title="Reveal Solution"
-            >
-              <RevealIcon />
-            </button>
-
-            <button 
-              style={iconButtonStyle}
-              onClick={skipToNextPuzzle}
-              title="Next Puzzle"
-            >
-              <NextIcon />
-            </button>
           </div>
         </div>
 
@@ -1593,6 +1533,169 @@ const App = () => {
           </div>
         )}
       </div>
+
+      {/* Mobile Sticky Control Bar */}
+      {isMobile() && (
+        <div style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
+          borderTop: `1px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
+          padding: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px',
+          boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
+          zIndex: 1000
+        }}>
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px',
+              opacity: currentPuzzleIndex > 0 ? 1 : 0.4
+            }}
+            onClick={goToPreviousPuzzle}
+            disabled={currentPuzzleIndex === 0}
+            title="Previous Puzzle"
+          >
+            <PrevIcon />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '38px',
+              height: '38px',
+              backgroundColor: isAutoPlaying ? '#ff9800' : '#4caf50',
+              borderRadius: '50%',
+              color: 'white'
+            }}
+            onClick={isAutoPlaying ? pauseAutoPlay : startAutoPlay}
+            title={isAutoPlaying ? "Pause" : puzzlePhase === 'ready' ? "Watch Moves 1-3" : "Replay Sequence"}
+          >
+            <PlayIcon isPlaying={isAutoPlaying} />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px'
+            }}
+            onClick={toggleBoardExpansion}
+            title={isExpanded ? "Normal Size" : "Expand Board"}
+          >
+            <ExpandIcon isExpanded={isExpanded} />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px',
+              opacity: puzzlePhase === 'playing' ? 1 : 0.4
+            }}
+            onClick={handleHint}
+            disabled={puzzlePhase !== 'playing'}
+            title="Hint"
+          >
+            <HintIcon />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px',
+              opacity: (puzzlePhase === 'playing' || puzzlePhase === 'complete') ? 1 : 0.4
+            }}
+            onClick={handleRevealSolution}
+            disabled={puzzlePhase !== 'playing' && puzzlePhase !== 'complete'}
+            title="Reveal Solution"
+          >
+            <RevealIcon />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px'
+            }}
+            onClick={skipToNextPuzzle}
+            title="Next Puzzle"
+          >
+            <NextIcon />
+          </button>
+        </div>
+      )}
+
+      {/* Desktop Controls (inline with board) */}
+      {!isMobile() && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          marginTop: '20px',
+          marginBottom: '20px'
+        }}>
+          <button 
+            style={currentPuzzleIndex > 0 ? iconButtonStyle : disabledIconButtonStyle}
+            onClick={goToPreviousPuzzle}
+            disabled={currentPuzzleIndex === 0}
+            title="Previous Puzzle"
+          >
+            <PrevIcon />
+          </button>
+
+          <button 
+            style={iconButtonStyle}
+            onClick={isAutoPlaying ? pauseAutoPlay : startAutoPlay}
+            title={isAutoPlaying ? "Pause" : puzzlePhase === 'ready' ? "Watch Moves 1-3" : "Replay Sequence"}
+          >
+            <PlayIcon isPlaying={isAutoPlaying} />
+          </button>
+
+          <button 
+            style={iconButtonStyle}
+            onClick={toggleBoardExpansion}
+            title={isExpanded ? "Normal Size" : "Expand Board"}
+          >
+            <ExpandIcon isExpanded={isExpanded} />
+          </button>
+
+          <button 
+            style={puzzlePhase === 'playing' ? iconButtonStyle : disabledIconButtonStyle}
+            onClick={handleHint}
+            disabled={puzzlePhase !== 'playing'}
+            title="Hint"
+          >
+            <HintIcon />
+          </button>
+
+          <button 
+            style={puzzlePhase === 'playing' || puzzlePhase === 'complete' ? iconButtonStyle : disabledIconButtonStyle}
+            onClick={handleRevealSolution}
+            disabled={puzzlePhase !== 'playing' && puzzlePhase !== 'complete'}
+            title="Reveal Solution"
+          >
+            <RevealIcon />
+          </button>
+
+          <button 
+            style={iconButtonStyle}
+            onClick={skipToNextPuzzle}
+            title="Next Puzzle"
+          >
+            <NextIcon />
+          </button>
+        </div>
+      )}
 
       <AuthModal
         isOpen={showAuthModal}

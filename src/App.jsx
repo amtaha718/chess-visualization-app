@@ -8,8 +8,8 @@ import { AuthModal, UserProfile } from './auth-components';
 
 const getBoardSize = (isExpanded = false) => {
   if (isExpanded) {
-    // Expanded mode: 65% of viewport (good balance for most screens)
-    return Math.min(window.innerWidth * 0.65, window.innerHeight * 0.65);
+    // Expanded mode: 90% of viewport
+    return Math.min(window.innerWidth * 0.9, window.innerHeight * 0.9);
   }
   
   // Normal mode
@@ -82,11 +82,21 @@ const RevealIcon = () => (
 const ExpandIcon = ({ isExpanded }) => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="black">
     {isExpanded ? (
-      // Contract/minimize icon
-      <path d="M5.5,5.5 L18.5,5.5 L18.5,18.5 L5.5,18.5 Z M7,7 L17,7 L17,17 L7,17 Z M9,9 L15,9 L15,15 L9,15 Z" />
+      // Contract icon - arrows pointing inward
+      <g>
+        <path d="M8 8L3 3M3 3V8M3 3H8"/>
+        <path d="M16 8L21 3M21 3V8M21 3H16"/>
+        <path d="M8 16L3 21M3 21V16M3 21H8"/>
+        <path d="M16 16L21 21M21 21V16M21 21H16"/>
+      </g>
     ) : (
-      // Expand/maximize icon
-      <path d="M5,5 L19,5 L19,19 L5,19 Z M7,7 L17,7 L17,17 L7,17 Z" />
+      // Expand icon - arrows pointing outward like your image
+      <g>
+        <path d="M3 8L8 3M8 3H3M8 3V8" strokeWidth="2" stroke="black" fill="none"/>
+        <path d="M21 8L16 3M16 3H21M16 3V8" strokeWidth="2" stroke="black" fill="none"/>
+        <path d="M3 16L8 21M8 21H3M8 21V16" strokeWidth="2" stroke="black" fill="none"/>
+        <path d="M21 16L16 21M16 21H21M16 21V16" strokeWidth="2" stroke="black" fill="none"/>
+      </g>
     )}
   </svg>
 );
@@ -265,15 +275,41 @@ const ThemeSelector = ({
   );
 };
 
-// Settings Container Component
+// Settings Container Component - Now includes difficulty and themes
 const SettingsContainer = ({ 
+  // Difficulty props
+  currentDifficulty,
+  onDifficultyChange,
+  // Theme props
+  themes,
+  selectedTheme,
+  onThemeChange,
+  // Speed and sequence props
   playSpeed, 
   onSpeedChange, 
   sequenceLength, 
   onSequenceLengthChange, 
   disabled = false 
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false); // Uncollapsed by default
+
+  // Get display name for theme
+  const getThemeDisplayName = (theme) => {
+    return THEME_DISPLAY_NAMES[theme] || theme.charAt(0).toUpperCase() + theme.slice(1);
+  };
+
+  // Filter to only show approved themes and get top themes
+  const approvedThemes = themes.filter(theme => THEME_DISPLAY_NAMES[theme.name]);
+  const topThemes = approvedThemes
+    .filter(theme => theme.count >= 5) // Only themes with 5+ puzzles
+    .slice(0, 8); // Top 8 themes
+
+  const difficulties = [
+    { value: 'beginner', label: 'Beginner', color: '#4CAF50' },
+    { value: 'intermediate', label: 'Intermediate', color: '#FF9800' },
+    { value: 'advanced', label: 'Advanced', color: '#f44336' },
+    { value: 'expert', label: 'Expert', color: '#9C27B0' }
+  ];
 
   return (
     <div style={{
@@ -287,7 +323,7 @@ const SettingsContainer = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: isCollapsed ? '0' : '12px',
+        marginBottom: isCollapsed ? '0' : '16px',
         cursor: 'pointer'
       }}
       onClick={() => setIsCollapsed(!isCollapsed)}
@@ -306,6 +342,151 @@ const SettingsContainer = ({
 
       {!isCollapsed && (
         <div>
+          {/* Difficulty Selection */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '10px',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              color: '#333'
+            }}>
+              🏆 Difficulty Level
+            </label>
+            
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              flexWrap: 'wrap',
+              justifyContent: 'center'
+            }}>
+              {difficulties.map(diff => (
+                <button
+                  key={diff.value}
+                  onClick={() => onDifficultyChange(diff.value)}
+                  disabled={disabled}
+                  style={{
+                    padding: '6px 12px',
+                    border: '2px solid',
+                    borderColor: currentDifficulty === diff.value ? diff.color : '#ddd',
+                    backgroundColor: currentDifficulty === diff.value ? diff.color : 'white',
+                    color: currentDifficulty === diff.value ? 'white' : '#333',
+                    borderRadius: '16px',
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    fontWeight: currentDifficulty === diff.value ? 'bold' : 'normal',
+                    transition: 'all 0.3s ease',
+                    opacity: disabled ? 0.6 : 1,
+                    minWidth: '70px',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {diff.label}
+                </button>
+              ))}
+            </div>
+            
+            <div style={{
+              textAlign: 'center',
+              fontSize: '11px',
+              color: '#666',
+              marginTop: '8px'
+            }}>
+              Current: {difficulties.find(d => d.value === currentDifficulty)?.label || 'Intermediate'}
+            </div>
+          </div>
+
+          {/* Theme Selection */}
+          {approvedThemes.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '10px',
+                fontWeight: 'bold',
+                fontSize: '13px',
+                color: '#333'
+              }}>
+                🎯 Puzzle Themes
+              </label>
+              
+              <div style={{
+                display: 'flex',
+                gap: '6px',
+                flexWrap: 'wrap',
+                justifyContent: 'center'
+              }}>
+                {/* All Themes Button */}
+                <button
+                  onClick={() => onThemeChange('all')}
+                  disabled={disabled}
+                  style={{
+                    padding: '6px 12px',
+                    border: '2px solid',
+                    borderColor: selectedTheme === 'all' ? '#2196F3' : '#ddd',
+                    backgroundColor: selectedTheme === 'all' ? '#2196F3' : 'white',
+                    color: selectedTheme === 'all' ? 'white' : '#333',
+                    borderRadius: '16px',
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    fontWeight: selectedTheme === 'all' ? 'bold' : 'normal',
+                    transition: 'all 0.2s ease',
+                    opacity: disabled ? 0.6 : 1
+                  }}
+                >
+                  All Themes
+                </button>
+
+                {/* Popular Themes */}
+                {topThemes.map(theme => {
+                  const isSelected = selectedTheme === theme.name;
+                  const displayName = getThemeDisplayName(theme.name);
+                  
+                  return (
+                    <button
+                      key={theme.name}
+                      onClick={() => onThemeChange(theme.name)}
+                      disabled={disabled}
+                      title={`${theme.count} puzzles`}
+                      style={{
+                        padding: '6px 12px',
+                        border: '2px solid',
+                        borderColor: isSelected ? '#4CAF50' : '#ddd',
+                        backgroundColor: isSelected ? '#4CAF50' : 'white',
+                        color: isSelected ? 'white' : '#333',
+                        borderRadius: '16px',
+                        cursor: disabled ? 'not-allowed' : 'pointer',
+                        fontSize: '12px',
+                        fontWeight: isSelected ? 'bold' : 'normal',
+                        transition: 'all 0.2s ease',
+                        opacity: disabled ? 0.6 : 1
+                      }}
+                    >
+                      {displayName}
+                      <span style={{
+                        fontSize: '10px',
+                        opacity: 0.7,
+                        marginLeft: '4px'
+                      }}>
+                        ({theme.count})
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedTheme !== 'all' && (
+                <div style={{
+                  textAlign: 'center',
+                  fontSize: '11px',
+                  color: '#666',
+                  marginTop: '8px'
+                }}>
+                  Showing puzzles with "{getThemeDisplayName(selectedTheme)}" theme
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Speed Control */}
           <div style={{ marginBottom: '16px' }}>
             <label style={{ 

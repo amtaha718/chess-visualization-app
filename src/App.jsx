@@ -135,436 +135,6 @@ const THEME_DISPLAY_NAMES = {
   'defensiveMove': 'Defensive Move'
 };
 
-// Theme Selector Component - FIXED VERSION
-const ThemeSelector = ({ 
-  themes, 
-  selectedTheme, 
-  onThemeChange, 
-  disabled = false 
-}) => {
-  const [showAllThemes, setShowAllThemes] = useState(false);
-
-  // Get display name for theme
-  const getThemeDisplayName = (theme) => {
-    return THEME_DISPLAY_NAMES[theme] || theme.charAt(0).toUpperCase() + theme.slice(1);
-  };
-
-  // FIX: Add safety check for themes array
-  if (!themes || !Array.isArray(themes)) {
-    return null; // Or return a loading state
-  }
-
-  // Filter to only show approved themes and get top themes
-  const approvedThemes = themes.filter(theme => THEME_DISPLAY_NAMES[theme.name]);
-  const topThemes = approvedThemes
-    .filter(theme => theme.count >= 5) // Only themes with 5+ puzzles
-    .slice(0, 8); // Top 8 themes
-
-  if (approvedThemes.length === 0) return null;
-
-  return (
-    <div style={{
-      margin: '15px 0',
-      padding: '12px',
-      backgroundColor: '#f8f9fa',
-      borderRadius: '8px',
-      border: '1px solid #e9ecef'
-    }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '10px'
-      }}>
-        <label style={{
-          fontSize: '14px',
-          fontWeight: 'bold',
-          color: '#333'
-        }}>
-          🎯 Puzzle Themes
-        </label>
-        
-        {approvedThemes.length > 8 && (
-          <button
-            onClick={() => setShowAllThemes(!showAllThemes)}
-            style={{
-              padding: '4px 8px',
-              fontSize: '12px',
-              border: '1px solid #ddd',
-              backgroundColor: 'white',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            {showAllThemes ? 'Show Less' : 'Show All'}
-          </button>
-        )}
-      </div>
-
-      <div style={{
-        display: 'flex',
-        gap: '6px',
-        flexWrap: 'wrap',
-        justifyContent: 'center'
-      }}>
-        {/* All Themes Button */}
-        <button
-          onClick={() => onThemeChange('all')}
-          disabled={disabled}
-          style={{
-            padding: '6px 12px',
-            border: '2px solid',
-            borderColor: selectedTheme === 'all' ? '#2196F3' : '#ddd',
-            backgroundColor: selectedTheme === 'all' ? '#2196F3' : 'white',
-            color: selectedTheme === 'all' ? 'white' : '#333',
-            borderRadius: '16px',
-            cursor: disabled ? 'not-allowed' : 'pointer',
-            fontSize: '12px',
-            fontWeight: selectedTheme === 'all' ? 'bold' : 'normal',
-            transition: 'all 0.2s ease',
-            opacity: disabled ? 0.6 : 1
-          }}
-        >
-          All Themes
-        </button>
-
-        {/* Popular Themes */}
-        {(showAllThemes ? approvedThemes : topThemes).map(theme => {
-          const isSelected = selectedTheme === theme.name;
-          const displayName = getThemeDisplayName(theme.name);
-          
-          return (
-            <button
-              key={theme.name}
-              onClick={() => onThemeChange(theme.name)}
-              disabled={disabled}
-              title={`${theme.count} puzzles`}
-              style={{
-                padding: '6px 12px',
-                border: '2px solid',
-                borderColor: isSelected ? '#4CAF50' : '#ddd',
-                backgroundColor: isSelected ? '#4CAF50' : 'white',
-                color: isSelected ? 'white' : '#333',
-                borderRadius: '16px',
-                cursor: disabled ? 'not-allowed' : 'pointer',
-                fontSize: '12px',
-                fontWeight: isSelected ? 'bold' : 'normal',
-                transition: 'all 0.2s ease',
-                opacity: disabled ? 0.6 : 1
-              }}
-            >
-              {displayName}
-              <span style={{
-                fontSize: '10px',
-                opacity: 0.7,
-                marginLeft: '4px'
-              }}>
-                ({theme.count})
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {selectedTheme !== 'all' && (
-        <div style={{
-          textAlign: 'center',
-          fontSize: '11px',
-          color: '#666',
-          marginTop: '8px'
-        }}>
-          Showing puzzles with "{getThemeDisplayName(selectedTheme)}" theme
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Settings Container Component - FIXED VERSION
-const SettingsContainer = ({ 
-  // Difficulty props
-  currentDifficulty,
-  onDifficultyChange,
-  // Theme props
-  themes,
-  selectedTheme,
-  onThemeChange,
-  // Speed and sequence props
-  playSpeed, 
-  onSpeedChange, 
-  sequenceLength, 
-  onSequenceLengthChange, 
-  disabled = false 
-}) => {
-  const [isCollapsed, setIsCollapsed] = useState(true); // Start closed by default
-
-  // Get display name for theme
-  const getThemeDisplayName = (theme) => {
-    return THEME_DISPLAY_NAMES[theme] || theme.charAt(0).toUpperCase() + theme.slice(1);
-  };
-
-  // FIX: Add safety check for themes array
-  const safeThemes = themes || [];
-  const approvedThemes = safeThemes.filter(theme => THEME_DISPLAY_NAMES[theme.name]);
-  const topThemes = approvedThemes
-    .filter(theme => theme.count >= 5) // Only themes with 5+ puzzles
-    .slice(0, 8); // Top 8 themes
-
-  return (
-    <div style={{
-      margin: '15px 0',
-      padding: '12px',
-      backgroundColor: '#f8f9fa',
-      borderRadius: '8px',
-      border: '1px solid #e9ecef'
-    }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: isCollapsed ? '0' : '16px',
-        cursor: 'pointer'
-      }}
-      onClick={() => setIsCollapsed(!isCollapsed)}
-      >
-        <label style={{
-          fontSize: '14px',
-          fontWeight: 'bold',
-          color: '#333',
-          cursor: 'pointer'
-        }}>
-          Settings
-        </label>
-        
-        <CollapseIcon isCollapsed={isCollapsed} />
-      </div>
-
-      {!isCollapsed && (
-        <div>
-          {/* Difficulty Selection */}
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '10px',
-              fontWeight: 'bold',
-              fontSize: '13px',
-              color: '#333'
-            }}>
-              🏆 Difficulty Level
-            </label>
-            
-            <div style={{
-              display: 'flex',
-              gap: '8px',
-              flexWrap: 'wrap',
-              justifyContent: 'flex-start'
-            }}>
-              {[
-                { value: 'beginner', label: 'Beginner', color: '#4CAF50' },
-                { value: 'intermediate', label: 'Intermediate', color: '#FF9800' },
-                { value: 'advanced', label: 'Advanced', color: '#f44336' },
-                { value: 'expert', label: 'Expert', color: '#9C27B0' }
-              ].map(diff => (
-                <button
-                  key={diff.value}
-                  onClick={() => onDifficultyChange(diff.value)}
-                  disabled={disabled}
-                  style={{
-                    padding: '6px 12px',
-                    border: '2px solid',
-                    borderColor: currentDifficulty === diff.value ? diff.color : '#ddd',
-                    backgroundColor: currentDifficulty === diff.value ? diff.color : 'white',
-                    color: currentDifficulty === diff.value ? 'white' : '#333',
-                    borderRadius: '16px',
-                    cursor: disabled ? 'not-allowed' : 'pointer',
-                    fontSize: '12px',
-                    fontWeight: currentDifficulty === diff.value ? 'bold' : 'normal',
-                    transition: 'all 0.3s ease',
-                    opacity: disabled ? 0.6 : 1,
-                    minWidth: '70px',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {diff.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Theme Selection - Only show if themes are available */}
-          {approvedThemes.length > 0 && (
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '10px',
-                fontWeight: 'bold',
-                fontSize: '13px',
-                color: '#333'
-              }}>
-                🎯 Puzzle Themes
-              </label>
-              
-              <div style={{
-                display: 'flex',
-                gap: '6px',
-                flexWrap: 'wrap',
-                justifyContent: 'flex-start'
-              }}>
-                {/* All Themes Button */}
-                <button
-                  onClick={() => onThemeChange('all')}
-                  disabled={disabled}
-                  style={{
-                    padding: '6px 12px',
-                    border: '2px solid',
-                    borderColor: selectedTheme === 'all' ? '#2196F3' : '#ddd',
-                    backgroundColor: selectedTheme === 'all' ? '#2196F3' : 'white',
-                    color: selectedTheme === 'all' ? 'white' : '#333',
-                    borderRadius: '16px',
-                    cursor: disabled ? 'not-allowed' : 'pointer',
-                    fontSize: '12px',
-                    fontWeight: selectedTheme === 'all' ? 'bold' : 'normal',
-                    transition: 'all 0.2s ease',
-                    opacity: disabled ? 0.6 : 1
-                  }}
-                >
-                  All Themes
-                </button>
-
-                {/* Popular Themes */}
-                {topThemes.map(theme => {
-                  const isSelected = selectedTheme === theme.name;
-                  const displayName = getThemeDisplayName(theme.name);
-                  
-                  return (
-                    <button
-                      key={theme.name}
-                      onClick={() => onThemeChange(theme.name)}
-                      disabled={disabled}
-                      title={`${theme.count} puzzles`}
-                      style={{
-                        padding: '6px 12px',
-                        border: '2px solid',
-                        borderColor: isSelected ? '#4CAF50' : '#ddd',
-                        backgroundColor: isSelected ? '#4CAF50' : 'white',
-                        color: isSelected ? 'white' : '#333',
-                        borderRadius: '16px',
-                        cursor: disabled ? 'not-allowed' : 'pointer',
-                        fontSize: '12px',
-                        fontWeight: isSelected ? 'bold' : 'normal',
-                        transition: 'all 0.2s ease',
-                        opacity: disabled ? 0.6 : 1
-                      }}
-                    >
-                      {displayName}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Speed Control */}
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ 
-              display: 'block', 
-              marginBottom: '8px', 
-              fontWeight: 'bold',
-              fontSize: '13px',
-              color: '#333'
-            }}>
-              ⚡ Move Speed
-            </label>
-            
-            <input
-              type="range"
-              min="500"
-              max="3000"
-              step="250"
-              value={3500 - playSpeed}
-              onChange={(e) => onSpeedChange(3500 - Number(e.target.value))}
-              disabled={disabled}
-              style={{
-                width: '100%',
-                height: '4px',
-                borderRadius: '2px',
-                background: '#ddd',
-                outline: 'none',
-                cursor: disabled ? 'not-allowed' : 'pointer',
-                opacity: disabled ? 0.6 : 1
-              }}
-            />
-            
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              fontSize: '10px',
-              color: '#666',
-              marginTop: '4px'
-            }}>
-              <span>Slow</span>
-              <span>Fast</span>
-            </div>
-            
-            <div style={{
-              textAlign: 'left',
-              fontSize: '12px',
-              color: '#666',
-              marginTop: '6px'
-            }}>
-              {playSpeed / 1000}s per move
-            </div>
-          </div>
-
-          {/* Sequence Length Control */}
-          <div style={{ marginBottom: '8px' }}>
-            <label style={{ 
-              display: 'block', 
-              marginBottom: '8px', 
-              fontWeight: 'bold',
-              fontSize: '13px',
-              color: '#333'
-            }}>
-              🔢 Sequence Length
-            </label>
-            
-            <div style={{
-              display: 'flex',
-              gap: '8px',
-              justifyContent: 'flex-start',
-              flexWrap: 'wrap'
-            }}>
-              {[4, 6, 8].map(length => (
-                <button
-                  key={length}
-                  onClick={() => onSequenceLengthChange(length)}
-                  disabled={disabled}
-                  style={{
-                    padding: '6px 12px',
-                    border: '2px solid',
-                    borderColor: sequenceLength === length ? '#4CAF50' : '#ddd',
-                    backgroundColor: sequenceLength === length ? '#4CAF50' : 'white',
-                    color: sequenceLength === length ? 'white' : '#333',
-                    borderRadius: '12px',
-                    cursor: disabled ? 'not-allowed' : 'pointer',
-                    fontSize: '12px',
-                    fontWeight: sequenceLength === length ? 'bold' : 'normal',
-                    transition: 'all 0.2s ease',
-                    minWidth: '70px',
-                    opacity: disabled ? 0.6 : 1
-                  }}
-                >
-                  {length} Moves
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
 const FeedbackCard = ({ message, type = 'info' }) => {
   if (!message) return null;
   
@@ -593,83 +163,6 @@ const FeedbackCard = ({ message, type = 'info' }) => {
       lineHeight: '1.4'
     }}>
       {message}
-    </div>
-  );
-};
-
-// Difficulty Toggle Component - Styled like themes menu
-const DifficultyToggle = ({ currentDifficulty, onDifficultyChange, disabled }) => {
-  const difficultyOptions = [
-    { value: 'beginner', label: 'Beginner', color: '#4CAF50' },
-    { value: 'intermediate', label: 'Intermediate', color: '#FF9800' },
-    { value: 'advanced', label: 'Advanced', color: '#f44336' },
-    { value: 'expert', label: 'Expert', color: '#9C27B0' }
-  ];
-
-  return (
-    <div style={{
-      margin: '15px 0',
-      padding: '12px',
-      backgroundColor: '#f8f9fa',
-      borderRadius: '8px',
-      border: '1px solid #e9ecef'
-    }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: '10px'
-      }}>
-        <label style={{
-          fontSize: '14px',
-          fontWeight: 'bold',
-          color: '#333'
-        }}>
-          🏆 Difficulty Level
-        </label>
-      </div>
-
-      <div style={{
-        display: 'flex',
-        gap: '8px',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        maxWidth: '100%'
-      }}>
-        {difficultyOptions.map(diff => (
-          <button
-            key={diff.value}
-            onClick={() => onDifficultyChange(diff.value)}
-            disabled={disabled}
-            style={{
-              padding: '6px 12px',
-              border: '2px solid',
-              borderColor: currentDifficulty === diff.value ? diff.color : '#ddd',
-              backgroundColor: currentDifficulty === diff.value ? diff.color : 'white',
-              color: currentDifficulty === diff.value ? 'white' : '#333',
-              borderRadius: '16px',
-              cursor: disabled ? 'not-allowed' : 'pointer',
-              fontSize: '12px',
-              fontWeight: currentDifficulty === diff.value ? 'bold' : 'normal',
-              transition: 'all 0.3s ease',
-              opacity: disabled ? 0.6 : 1,
-              minWidth: '70px',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {diff.label}
-          </button>
-        ))}
-      </div>
-      
-      <div style={{
-        textAlign: 'center',
-        fontSize: '11px',
-        color: '#666',
-        marginTop: '8px'
-      }}>
-        Current: {difficultyOptions.find(d => d.value === currentDifficulty)?.label || 'Intermediate'}
-      </div>
     </div>
   );
 };
@@ -1641,7 +1134,7 @@ const App = () => {
               fontSize: '13px',
               color: '#333'
             }}>
-              Difficulty Level
+              🏆 Difficulty Level
             </label>
             
             <div style={{
@@ -1650,7 +1143,12 @@ const App = () => {
               flexWrap: 'wrap',
               justifyContent: 'flex-start'
             }}>
-              {difficulties.map(diff => (
+              {[
+                { value: 'beginner', label: 'Beginner', color: '#4CAF50' },
+                { value: 'intermediate', label: 'Intermediate', color: '#FF9800' },
+                { value: 'advanced', label: 'Advanced', color: '#f44336' },
+                { value: 'expert', label: 'Expert', color: '#9C27B0' }
+              ].map(diff => (
                 <button
                   key={diff.value}
                   onClick={() => handleDifficultyChange(diff.value)}
@@ -1675,20 +1173,6 @@ const App = () => {
                 </button>
               ))}
             </div>
-            
-            <div style={{
-              textAlign: 'left',
-              fontSize: '11px',
-              color: '#666',
-              marginTop: '8px'
-            }}>
-              Current: {[
-                { value: 'beginner', label: 'Beginner' },
-                { value: 'intermediate', label: 'Intermediate' },
-                { value: 'advanced', label: 'Advanced' },
-                { value: 'expert', label: 'Expert' }
-              ].find(d => d.value === selectedDifficulty)?.label || 'Intermediate'}
-            </div>
           </div>
 
           {/* Theme Selection - Only show if themes are available */}
@@ -1701,7 +1185,7 @@ const App = () => {
                 fontSize: '13px',
                 color: '#333'
               }}>
-                Puzzle Themes
+                🎯 Puzzle Themes
               </label>
               
               <div style={{
@@ -1757,28 +1241,10 @@ const App = () => {
                       }}
                     >
                       {displayName}
-                      <span style={{
-                        fontSize: '10px',
-                        opacity: 0.7,
-                        marginLeft: '4px'
-                      }}>
-                        ({theme.count})
-                      </span>
                     </button>
                   );
                 })}
               </div>
-
-              {selectedTheme !== 'all' && (
-                <div style={{
-                  textAlign: 'left',
-                  fontSize: '11px',
-                  color: '#666',
-                  marginTop: '8px'
-                }}>
-                  Showing puzzles with "{THEME_DISPLAY_NAMES[selectedTheme] || selectedTheme}" theme
-                </div>
-              )}
             </div>
           )}
 
@@ -1791,7 +1257,7 @@ const App = () => {
               fontSize: '13px',
               color: '#333'
             }}>
-              Move Speed
+              ⚡ Move Speed
             </label>
             
             <input
@@ -1843,7 +1309,7 @@ const App = () => {
               fontSize: '13px',
               color: '#333'
             }}>
-              Sequence Length
+              🔢 Sequence Length
             </label>
             
             <div style={{
@@ -1868,22 +1334,13 @@ const App = () => {
                     fontSize: '12px',
                     fontWeight: sequenceLength === length ? 'bold' : 'normal',
                     transition: 'all 0.2s ease',
-                    minWidth: '36px',
+                    minWidth: '70px',
                     opacity: isLoadingPuzzles ? 0.6 : 1
                   }}
                 >
-                  {length}
+                  {length} Moves
                 </button>
               ))}
-            </div>
-            
-            <div style={{
-              textAlign: 'left',
-              fontSize: '11px',
-              color: '#666',
-              marginTop: '8px'
-            }}>
-              Watch {sequenceLength - 1} moves, play move {sequenceLength}
             </div>
           </div>
         </div>
@@ -1893,18 +1350,6 @@ const App = () => {
         message={feedbackMessage}
         type={feedbackType} 
       />
-
-      {userPlayingAs && (
-        <p style={{ 
-          fontWeight: 'bold', 
-          margin: '5px 0 15px 0',
-          color: userPlayingAs === 'white' ? '#333' : '#000',
-          fontSize: '14px',
-          textAlign: 'center'
-        }}>
-          Playing as {userPlayingAs === 'white' ? 'White' : 'Black'}
-        </p>
-      )}
 
       <div style={{ position: 'relative', width: boardSize, height: boardSize }}>
         <Chessboard

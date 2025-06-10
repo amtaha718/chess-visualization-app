@@ -77,7 +77,7 @@ const NextIcon = () => (
   </svg>
 );
 
-// Settings Dropdown Component
+// Settings Dropdown Component - FIXED
 const SettingsDropdown = ({ isOpen, onClose, playSpeed, onSpeedChange, sequenceLength, onSequenceLengthChange, buttonRef }) => {
   if (!isOpen) return null;
 
@@ -171,6 +171,10 @@ const SettingsDropdown = ({ isOpen, onClose, playSpeed, onSpeedChange, sequenceL
               onClick={(e) => {
                 e.stopPropagation();
                 onSequenceLengthChange(length);
+                // Close the dropdown after showing the selection
+                setTimeout(() => {
+                  onClose();
+                }, 150);
               }}
               style={{
                 padding: '6px 12px',

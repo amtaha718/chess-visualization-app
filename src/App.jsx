@@ -66,72 +66,6 @@ const getOrdinalSuffix = (num) => {
   return suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0];
 };
 
-// Helper function to get path squares between two positions
-const getPathSquares = (from, to) => {
-  const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-  const fromFile = files.indexOf(from[0]);
-  const fromRank = parseInt(from[1]);
-  const toFile = files.indexOf(to[0]);
-  const toRank = parseInt(to[1]);
-  
-  const path = [];
-  
-  // Check if this is a knight move (L-shape: 2+1 or 1+2)
-  const fileDiff = Math.abs(toFile - fromFile);
-  const rankDiff = Math.abs(toRank - fromRank);
-  const isKnightMove = (fileDiff === 2 && rankDiff === 1) || (fileDiff === 1 && rankDiff === 2);
-  
-  if (isKnightMove) {
-    // Knight moves in L-shape: show the 4 squares (start, two intermediate, end)
-    path.push(from);
-    
-    // Determine the L-shape path
-    if (fileDiff === 2) {
-      // Move 2 files first, then 1 rank
-      const midFile = fromFile + Math.sign(toFile - fromFile);
-      const midSquare1 = files[midFile] + fromRank;
-      const midSquare2 = files[toFile] + fromRank;
-      path.push(midSquare1, midSquare2);
-    } else {
-      // Move 1 file first, then 2 ranks
-      const midSquare1 = files[toFile] + fromRank;
-      const midRank = fromRank + Math.sign(toRank - fromRank);
-      const midSquare2 = files[toFile] + midRank;
-      path.push(midSquare1, midSquare2);
-    }
-    
-    path.push(to);
-  } else {
-    // Regular piece movement (straight lines, diagonals)
-    const dx = Math.sign(toFile - fromFile);
-    const dy = Math.sign(toRank - fromRank);
-    
-    let currentFile = fromFile;
-    let currentRank = fromRank;
-    
-    // Add starting square
-    path.push(from);
-    
-    // Add intermediate squares
-    while (currentFile !== toFile || currentRank !== toRank) {
-      if (currentFile !== toFile) currentFile += dx;
-      if (currentRank !== toRank) currentRank += dy;
-      
-      if (currentFile >= 0 && currentFile < 8 && currentRank >= 1 && currentRank <= 8) {
-        const square = files[currentFile] + currentRank;
-        if (square !== to) { // Don't add destination twice
-          path.push(square);
-        }
-      }
-    }
-    
-    // Add destination square
-    path.push(to);
-  }
-  
-  return path;
-};
-
 // Icon Components
 const FlameIcon = ({ streak }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -181,7 +115,7 @@ const ShareIcon = () => (
   </svg>
 );
 
-// Control icons (updated for smaller mobile sizes)
+// Control icons
 const PrevIcon = () => (
   <svg width={isMobile() ? "20" : "24"} height={isMobile() ? "20" : "24"} viewBox="0 0 24 24" fill="black">
     <path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/>
@@ -891,7 +825,7 @@ const App = () => {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '20px'
+          padding: '30px 20px'
         },
         feedbackPanel: {
           width: tablet ? '30%' : '25%',
@@ -944,7 +878,7 @@ const App = () => {
       {/* Full Width Header with Green Background */}
       <header style={{
         height: '80px',
-        backgroundColor: '#4caf50', // Green background like chessboard
+        backgroundColor: '#4caf50',
         color: 'white',
         display: 'flex',
         alignItems: 'center',
@@ -958,13 +892,13 @@ const App = () => {
             src="/logo.png"
             alt="Chess Trainer Logo"
             style={{
-              height: isMobile() ? '80px' : '100px', // 2x bigger
+              height: isMobile() ? '80px' : '100px',
               marginRight: '15px'
             }}
           />
           {!isMobile() && (
             <h1 style={{
-              fontSize: '18px', // 50% smaller
+              fontSize: '18px',
               fontWeight: 'bold',
               margin: 0,
               color: 'white'
@@ -1354,11 +1288,7 @@ const App = () => {
         </div>
 
         {/* Middle Column - Chess Board */}
-        <div style={{
-          ...styles.boardContainer,
-          paddingTop: '30px',
-          paddingBottom: '30px'
-        }}>
+        <div style={styles.boardContainer}>
           <div style={{ position: 'relative', marginBottom: '20px' }}>
             <Chessboard
               position={boardPosition}
@@ -1520,4 +1450,20 @@ const App = () => {
       {/* Modals */}
       <AuthModal
         isOpen={showAuthModal}
-        onClose={()
+        onClose={() => setShowAuthModal(false)}
+        onAuthSuccess={handleAuthSuccess}
+        userSystem={userSystem}
+      />
+
+      <UserProfile
+        isOpen={showProfileModal}
+        user={user}
+        profile={userProfile}
+        onSignOut={handleSignOut}
+        onClose={() => setShowProfileModal(false)}
+      />
+    </div>
+  );
+};
+
+export default App;

@@ -56,7 +56,6 @@ const loadSessionData = () => {
 const isMobile = () => window.innerWidth <= 768;
 
 // Icon Components
-// Updated flame icon to match the new design
 const FlameIcon = ({ streak }) => (
   <div style={{
     display: 'flex',
@@ -1051,14 +1050,6 @@ const App = () => {
               marginRight: '15px'
             }}
           />
-        </div><img
-            src="/logo.png"
-            alt="Chess Trainer Logo"
-            style={{
-              height: isMobile() ? '80px' : '100px',
-              marginRight: '15px'
-            }}
-          />
           {!isMobile() && (
             <h1 style={{
               fontSize: '18px',
@@ -1493,23 +1484,6 @@ const App = () => {
             marginBottom: '20px'
           }}>
             <button 
-              style={currentPuzzleIndex > 0 ? iconButtonStyle : disabledIconButtonStyle}
-              onClick={goToPreviousPuzzle}
-              disabled={currentPuzzleIndex === 0}
-              title="Previous Puzzle"
-            >
-              <PrevIcon />
-            </button>
-
-            <button 
-              style={iconButtonStyle}
-              onClick={isAutoPlaying ? pauseAutoPlay : startAutoPlay}
-              title={isAutoPlaying ? "Pause" : puzzlePhase === 'ready' ? "Watch Moves 1-3" : "Replay Sequence"}
-            >
-              <PlayIcon isPlaying={isAutoPlaying} />
-            </button>
-
-            <button 
               style={iconButtonStyle}
               onClick={toggleBoardExpansion}
               title={isExpanded ? "Normal Size" : "Expand Board"}
@@ -1641,4 +1615,21 @@ const App = () => {
   );
 };
 
-export default App;
+export default App;currentPuzzleIndex > 0 ? iconButtonStyle : disabledIconButtonStyle}
+              onClick={goToPreviousPuzzle}
+              disabled={currentPuzzleIndex === 0}
+              title="Previous Puzzle"
+            >
+              <PrevIcon />
+            </button>
+
+            <button 
+              style={iconButtonStyle}
+              onClick={isAutoPlaying ? pauseAutoPlay : startAutoPlay}
+              title={isAutoPlaying ? "Pause" : puzzlePhase === 'ready' ? "Watch Moves 1-3" : "Replay Sequence"}
+            >
+              <PlayIcon isPlaying={isAutoPlaying} />
+            </button>
+
+            <button 
+              style={

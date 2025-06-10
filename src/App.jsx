@@ -857,7 +857,9 @@ const App = () => {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '10px'
+          gap: '10px',
+          paddingTop: '20px',
+          paddingBottom: '20px'
         },
         feedbackPanel: {
           order: 3,
@@ -1352,7 +1354,11 @@ const App = () => {
         </div>
 
         {/* Middle Column - Chess Board */}
-        <div style={styles.boardContainer}>
+        <div style={{
+          ...styles.boardContainer,
+          paddingTop: '30px',
+          paddingBottom: '30px'
+        }}>
           <div style={{ position: 'relative', marginBottom: '20px' }}>
             <Chessboard
               position={boardPosition}

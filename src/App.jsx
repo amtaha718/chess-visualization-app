@@ -135,7 +135,7 @@ const THEME_DISPLAY_NAMES = {
   'defensiveMove': 'Defensive Move'
 };
 
-// Theme Selector Component
+// Theme Selector Component - FIXED VERSION
 const ThemeSelector = ({ 
   themes, 
   selectedTheme, 
@@ -148,6 +148,11 @@ const ThemeSelector = ({
   const getThemeDisplayName = (theme) => {
     return THEME_DISPLAY_NAMES[theme] || theme.charAt(0).toUpperCase() + theme.slice(1);
   };
+
+  // FIX: Add safety check for themes array
+  if (!themes || !Array.isArray(themes)) {
+    return null; // Or return a loading state
+  }
 
   // Filter to only show approved themes and get top themes
   const approvedThemes = themes.filter(theme => THEME_DISPLAY_NAMES[theme.name]);
@@ -275,7 +280,7 @@ const ThemeSelector = ({
   );
 };
 
-// Settings Container Component - Now includes difficulty and themes
+// Settings Container Component - FIXED VERSION
 const SettingsContainer = ({ 
   // Difficulty props
   currentDifficulty,
@@ -298,8 +303,9 @@ const SettingsContainer = ({
     return THEME_DISPLAY_NAMES[theme] || theme.charAt(0).toUpperCase() + theme.slice(1);
   };
 
-  // Filter to only show approved themes and get top themes
-  const approvedThemes = themes.filter(theme => THEME_DISPLAY_NAMES[theme.name]);
+  // FIX: Add safety check for themes array
+  const safeThemes = themes || [];
+  const approvedThemes = safeThemes.filter(theme => THEME_DISPLAY_NAMES[theme.name]);
   const topThemes = approvedThemes
     .filter(theme => theme.count >= 5) // Only themes with 5+ puzzles
     .slice(0, 8); // Top 8 themes
@@ -396,7 +402,7 @@ const SettingsContainer = ({
             </div>
           </div>
 
-          {/* Theme Selection */}
+          {/* Theme Selection - Only show if themes are available */}
           {approvedThemes.length > 0 && (
             <div style={{ marginBottom: '20px' }}>
               <label style={{
@@ -1618,6 +1624,11 @@ const App = () => {
       />
 
       <SettingsContainer
+        currentDifficulty={selectedDifficulty}
+        onDifficultyChange={handleDifficultyChange}
+        themes={availableThemes}
+        selectedTheme={selectedTheme}
+        onThemeChange={handleThemeChange}
         playSpeed={playSpeed}
         onSpeedChange={setPlaySpeed}
         sequenceLength={sequenceLength}

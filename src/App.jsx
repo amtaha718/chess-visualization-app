@@ -82,20 +82,20 @@ const RevealIcon = () => (
 const ExpandIcon = ({ isExpanded }) => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="black">
     {isExpanded ? (
-      // Minimize icon - arrows pointing inward to corners
+      // Minimize icon - two arrows pointing inward from corners
       <g stroke="black" strokeWidth="2" fill="none">
-        <path d="M9 15L3 21M3 21H9M3 21V15"/>
-        <path d="M15 15L21 21M21 21H15M21 21V15"/>
-        <path d="M9 9L3 3M3 3H9M3 3V9"/>
-        <path d="M15 9L21 3M21 3H15M21 3V9"/>
+        <path d="M15 9L9 15"/>
+        <path d="M9 9L15 15"/>
+        <path d="M9 9L6 6M6 6H9M6 6V9"/>
+        <path d="M15 15L18 18M18 18H15M18 18V15"/>
       </g>
     ) : (
-      // Expand icon - arrows pointing outward from corners
+      // Expand icon - four arrows pointing outward to corners
       <g stroke="black" strokeWidth="2" fill="none">
-        <path d="M3 15L9 9M9 9H3M9 9V15"/>
-        <path d="M21 15L15 9M15 9H21M15 9V15"/>
-        <path d="M3 9L9 15M9 15H3M9 15V9"/>
-        <path d="M21 9L15 15M15 15H21M15 15V9"/>
+        <path d="M3 9L9 3M9 3H3M9 3V9"/>
+        <path d="M21 9L15 3M15 3H21M15 3V9"/>
+        <path d="M3 15L9 21M9 21H3M9 21V15"/>
+        <path d="M21 15L15 21M15 21H21M15 21V15"/>
       </g>
     )}
   </svg>
@@ -121,6 +121,7 @@ const NextIcon = () => (
 
 // Theme Display Names - Only approved themes
 const THEME_DISPLAY_NAMES = {
+  'opening': 'Openings',
   'endgame': 'End Game',
   'middlegame': 'Middle Game',
   'mate': 'Checkmate',
@@ -130,7 +131,6 @@ const THEME_DISPLAY_NAMES = {
   'discoveredAttack': 'Discovered Attack',
   'pin': 'Pin',
   'skewer': 'Skewer',
-  'opening': 'Openings',
   'sacrifice': 'Sacrifice',
   'defensiveMove': 'Defensive Move'
 };
@@ -1068,6 +1068,11 @@ const App = () => {
         without any visual aids.
       </p>
 
+      <FeedbackCard 
+        message={feedbackMessage}
+        type={feedbackType} 
+      />
+
       {/* Settings and Playing Color Row */}
       <div style={{
         display: 'flex',
@@ -1215,35 +1220,44 @@ const App = () => {
                   All Themes
                 </button>
 
-                {/* Popular Themes */}
-                {availableThemes.filter(theme => THEME_DISPLAY_NAMES[theme.name]).slice(0, 8).map(theme => {
-                  const isSelected = selectedTheme === theme.name;
-                  const displayName = THEME_DISPLAY_NAMES[theme.name] || theme.name.charAt(0).toUpperCase() + theme.name.slice(1);
-                  
-                  return (
-                    <button
-                      key={theme.name}
-                      onClick={() => handleThemeChange(theme.name)}
-                      disabled={isLoadingPuzzles}
-                      title={`${theme.count} puzzles`}
-                      style={{
-                        padding: '6px 12px',
-                        border: '2px solid',
-                        borderColor: isSelected ? '#4CAF50' : '#ddd',
-                        backgroundColor: isSelected ? '#4CAF50' : 'white',
-                        color: isSelected ? 'white' : '#333',
-                        borderRadius: '16px',
-                        cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
-                        fontSize: '12px',
-                        fontWeight: isSelected ? 'bold' : 'normal',
-                        transition: 'all 0.2s ease',
-                        opacity: isLoadingPuzzles ? 0.6 : 1
-                      }}
-                    >
-                      {displayName}
-                    </button>
-                  );
-                })}
+                {/* Popular Themes - with 'opening' first */}
+                {availableThemes
+                  .filter(theme => THEME_DISPLAY_NAMES[theme.name])
+                  .sort((a, b) => {
+                    // Put 'opening' first, then alphabetical
+                    if (a.name === 'opening') return -1;
+                    if (b.name === 'opening') return 1;
+                    return a.name.localeCompare(b.name);
+                  })
+                  .slice(0, 8)
+                  .map(theme => {
+                    const isSelected = selectedTheme === theme.name;
+                    const displayName = THEME_DISPLAY_NAMES[theme.name] || theme.name.charAt(0).toUpperCase() + theme.name.slice(1);
+                    
+                    return (
+                      <button
+                        key={theme.name}
+                        onClick={() => handleThemeChange(theme.name)}
+                        disabled={isLoadingPuzzles}
+                        title={`${theme.count} puzzles`}
+                        style={{
+                          padding: '6px 12px',
+                          border: '2px solid',
+                          borderColor: isSelected ? '#4CAF50' : '#ddd',
+                          backgroundColor: isSelected ? '#4CAF50' : 'white',
+                          color: isSelected ? 'white' : '#333',
+                          borderRadius: '16px',
+                          cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: isSelected ? 'bold' : 'normal',
+                          transition: 'all 0.2s ease',
+                          opacity: isLoadingPuzzles ? 0.6 : 1
+                        }}
+                      >
+                        {displayName}
+                      </button>
+                    );
+                  })}
               </div>
             </div>
           )}
@@ -1345,11 +1359,6 @@ const App = () => {
           </div>
         </div>
       )}
-
-      <FeedbackCard 
-        message={feedbackMessage}
-        type={feedbackType} 
-      />
 
       <div style={{ position: 'relative', width: boardSize, height: boardSize }}>
         <Chessboard

@@ -85,26 +85,20 @@ const NextIcon = () => (
   </svg>
 );
 
-// Theme Display Names
+// Theme Display Names - Only approved themes
 const THEME_DISPLAY_NAMES = {
+  'endgame': 'End Game',
+  'middlegame': 'Middle Game',
+  'mate': 'Checkmate',
+  'checkmate': 'Checkmate',
   'advantage': 'Advantage',
-  'crushing': 'Crushing',
-  'sacrifice': 'Sacrifice',
+  'fork': 'Fork',
   'discoveredAttack': 'Discovered Attack',
-  'deflection': 'Deflection',
   'pin': 'Pin',
-  'hangingPiece': 'Hanging Piece',
-  'defensiveMove': 'Defensive Move',
-  'kingsideAttack': 'Kingside Attack',
-  'endgame': 'Endgame',
-  'middlegame': 'Middlegame',
-  'queenEndgame': 'Queen Endgame',
-  'pawnEndgame': 'Pawn Endgame',
-  'short': 'Short',
-  'long': 'Long', 
-  'veryLong': 'Very Long',
-  'master': 'Master Level',
-  '32': 'Special #32'
+  'skewer': 'Skewer',
+  'opening': 'Openings',
+  'sacrifice': 'Sacrifice',
+  'defensiveMove': 'Defensive Move'
 };
 
 // Theme Selector Component
@@ -121,12 +115,13 @@ const ThemeSelector = ({
     return THEME_DISPLAY_NAMES[theme] || theme.charAt(0).toUpperCase() + theme.slice(1);
   };
 
-  // Get top themes (most common)
-  const topThemes = themes
+  // Filter to only show approved themes and get top themes
+  const approvedThemes = themes.filter(theme => THEME_DISPLAY_NAMES[theme.name]);
+  const topThemes = approvedThemes
     .filter(theme => theme.count >= 5) // Only themes with 5+ puzzles
     .slice(0, 8); // Top 8 themes
 
-  if (themes.length === 0) return null;
+  if (approvedThemes.length === 0) return null;
 
   return (
     <div style={{
@@ -150,7 +145,7 @@ const ThemeSelector = ({
           🎯 Puzzle Themes
         </label>
         
-        {themes.length > 8 && (
+        {approvedThemes.length > 8 && (
           <button
             onClick={() => setShowAllThemes(!showAllThemes)}
             style={{
@@ -195,7 +190,7 @@ const ThemeSelector = ({
         </button>
 
         {/* Popular Themes */}
-        {(showAllThemes ? themes : topThemes).map(theme => {
+        {(showAllThemes ? approvedThemes : topThemes).map(theme => {
           const isSelected = selectedTheme === theme.name;
           const displayName = getThemeDisplayName(theme.name);
           
@@ -414,7 +409,7 @@ const FeedbackCard = ({ message, type = 'info' }) => {
   );
 };
 
-// Difficulty Toggle Component
+// Difficulty Toggle Component - Styled like themes menu
 const DifficultyToggle = ({ currentDifficulty, onDifficultyChange, disabled }) => {
   const difficulties = [
     { value: 'beginner', label: 'Beginner', color: '#4CAF50' },
@@ -425,37 +420,68 @@ const DifficultyToggle = ({ currentDifficulty, onDifficultyChange, disabled }) =
 
   return (
     <div style={{
-      display: 'flex',
-      gap: '8px',
-      margin: '20px 0',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      maxWidth: '100%'
+      margin: '15px 0',
+      padding: '12px',
+      backgroundColor: '#f8f9fa',
+      borderRadius: '8px',
+      border: '1px solid #e9ecef'
     }}>
-      {difficulties.map(diff => (
-        <button
-          key={diff.value}
-          onClick={() => onDifficultyChange(diff.value)}
-          disabled={disabled}
-          style={{
-            padding: '6px 12px',
-            border: '2px solid',
-            borderColor: currentDifficulty === diff.value ? diff.color : '#ddd',
-            backgroundColor: currentDifficulty === diff.value ? diff.color : 'white',
-            color: currentDifficulty === diff.value ? 'white' : '#333',
-            borderRadius: '16px',
-            cursor: disabled ? 'not-allowed' : 'pointer',
-            fontSize: '12px',
-            fontWeight: currentDifficulty === diff.value ? 'bold' : 'normal',
-            transition: 'all 0.3s ease',
-            opacity: disabled ? 0.6 : 1,
-            minWidth: '70px',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          {diff.label}
-        </button>
-      ))}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: '10px'
+      }}>
+        <label style={{
+          fontSize: '14px',
+          fontWeight: 'bold',
+          color: '#333'
+        }}>
+          🏆 Difficulty Level
+        </label>
+      </div>
+
+      <div style={{
+        display: 'flex',
+        gap: '8px',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        maxWidth: '100%'
+      }}>
+        {difficulties.map(diff => (
+          <button
+            key={diff.value}
+            onClick={() => onDifficultyChange(diff.value)}
+            disabled={disabled}
+            style={{
+              padding: '6px 12px',
+              border: '2px solid',
+              borderColor: currentDifficulty === diff.value ? diff.color : '#ddd',
+              backgroundColor: currentDifficulty === diff.value ? diff.color : 'white',
+              color: currentDifficulty === diff.value ? 'white' : '#333',
+              borderRadius: '16px',
+              cursor: disabled ? 'not-allowed' : 'pointer',
+              fontSize: '12px',
+              fontWeight: currentDifficulty === diff.value ? 'bold' : 'normal',
+              transition: 'all 0.3s ease',
+              opacity: disabled ? 0.6 : 1,
+              minWidth: '70px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {diff.label}
+          </button>
+        ))}
+      </div>
+      
+      <div style={{
+        textAlign: 'center',
+        fontSize: '11px',
+        color: '#666',
+        marginTop: '8px'
+      }}>
+        Current: {difficulties.find(d => d.value === currentDifficulty)?.label || 'Intermediate'}
+      </div>
     </div>
   );
 };

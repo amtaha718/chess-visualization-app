@@ -56,6 +56,12 @@ const loadSessionData = () => {
 const isMobile = () => window.innerWidth <= 768;
 
 // Icon Components
+const SettingsIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="black">
+    <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+  </svg>
+);
+
 const FlameIcon = ({ streak }) => (
   <div style={{
     display: 'flex',
@@ -64,9 +70,11 @@ const FlameIcon = ({ streak }) => (
     backgroundColor: 'rgba(255,255,255,0.2)',
     padding: '8px 12px',
     borderRadius: '20px',
-    border: '1px solid rgba(255,255,255,0.3)'
+    border: '1px solid rgba(255,255,255,0.3)',
+    height: '36px', // Match profile container height
+    minWidth: '60px' // Ensure consistent width
   }}>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
       <path d="M12 2C12 2 8 5.5 8 10C8 14 10 16.5 12 16.5C14 16.5 16 14 16 10C16 5.5 12 2 12 2Z" 
             fill="#FF6B35"/>
       <path d="M10.5 10C10.5 10 9.5 7.5 12 7.5C14.5 7.5 13.5 10 13.5 10C13.5 12 12.5 13 12 13C11.5 13 10.5 12 10.5 10Z" 
@@ -282,6 +290,7 @@ const App = () => {
   const [userPlayingAs, setUserPlayingAs] = useState('white');
   const [isCollapsed, setIsCollapsed] = useState(isMobile()); // Mobile collapsed by default, desktop expanded
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showMobileSettings, setShowMobileSettings] = useState(false);
 
   // Save session data when things change
   useEffect(() => {
@@ -965,9 +974,10 @@ const App = () => {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '8px', // Reduced gap
-          paddingTop: '20px', // Reduced padding
-          paddingBottom: '20px' // Reduced padding
+          justifyContent: 'center',
+          paddingTop: '10px', // Reduced further since no controls below board
+          paddingBottom: '80px', // Increased space for sticky controls
+          flex: 1 // Take remaining space
         },
         feedbackPanel: {
           order: 1.5, // Place feedback above board on mobile
@@ -1134,7 +1144,9 @@ const App = () => {
                   border: '1px solid rgba(255,255,255,0.3)',
                   cursor: 'pointer',
                   transition: 'background-color 0.2s ease',
-                  color: 'white'
+                  color: 'white',
+                  height: '36px', // Match flame icon height
+                  minWidth: '80px' // Ensure consistent width
                 }}
               >
                 <div style={{ fontSize: isMobile() ? '11px' : '14px' }}> {/* Smaller text on mobile */}
@@ -1534,6 +1546,240 @@ const App = () => {
         )}
       </div>
 
+      {/* Mobile Settings Overlay */}
+      {isMobile() && showMobileSettings && (
+        <div style={{
+          position: 'fixed',
+          bottom: '60px', // Above sticky bar
+          left: '10px',
+          right: '10px',
+          backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
+          borderRadius: '12px',
+          padding: '15px',
+          boxShadow: '0 -4px 20px rgba(0,0,0,0.2)',
+          zIndex: 999,
+          maxHeight: '60vh',
+          overflow: 'auto',
+          color: isDarkMode ? '#ffffff' : '#333333'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '15px'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
+              Settings
+            </h3>
+            <button
+              onClick={() => setShowMobileSettings(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '24px',
+                cursor: 'pointer',
+                color: isDarkMode ? '#ffffff' : '#333333'
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <div>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: 'bold',
+                fontSize: '13px'
+              }}>
+                🏆 Difficulty Level
+              </label>
+              
+              <div style={{
+                display: 'flex',
+                gap: '6px',
+                flexWrap: 'wrap'
+              }}>
+                {[
+                  { value: 'beginner', label: 'Beginner', color: '#4CAF50' },
+                  { value: 'intermediate', label: 'Intermediate', color: '#FF9800' },
+                  { value: 'advanced', label: 'Advanced', color: '#f44336' },
+                  { value: 'expert', label: 'Expert', color: '#9C27B0' }
+                ].map(diff => (
+                  <button
+                    key={diff.value}
+                    onClick={() => handleDifficultyChange(diff.value)}
+                    disabled={isLoadingPuzzles}
+                    style={{
+                      padding: '6px 12px',
+                      border: '2px solid',
+                      borderColor: selectedDifficulty === diff.value ? diff.color : '#ddd',
+                      backgroundColor: selectedDifficulty === diff.value ? diff.color : 'white',
+                      color: selectedDifficulty === diff.value ? 'white' : '#333',
+                      borderRadius: '16px',
+                      cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: selectedDifficulty === diff.value ? 'bold' : 'normal',
+                      flex: '1',
+                      minWidth: '70px'
+                    }}
+                  >
+                    {diff.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {availableThemes && availableThemes.length > 0 && (
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: 'bold',
+                  fontSize: '13px'
+                }}>
+                  🎯 Puzzle Themes
+                </label>
+                
+                <div style={{
+                  display: 'flex',
+                  gap: '6px',
+                  flexWrap: 'wrap'
+                }}>
+                  <button
+                    onClick={() => handleThemeChange('all')}
+                    disabled={isLoadingPuzzles}
+                    style={{
+                      padding: '6px 12px',
+                      border: '2px solid',
+                      borderColor: selectedTheme === 'all' ? '#2196F3' : '#ddd',
+                      backgroundColor: selectedTheme === 'all' ? '#2196F3' : 'white',
+                      color: selectedTheme === 'all' ? 'white' : '#333',
+                      borderRadius: '16px',
+                      cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: selectedTheme === 'all' ? 'bold' : 'normal'
+                    }}
+                  >
+                    All Themes
+                  </button>
+
+                  {availableThemes
+                    .filter(theme => THEME_DISPLAY_NAMES[theme.name])
+                    .sort((a, b) => {
+                      if (a.name === 'opening') return -1;
+                      if (b.name === 'opening') return 1;
+                      return a.name.localeCompare(b.name);
+                    })
+                    .slice(0, 8)
+                    .map(theme => {
+                      const isSelected = selectedTheme === theme.name;
+                      const displayName = THEME_DISPLAY_NAMES[theme.name] || theme.name.charAt(0).toUpperCase() + theme.name.slice(1);
+                      
+                      return (
+                        <button
+                          key={theme.name}
+                          onClick={() => handleThemeChange(theme.name)}
+                          disabled={isLoadingPuzzles}
+                          style={{
+                            padding: '6px 12px',
+                            border: '2px solid',
+                            borderColor: isSelected ? '#4CAF50' : '#ddd',
+                            backgroundColor: isSelected ? '#4CAF50' : 'white',
+                            color: isSelected ? 'white' : '#333',
+                            borderRadius: '16px',
+                            cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                            fontSize: '12px',
+                            fontWeight: isSelected ? 'bold' : 'normal'
+                          }}
+                        >
+                          {displayName}
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px', 
+                fontWeight: 'bold',
+                fontSize: '13px'
+              }}>
+                ⚡ Move Speed
+              </label>
+              
+              <input
+                type="range"
+                min="500"
+                max="3000"
+                step="250"
+                value={3500 - playSpeed}
+                onChange={(e) => setPlaySpeed(3500 - Number(e.target.value))}
+                disabled={isLoadingPuzzles}
+                style={{
+                  width: '100%',
+                  height: '4px',
+                  borderRadius: '2px',
+                  background: '#ddd',
+                  outline: 'none'
+                }}
+              />
+              
+              <div style={{
+                textAlign: 'center',
+                fontSize: '12px',
+                color: '#666',
+                marginTop: '6px'
+              }}>
+                {playSpeed / 1000}s per move
+              </div>
+            </div>
+
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px', 
+                fontWeight: 'bold',
+                fontSize: '13px'
+              }}>
+                🔢 Sequence Length
+              </label>
+              
+              <div style={{
+                display: 'flex',
+                gap: '8px'
+              }}>
+                {[4, 6, 8].map(length => (
+                  <button
+                    key={length}
+                    onClick={() => setSequenceLength(length)}
+                    disabled={isLoadingPuzzles}
+                    style={{
+                      padding: '6px 12px',
+                      border: '2px solid',
+                      borderColor: sequenceLength === length ? '#4CAF50' : '#ddd',
+                      backgroundColor: sequenceLength === length ? '#4CAF50' : 'white',
+                      color: sequenceLength === length ? 'white' : '#333',
+                      borderRadius: '12px',
+                      cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: sequenceLength === length ? 'bold' : 'normal',
+                      flex: 1
+                    }}
+                  >
+                    {length} Moves
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mobile Sticky Control Bar */}
       {isMobile() && (
         <div style={{
@@ -1630,6 +1876,21 @@ const App = () => {
             title="Next Puzzle"
           >
             <NextIcon />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px',
+              backgroundColor: showMobileSettings ? '#2196F3' : 'transparent',
+              borderRadius: '6px',
+              color: showMobileSettings ? 'white' : 'black'
+            }}
+            onClick={() => setShowMobileSettings(!showMobileSettings)}
+            title="Settings"
+          >
+            <SettingsIcon />
           </button>
         </div>
       )}

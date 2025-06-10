@@ -13,7 +13,7 @@ const getBoardSize = (isExpanded = false) => {
   
   const windowWidth = window.innerWidth;
   const windowHeight = window.innerHeight;
-  const headerHeight = 80;
+  const headerHeight = 60; // Updated to match new mobile header height
   
   if (windowWidth <= 768) {
     return Math.min(windowWidth - 40, windowHeight - headerHeight - 200);
@@ -949,15 +949,15 @@ const App = () => {
           display: 'flex',
           flexDirection: 'column',
           flex: 1,
-          padding: '10px',
-          gap: '10px',
+          padding: '8px', // Reduced padding
+          gap: '8px', // Reduced gap
           overflow: 'hidden'
         },
         settingsPanel: {
           order: 1,
           backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
           borderRadius: '8px',
-          padding: '15px',
+          padding: '10px', // Reduced padding
           color: isDarkMode ? '#ffffff' : '#333333'
         },
         boardContainer: {
@@ -965,17 +965,17 @@ const App = () => {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '10px',
-          paddingTop: '40px',
-          paddingBottom: '40px'
+          gap: '8px', // Reduced gap
+          paddingTop: '20px', // Reduced padding
+          paddingBottom: '20px' // Reduced padding
         },
         feedbackPanel: {
           order: 1.5, // Place feedback above board on mobile
           backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
           borderRadius: '8px',
-          padding: '15px',
+          padding: '10px', // Reduced padding
           color: isDarkMode ? '#ffffff' : '#333333',
-          marginBottom: '10px'
+          marginBottom: '8px' // Reduced margin
         }
       };
     } else {
@@ -1032,13 +1032,13 @@ const App = () => {
   return (
     <div style={styles.container}>
       <header style={{
-        height: '80px',
+        height: '60px', // Reduced from 80px for mobile
         backgroundColor: '#64B5F6',
         color: 'white',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 20px',
+        padding: isMobile() ? '0 10px' : '0 20px', // Less padding on mobile
         boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -1046,8 +1046,8 @@ const App = () => {
             src="/logo.png"
             alt="Chess Trainer Logo"
             style={{
-              height: isMobile() ? '80px' : '100px',
-              marginRight: '15px'
+              height: isMobile() ? '50px' : '100px', // Smaller logo on mobile
+              marginRight: isMobile() ? '8px' : '15px' // Less margin on mobile
             }}
           />
         </div>
@@ -1127,25 +1127,25 @@ const App = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '10px',
+                  gap: isMobile() ? '6px' : '10px', // Less gap on mobile
                   backgroundColor: 'rgba(255,255,255,0.2)',
-                  padding: '8px 12px',
-                  borderRadius: '20px',
+                  padding: isMobile() ? '6px 10px' : '8px 12px', // Smaller padding on mobile
+                  borderRadius: isMobile() ? '16px' : '20px', // Smaller border radius
                   border: '1px solid rgba(255,255,255,0.3)',
                   cursor: 'pointer',
                   transition: 'background-color 0.2s ease',
                   color: 'white'
                 }}
               >
-                <div style={{ fontSize: isMobile() ? '13px' : '14px' }}>
+                <div style={{ fontSize: isMobile() ? '11px' : '14px' }}> {/* Smaller text on mobile */}
                   <strong>{userProfile?.display_name || 'Player'}</strong>
                 </div>
                 <div style={{
                   backgroundColor: 'rgba(255,255,255,0.3)',
                   color: 'white',
-                  padding: '4px 8px',
-                  borderRadius: '12px',
-                  fontSize: isMobile() ? '11px' : '12px',
+                  padding: isMobile() ? '3px 6px' : '4px 8px', // Smaller padding on mobile
+                  borderRadius: isMobile() ? '10px' : '12px', // Smaller border radius
+                  fontSize: isMobile() ? '10px' : '12px', // Smaller text on mobile
                   fontWeight: 'bold'
                 }}>
                   {userProfile?.current_rating || 1200}
@@ -1156,13 +1156,13 @@ const App = () => {
             <button
               onClick={() => setShowAuthModal(true)}
               style={{
-                padding: '8px 16px',
+                padding: isMobile() ? '6px 12px' : '8px 16px', // Smaller padding on mobile
                 backgroundColor: 'rgba(255,255,255,0.2)',
                 color: 'white',
                 border: '1px solid rgba(255,255,255,0.3)',
-                borderRadius: '20px',
+                borderRadius: '16px', // Smaller border radius
                 cursor: 'pointer',
-                fontSize: isMobile() ? '13px' : '14px',
+                fontSize: isMobile() ? '12px' : '14px', // Smaller text on mobile
                 fontWeight: 'bold'
               }}
             >
@@ -1430,16 +1430,6 @@ const App = () => {
         {/* Mobile: Feedback panel above board */}
         {isMobile() && (
           <div style={styles.feedbackPanel}>
-            <h3 style={{ 
-              margin: '0 0 15px 0', 
-              fontSize: '18px', 
-              fontWeight: 'bold',
-              borderBottom: `2px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
-              paddingBottom: '10px'
-            }}>
-              Messages
-            </h3>
-
             <div>
               <FeedbackCard 
                 message={feedbackMessage}

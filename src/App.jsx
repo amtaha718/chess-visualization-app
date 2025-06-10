@@ -296,7 +296,7 @@ const SettingsContainer = ({
   onSequenceLengthChange, 
   disabled = false 
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false); // Uncollapsed by default
+  const [isCollapsed, setIsCollapsed] = useState(true); // Start closed by default
 
   // Get display name for theme
   const getThemeDisplayName = (theme) => {
@@ -309,13 +309,6 @@ const SettingsContainer = ({
   const topThemes = approvedThemes
     .filter(theme => theme.count >= 5) // Only themes with 5+ puzzles
     .slice(0, 8); // Top 8 themes
-
-  const difficulties = [
-    { value: 'beginner', label: 'Beginner', color: '#4CAF50' },
-    { value: 'intermediate', label: 'Intermediate', color: '#FF9800' },
-    { value: 'advanced', label: 'Advanced', color: '#f44336' },
-    { value: 'expert', label: 'Expert', color: '#9C27B0' }
-  ];
 
   return (
     <div style={{
@@ -357,7 +350,7 @@ const SettingsContainer = ({
               fontSize: '13px',
               color: '#333'
             }}>
-              Difficulty Level
+              🏆 Difficulty Level
             </label>
             
             <div style={{
@@ -366,7 +359,12 @@ const SettingsContainer = ({
               flexWrap: 'wrap',
               justifyContent: 'flex-start'
             }}>
-              {difficulties.map(diff => (
+              {[
+                { value: 'beginner', label: 'Beginner', color: '#4CAF50' },
+                { value: 'intermediate', label: 'Intermediate', color: '#FF9800' },
+                { value: 'advanced', label: 'Advanced', color: '#f44336' },
+                { value: 'expert', label: 'Expert', color: '#9C27B0' }
+              ].map(diff => (
                 <button
                   key={diff.value}
                   onClick={() => onDifficultyChange(diff.value)}
@@ -391,15 +389,6 @@ const SettingsContainer = ({
                 </button>
               ))}
             </div>
-            
-            <div style={{
-              textAlign: 'center',
-              fontSize: '11px',
-              color: '#666',
-              marginTop: '8px'
-            }}>
-              Current: {difficulties.find(d => d.value === currentDifficulty)?.label || 'Intermediate'}
-            </div>
           </div>
 
           {/* Theme Selection - Only show if themes are available */}
@@ -412,7 +401,7 @@ const SettingsContainer = ({
                 fontSize: '13px',
                 color: '#333'
               }}>
-                Puzzle Themes
+                🎯 Puzzle Themes
               </label>
               
               <div style={{
@@ -468,28 +457,10 @@ const SettingsContainer = ({
                       }}
                     >
                       {displayName}
-                      <span style={{
-                        fontSize: '10px',
-                        opacity: 0.7,
-                        marginLeft: '4px'
-                      }}>
-                        ({theme.count})
-                      </span>
                     </button>
                   );
                 })}
               </div>
-
-              {selectedTheme !== 'all' && (
-                <div style={{
-                  textAlign: 'center',
-                  fontSize: '11px',
-                  color: '#666',
-                  marginTop: '8px'
-                }}>
-                  Showing puzzles with "{getThemeDisplayName(selectedTheme)}" theme
-                </div>
-              )}
             </div>
           )}
 
@@ -502,7 +473,7 @@ const SettingsContainer = ({
               fontSize: '13px',
               color: '#333'
             }}>
-              Move Speed
+              ⚡ Move Speed
             </label>
             
             <input
@@ -536,7 +507,7 @@ const SettingsContainer = ({
             </div>
             
             <div style={{
-              textAlign: 'center',
+              textAlign: 'left',
               fontSize: '12px',
               color: '#666',
               marginTop: '6px'
@@ -554,7 +525,7 @@ const SettingsContainer = ({
               fontSize: '13px',
               color: '#333'
             }}>
-              Sequence Length
+              🔢 Sequence Length
             </label>
             
             <div style={{
@@ -579,22 +550,13 @@ const SettingsContainer = ({
                     fontSize: '12px',
                     fontWeight: sequenceLength === length ? 'bold' : 'normal',
                     transition: 'all 0.2s ease',
-                    minWidth: '36px',
+                    minWidth: '70px',
                     opacity: disabled ? 0.6 : 1
                   }}
                 >
-                  {length}
+                  {length} Moves
                 </button>
               ))}
-            </div>
-            
-            <div style={{
-              textAlign: 'center',
-              fontSize: '11px',
-              color: '#666',
-              marginTop: '8px'
-            }}>
-              Watch {sequenceLength - 1} moves, play move {sequenceLength}
             </div>
           </div>
         </div>
@@ -766,7 +728,7 @@ const App = () => {
   const [userPlayingAs, setUserPlayingAs] = useState('white');
 
   // Add state for settings collapse
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true); // Start closed
 
   // Save session data when things change
   useEffect(() => {

@@ -1,3 +1,781 @@
+/* Global styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden; /* Prevent page scrolling */
+}
+
+.App {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header styles */
+.header {
+  height: 80px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  z-index: 100;
+}
+
+.header.dark {
+  background-color: #2d2d2d;
+  border-bottom-color: #404040;
+  color: #ffffff;
+}
+
+/* Logo styles */
+.logo-section {
+  display: flex;
+  align-items: center;
+}
+
+.logo {
+  height: 50px;
+  margin-right: 15px;
+}
+
+.app-title {
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0;
+  color: #333333;
+}
+
+.app-title.dark {
+  color: #ffffff;
+}
+
+/* Navigation styles */
+.nav-menu {
+  display: flex;
+  gap: 30px;
+  align-items: center;
+}
+
+.nav-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #333333;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.nav-button:hover {
+  background-color: rgba(0,0,0,0.05);
+}
+
+.nav-button.dark {
+  color: #ffffff;
+}
+
+.nav-button.dark:hover {
+  background-color: rgba(255,255,255,0.1);
+}
+
+/* Profile section styles */
+.profile-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.flame-streak {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: rgba(255,255,255,0.9);
+  padding: 8px 12px;
+  border-radius: 20px;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.profile-badge:hover {
+  background-color: rgba(240,240,240,0.9);
+}
+
+.profile-badge.dark {
+  background-color: #404040;
+  border-color: #555555;
+  color: #ffffff;
+}
+
+.profile-badge.dark:hover {
+  background-color: #4a4a4a;
+}
+
+.rating-badge {
+  background-color: #4CAF50;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.sign-in-button {
+  padding: 8px 16px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+/* Main content layout */
+.main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Panel styles */
+.settings-panel {
+  width: 25%;
+  min-width: 250px;
+  max-width: 350px;
+  background-color: #ffffff;
+  border-right: 1px solid #e0e0e0;
+  padding: 20px;
+  overflow: auto;
+}
+
+.settings-panel.dark {
+  background-color: #2d2d2d;
+  border-right-color: #404040;
+  color: #ffffff;
+}
+
+.board-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.feedback-panel {
+  width: 25%;
+  min-width: 250px;
+  max-width: 350px;
+  background-color: #ffffff;
+  border-left: 1px solid #e0e0e0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.feedback-panel.dark {
+  background-color: #2d2d2d;
+  border-left-color: #404040;
+  color: #ffffff;
+}
+
+/* Settings styles */
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.settings-section {
+  margin-bottom: 20px;
+}
+
+.settings-label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.difficulty-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.difficulty-button {
+  padding: 10px 15px;
+  border: 2px solid #ddd;
+  background-color: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: left;
+  transition: all 0.3s ease;
+}
+
+.difficulty-button.selected {
+  color: white;
+  font-weight: bold;
+}
+
+.difficulty-button.beginner.selected {
+  background-color: #4CAF50;
+  border-color: #4CAF50;
+}
+
+.difficulty-button.intermediate.selected {
+  background-color: #FF9800;
+  border-color: #FF9800;
+}
+
+.difficulty-button.advanced.selected {
+  background-color: #f44336;
+  border-color: #f44336;
+}
+
+.difficulty-button.expert.selected {
+  background-color: #9C27B0;
+  border-color: #9C27B0;
+}
+
+/* Theme buttons */
+.theme-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.theme-button {
+  padding: 8px 12px;
+  border: 2px solid #ddd;
+  background-color: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.theme-button.selected {
+  background-color: #4CAF50;
+  border-color: #4CAF50;
+  color: white;
+  font-weight: bold;
+}
+
+.theme-button.all.selected {
+  background-color: #2196F3;
+  border-color: #2196F3;
+}
+
+/* Speed control */
+.speed-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #ddd;
+  outline: none;
+  cursor: pointer;
+}
+
+.speed-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.speed-value {
+  font-size: 12px;
+  color: #666;
+  margin-top: 6px;
+}
+
+/* Sequence length buttons */
+.sequence-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sequence-button {
+  padding: 8px 12px;
+  border: 2px solid #ddd;
+  background-color: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.sequence-button.selected {
+  background-color: #4CAF50;
+  border-color: #4CAF50;
+  color: white;
+  font-weight: bold;
+}
+
+/* Playing as indicator */
+.playing-as {
+  padding: 12px;
+  background-color: #f0f0f0;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.playing-as.dark {
+  background-color: #404040;
+}
+
+/* Control buttons */
+.control-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.icon-button {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  margin: 0 2px;
+  border-radius: 6px;
+}
+
+.icon-button:hover {
+  background-color: rgba(0,0,0,0.1);
+}
+
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.icon-button.play {
+  background-color: #4caf50;
+  color: white;
+}
+
+.icon-button.play.playing {
+  background-color: #ff9800;
+}
+
+/* Feedback panel */
+.feedback-header {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+  font-weight: bold;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 10px;
+}
+
+.feedback-header.dark {
+  border-bottom-color: #404040;
+}
+
+.feedback-messages {
+  flex: 1;
+  overflow: auto;
+  margin-bottom: 20px;
+}
+
+.feedback-empty {
+  padding: 20px;
+  text-align: center;
+  color: #666666;
+  font-style: italic;
+}
+
+.feedback-empty.dark {
+  color: #888888;
+}
+
+/* Feedback cards */
+.feedback-card {
+  border-radius: 8px;
+  margin: 8px 0;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.feedback-timestamp {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-bottom: 4px;
+}
+
+.feedback-card.success {
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+}
+
+.feedback-card.error {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+}
+
+.feedback-card.info {
+  background-color: #d1ecf1;
+  border: 1px solid #bee5eb;
+  color: #0c5460;
+}
+
+.feedback-card.warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+}
+
+/* Bottom options */
+.bottom-options {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bottom-options.dark {
+  border-top-color: #404040;
+}
+
+.option-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.2s ease;
+}
+
+.dark-mode-button {
+  background: none;
+  border: 1px solid #ddd;
+  color: #333333;
+}
+
+.dark-mode-button.dark {
+  border-color: #555555;
+  color: #ffffff;
+}
+
+.share-button {
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  font-weight: bold;
+}
+
+.share-button:hover {
+  background-color: #1976D2;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+  .header {
+    padding: 0 15px;
+  }
+  
+  .logo {
+    height: 40px;
+  }
+  
+  .app-title {
+    display: none;
+  }
+  
+  .nav-menu {
+    display: none;
+  }
+  
+  .profile-section {
+    gap: 10px;
+  }
+  
+  .rating-badge {
+    font-size: 11px;
+  }
+  
+  .sign-in-button {
+    font-size: 13px;
+    padding: 6px 12px;
+  }
+  
+  .main-content {
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+  }
+  
+  .settings-panel,
+  .feedback-panel {
+    width: 100%;
+    min-width: auto;
+    max-width: none;
+    border: none;
+    padding: 15px;
+    border-radius: 8px;
+    max-height: 200px;
+  }
+  
+  .board-container {
+    padding: 10px;
+  }
+  
+  .control-buttons {
+    gap: 6px;
+    margin-top: 15px;
+  }
+  
+  .icon-button {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .difficulty-buttons,
+  .theme-buttons,
+  .sequence-buttons {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  
+  .difficulty-button,
+  .theme-button,
+  .sequence-button {
+    flex: 1;
+    min-width: calc(50% - 3px);
+    text-align: center;
+    padding: 8px;
+    font-size: 12px;
+  }
+  
+  .settings-section {
+    margin-bottom: 15px;
+  }
+  
+  .settings-label {
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  
+  .feedback-card {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  
+  .feedback-header {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+  
+  .bottom-options {
+    padding-top: 12px;
+  }
+  
+  .option-button {
+    padding: 6px 8px;
+    font-size: 12px;
+    gap: 4px;
+  }
+}
+
+/* Tablet responsive styles */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .settings-panel,
+  .feedback-panel {
+    width: 30%;
+    min-width: 220px;
+  }
+  
+  .nav-menu {
+    gap: 20px;
+  }
+  
+  .nav-button {
+    font-size: 14px;
+    padding: 6px 10px;
+  }
+  
+  .logo {
+    height: 45px;
+  }
+  
+  .app-title {
+    font-size: 20px;
+  }
+}
+
+/* Large desktop styles */
+@media (min-width: 1400px) {
+  .settings-panel,
+  .feedback-panel {
+    max-width: 400px;
+  }
+  
+  .header {
+    padding: 0 40px;
+  }
+}
+
+/* Dark mode adjustments */
+.dark .speed-labels,
+.dark .speed-value {
+  color: #cccccc;
+}
+
+.dark .difficulty-button,
+.dark .theme-button,
+.dark .sequence-button {
+  border-color: #555555;
+  color: #ffffff;
+}
+
+.dark .difficulty-button:not(.selected),
+.dark .theme-button:not(.selected),
+.dark .sequence-button:not(.selected) {
+  background-color: transparent;
+}
+
+.dark .speed-slider {
+  background: #555555;
+}
+
+/* Scrollbar styles for dark mode */
+.dark .settings-panel::-webkit-scrollbar,
+.dark .feedback-messages::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dark .settings-panel::-webkit-scrollbar-track,
+.dark .feedback-messages::-webkit-scrollbar-track {
+  background: #404040;
+}
+
+.dark .settings-panel::-webkit-scrollbar-thumb,
+.dark .feedback-messages::-webkit-scrollbar-thumb {
+  background: #666666;
+  border-radius: 4px;
+}
+
+.dark .settings-panel::-webkit-scrollbar-thumb:hover,
+.dark .feedback-messages::-webkit-scrollbar-thumb:hover {
+  background: #777777;
+}
+
+/* Light mode scrollbar styles */
+.settings-panel::-webkit-scrollbar,
+.feedback-messages::-webkit-scrollbar {
+  width: 8px;
+}
+
+.settings-panel::-webkit-scrollbar-track,
+.feedback-messages::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.settings-panel::-webkit-scrollbar-thumb,
+.feedback-messages::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.settings-panel::-webkit-scrollbar-thumb:hover,
+.feedback-messages::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Animation styles */
+.settings-section {
+  transition: all 0.3s ease;
+}
+
+.feedback-card {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Focus styles for accessibility */
+.nav-button:focus,
+.difficulty-button:focus,
+.theme-button:focus,
+.sequence-button:focus,
+.icon-button:focus,
+.option-button:focus {
+  outline: 2px solid #4CAF50;
+  outline-offset: 2px;
+}
+
+.dark .nav-button:focus,
+.dark .difficulty-button:focus,
+.dark .theme-button:focus,
+.dark .sequence-button:focus,
+.dark .icon-button:focus,
+.dark .option-button:focus {
+  outline-color: #66BB6A;
+}
+
+/* Piece menu styles (legacy from original CSS) */
 .piece-menu {
   display: flex;
   justify-content: center;
@@ -7,4 +785,65 @@
 .piece-tile {
   margin: 0 10px;
   cursor: grab;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .header {
+    border-bottom-width: 2px;
+  }
+  
+  .settings-panel,
+  .feedback-panel {
+    border-width: 2px;
+  }
+  
+  .difficulty-button,
+  .theme-button,
+  .sequence-button {
+    border-width: 2px;
+  }
+  
+  .feedback-card {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .difficulty-button,
+  .theme-button,
+  .sequence-button,
+  .icon-button,
+  .option-button,
+  .nav-button {
+    transition: none;
+  }
+  
+  .feedback-card {
+    animation: none;
+  }
+  
+  .settings-section {
+    transition: none;
+  }
+}
+
+/* Print styles */
+@media print {
+  .header,
+  .settings-panel,
+  .feedback-panel,
+  .control-buttons,
+  .bottom-options {
+    display: none;
+  }
+  
+  .main-content {
+    flex-direction: column;
+  }
+  
+  .board-container {
+    padding: 0;
+  }
 }

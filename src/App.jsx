@@ -59,6 +59,79 @@ const loadSessionData = () => {
   }
 };
 
+// Helper function to get ordinal suffix (4th, 6th, 8th)
+const getOrdinalSuffix = (num) => {
+  const suffixes = ['th', 'st', 'nd', 'rd'];
+  const v = num % 100;
+  return suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0];
+};
+
+// Helper function to get path squares between two positions
+const getPathSquares = (from, to) => {
+  const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  const fromFile = files.indexOf(from[0]);
+  const fromRank = parseInt(from[1]);
+  const toFile = files.indexOf(to[0]);
+  const toRank = parseInt(to[1]);
+  
+  const path = [];
+  
+  // Check if this is a knight move (L-shape: 2+1 or 1+2)
+  const fileDiff = Math.abs(toFile - fromFile);
+  const rankDiff = Math.abs(toRank - fromRank);
+  const isKnightMove = (fileDiff === 2 && rankDiff === 1) || (fileDiff === 1 && rankDiff === 2);
+  
+  if (isKnightMove) {
+    // Knight moves in L-shape: show the 4 squares (start, two intermediate, end)
+    path.push(from);
+    
+    // Determine the L-shape path
+    if (fileDiff === 2) {
+      // Move 2 files first, then 1 rank
+      const midFile = fromFile + Math.sign(toFile - fromFile);
+      const midSquare1 = files[midFile] + fromRank;
+      const midSquare2 = files[toFile] + fromRank;
+      path.push(midSquare1, midSquare2);
+    } else {
+      // Move 1 file first, then 2 ranks
+      const midSquare1 = files[toFile] + fromRank;
+      const midRank = fromRank + Math.sign(toRank - fromRank);
+      const midSquare2 = files[toFile] + midRank;
+      path.push(midSquare1, midSquare2);
+    }
+    
+    path.push(to);
+  } else {
+    // Regular piece movement (straight lines, diagonals)
+    const dx = Math.sign(toFile - fromFile);
+    const dy = Math.sign(toRank - fromRank);
+    
+    let currentFile = fromFile;
+    let currentRank = fromRank;
+    
+    // Add starting square
+    path.push(from);
+    
+    // Add intermediate squares
+    while (currentFile !== toFile || currentRank !== toRank) {
+      if (currentFile !== toFile) currentFile += dx;
+      if (currentRank !== toRank) currentRank += dy;
+      
+      if (currentFile >= 0 && currentFile < 8 && currentRank >= 1 && currentRank <= 8) {
+        const square = files[currentFile] + currentRank;
+        if (square !== to) { // Don't add destination twice
+          path.push(square);
+        }
+      }
+    }
+    
+    // Add destination square
+    path.push(to);
+  }
+  
+  return path;
+};
+
 // Icon Components
 const FlameIcon = ({ streak }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -154,7 +227,7 @@ const CollapseIcon = ({ isCollapsed }) => (
   </svg>
 );
 
-// Theme Display Names
+// Theme Display Names - ALL THEMES
 const THEME_DISPLAY_NAMES = {
   'opening': 'Openings',
   'endgame': 'End Game',
@@ -167,10 +240,31 @@ const THEME_DISPLAY_NAMES = {
   'pin': 'Pin',
   'skewer': 'Skewer',
   'sacrifice': 'Sacrifice',
-  'defensiveMove': 'Defensive Move'
+  'defensiveMove': 'Defensive Move',
+  'deflection': 'Deflection',
+  'xRayAttack': 'X-Ray Attack',
+  'doubleAttack': 'Double Attack',
+  'removal': 'Removal',
+  'interference': 'Interference',
+  'decoy': 'Decoy',
+  'clearance': 'Clearance',
+  'zugzwang': 'Zugzwang',
+  'quiet': 'Quiet Move',
+  'trappedPiece': 'Trapped Piece',
+  'attraction': 'Attraction',
+  'kingAttack': 'King Attack',
+  'pawnEndgame': 'Pawn Endgame',
+  'rookEndgame': 'Rook Endgame',
+  'queenEndgame': 'Queen Endgame',
+  'knightEndgame': 'Knight Endgame',
+  'bishopEndgame': 'Bishop Endgame',
+  'promotion': 'Promotion',
+  'enPassant': 'En Passant',
+  'castling': 'Castling',
+  'underPromotion': 'Under Promotion'
 };
 
-const FeedbackCard = ({ message, type = 'info', timestamp }) => {
+const FeedbackCard = ({ message, type = 'info' }) => {
   if (!message) return null;
   
   const colors = {
@@ -187,23 +281,14 @@ const FeedbackCard = ({ message, type = 'info', timestamp }) => {
       backgroundColor: style.bg,
       border: `1px solid ${style.border}`,
       color: style.text,
-      padding: isMobile() ? '10px 12px' : '12px 16px',
+      padding: isMobile() ? '12px 15px' : '15px 20px',
       borderRadius: '8px',
-      margin: '8px 0',
-      fontSize: isMobile() ? '13px' : '14px',
+      fontSize: isMobile() ? '14px' : '15px',
       fontWeight: '500',
       lineHeight: '1.4',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      textAlign: 'justify'
     }}>
-      {timestamp && (
-        <div style={{ 
-          fontSize: '11px', 
-          opacity: 0.7, 
-          marginBottom: '4px' 
-        }}>
-          {timestamp}
-        </div>
-      )}
       {message}
     </div>
   );
@@ -212,12 +297,13 @@ const FeedbackCard = ({ message, type = 'info', timestamp }) => {
 const App = () => {
   // EXISTING STATE VARIABLES
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
-  const [boardPosition, setBoardPosition] = useState('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+  const [boardPosition, setBoardPosition] = useState('');
   const [currentMove, setCurrentMove] = useState(null);
   const [highlightedSquares, setHighlightedSquares] = useState({});
   const [selectedSquares, setSelectedSquares] = useState([]);
   const [isUserTurnToMove, setIsUserTurnToMove] = useState(false);
-  const [feedbackMessages, setFeedbackMessages] = useState([]);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackType, setFeedbackType] = useState('info');
   const [puzzlePhase, setPuzzlePhase] = useState('ready');
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [playSpeed, setPlaySpeed] = useState(2250);
@@ -256,6 +342,7 @@ const App = () => {
   // THEME SELECTION STATE
   const [selectedTheme, setSelectedTheme] = useState('all');
   const [availableThemes, setAvailableThemes] = useState([]);
+  const [isThemesCollapsed, setIsThemesCollapsed] = useState(true);
   
   // BOARD ORIENTATION STATE
   const [boardOrientation, setBoardOrientation] = useState('white');
@@ -274,33 +361,22 @@ const App = () => {
   };
 
   const mockProfile = {
-    display_name: 'Chess Master',
+    display_name: 'TestUser123',
+    username: 'TestUser123',
     current_rating: 1847,
     longest_streak: 12,
     puzzles_solved: 245
   };
 
-  // Mock puzzles
+  // Mock puzzles with proper 4-move sequences
   const mockPuzzles = [{
     id: 1,
     fen: 'r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4',
     moves: ['f3e5', 'c6e5', 'c4f7', 'e8f7'],
-    explanation: 'Fork the king and rook with Bxf7+',
+    explanation: 'Nxe5 wins material by forking the king and attacking the knight.',
     difficulty: 'intermediate',
     themes: ['fork', 'check']
   }];
-
-  // Add feedback message helper
-  const addFeedbackMessage = useCallback((message, type = 'info') => {
-    const timestamp = new Date().toLocaleTimeString();
-    const newMessage = { message, type, timestamp, id: Date.now() };
-    
-    setFeedbackMessages(prev => {
-      const updated = [newMessage, ...prev];
-      // Keep only last 10 messages
-      return updated.slice(0, 10);
-    });
-  }, []);
 
   // Update board size on resize
   useEffect(() => {
@@ -319,8 +395,226 @@ const App = () => {
     setPuzzles(mockPuzzles);
     setBoardPosition(mockPuzzles[0].fen);
     setIsLoadingAuth(false);
-    addFeedbackMessage('Welcome to Chess Visualization Trainer!', 'info');
-  }, [addFeedbackMessage]);
+    setFeedbackMessage('Click the play button to watch the first 3 moves!');
+    setFeedbackType('info');
+    
+    // Initialize chess game
+    const game = new Chess(mockPuzzles[0].fen);
+    internalGameRef.current = game;
+  }, []);
+
+  // Helper function to validate puzzle data
+  const validatePuzzle = useCallback((puzzle) => {
+    if (!puzzle.moves || puzzle.moves.length !== sequenceLength) {
+      console.warn(`Puzzle does not have exactly ${sequenceLength} moves:`, puzzle);
+      return false;
+    }
+    
+    for (let i = 0; i < sequenceLength; i++) {
+      const move = puzzle.moves[i];
+      if (!move || move.length < 4) {
+        console.warn(`Invalid move format at index ${i}:`, move);
+        return false;
+      }
+    }
+    
+    return true;
+  }, [sequenceLength]);
+
+  // Render SVG arrow for move visualization - FIXED
+  const renderMoveArrow = () => {
+    if (!currentMove) return null;
+    
+    const { from, to } = currentMove;
+    
+    // Calculate arrow positions
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const fromFile = files.indexOf(from[0]);
+    const fromRank = parseInt(from[1]);
+    const toFile = files.indexOf(to[0]);
+    const toRank = parseInt(to[1]);
+    
+    // Convert to pixel coordinates (assuming standard 8x8 grid)
+    const squareSize = boardSize / 8;
+    const fromX = (boardOrientation === 'white' ? fromFile : 7 - fromFile) * squareSize + squareSize / 2;
+    const fromY = (boardOrientation === 'white' ? 8 - fromRank : fromRank - 1) * squareSize + squareSize / 2;
+    const toX = (boardOrientation === 'white' ? toFile : 7 - toFile) * squareSize + squareSize / 2;
+    const toY = (boardOrientation === 'white' ? 8 - toRank : toRank - 1) * squareSize + squareSize / 2;
+    
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: boardSize,
+          height: boardSize,
+          pointerEvents: 'none',
+          zIndex: 10
+        }}
+      >
+        <svg
+          width={boardSize}
+          height={boardSize}
+          style={{ position: 'absolute', top: 0, left: 0 }}
+        >
+          <defs>
+            <marker
+              id="arrowhead"
+              markerWidth="8.4"
+              markerHeight="5.6"
+              refX="7.7"
+              refY="2.8"
+              orient="auto"
+            >
+              <polygon
+                points="0 0, 8.4 2.8, 0 5.6"
+                fill="#2196F3"
+                stroke="#1976D2"
+                strokeWidth="1"
+              />
+            </marker>
+          </defs>
+          <line
+            x1={fromX}
+            y1={fromY}
+            x2={toX}
+            y2={toY}
+            stroke="#2196F3"
+            strokeWidth="4"
+            markerEnd="url(#arrowhead)"
+            strokeLinecap="round"
+          />
+        </svg>
+      </div>
+    );
+  };
+
+  // Reset puzzle function - FIXED
+  const resetCurrentPuzzle = useCallback((index) => {
+    if (!puzzles || puzzles.length === 0 || !puzzles[index]) {
+      return;
+    }
+
+    const puzzle = puzzles[index];
+    
+    if (!validatePuzzle(puzzle)) {
+      setFeedbackMessage('This puzzle appears to be invalid. Loading new puzzles...');
+      setFeedbackType('error');
+      return;
+    }
+
+    const game = new Chess(puzzle.fen);
+    
+    // Determine who plays the final move
+    const tempGame = new Chess(puzzle.fen);
+    for (let i = 0; i < sequenceLength - 1; i++) {
+      tempGame.move({ from: puzzle.moves[i].slice(0, 2), to: puzzle.moves[i].slice(2, 4) });
+    }
+    
+    const userPlaysAs = tempGame.turn() === 'w' ? 'white' : 'black';
+    setUserPlayingAs(userPlaysAs);
+    setBoardOrientation(userPlaysAs);
+    
+    internalGameRef.current = game;
+    setBoardPosition(puzzle.fen);
+    setCurrentMoveIndex(0);
+    setCurrentMove(null);
+    setHighlightedSquares({});
+    setSelectedSquares([]);
+    setIsUserTurnToMove(false);
+    setIsAutoPlaying(false);
+    setPuzzlePhase('ready');
+    setFeedbackMessage(`Click the play button to watch the first ${sequenceLength - 1} moves!`);
+    setFeedbackType('info');
+    
+    // Reset puzzle tracking
+    setPuzzleAttempted(false);
+    setHintUsed(false);
+    
+    // Clear any running timers
+    if (autoPlayRef.current) {
+      clearTimeout(autoPlayRef.current);
+    }
+  }, [puzzles, sequenceLength, validatePuzzle]);
+
+  // Reset puzzle when index changes
+  useEffect(() => {
+    if (puzzles.length > 0) {
+      resetCurrentPuzzle(currentPuzzleIndex);
+    }
+  }, [currentPuzzleIndex, puzzles, resetCurrentPuzzle]);
+
+  // AUTO-PLAY FUNCTIONALITY - FIXED
+  const startAutoPlay = () => {
+    if (isAutoPlaying) return;
+    
+    // Allow replay even after sequence is complete
+    if (puzzlePhase === 'complete' || puzzlePhase === 'playing') {
+      // Reset to beginning for replay
+      setBoardPosition(puzzles[currentPuzzleIndex].fen);
+      setCurrentMoveIndex(0);
+      setCurrentMove(null);
+      setPuzzlePhase('watching');
+      setIsUserTurnToMove(false);
+    }
+    
+    setIsAutoPlaying(true);
+    setPuzzlePhase('watching');
+    setPuzzleStartTime(Date.now());
+    setFeedbackMessage('Watch carefully and memorize these moves!');
+    setFeedbackType('warning');
+    
+    // Start the sequence
+    playMoveSequence(0);
+  };
+
+  const playMoveSequence = (moveIndex) => {
+    if (moveIndex >= sequenceLength - 1) {
+      // After all setup moves, set up for user's turn
+      setupUserTurn();
+      return;
+    }
+
+    const puzzle = puzzles[currentPuzzleIndex];
+    const move = puzzle.moves[moveIndex];
+    const from = move.slice(0, 2);
+    const to = move.slice(2, 4);
+
+    // Apply the move to the game
+    const game = new Chess(internalGameRef.current.fen());
+    const moveResult = game.move({ from, to });
+    
+    if (moveResult) {
+      setBoardPosition(game.fen());
+      internalGameRef.current = game;
+      
+      // Show move with arrow highlighting
+      setCurrentMove({ from, to });
+      setCurrentMoveIndex(moveIndex + 1);
+    }
+
+    // Schedule next move
+    autoPlayRef.current = setTimeout(() => {
+      playMoveSequence(moveIndex + 1);
+    }, playSpeed);
+  };
+
+  const setupUserTurn = () => {
+    setIsAutoPlaying(false);
+    setPuzzlePhase('playing');
+    setCurrentMove(null); // Clear highlighting
+    setIsUserTurnToMove(true);
+    setFeedbackMessage(`Recall the position after ${sequenceLength - 1} moves and play the best ${sequenceLength}${getOrdinalSuffix(sequenceLength)} move!`);
+    setFeedbackType('info');
+  };
+
+  const pauseAutoPlay = () => {
+    setIsAutoPlaying(false);
+    if (autoPlayRef.current) {
+      clearTimeout(autoPlayRef.current);
+    }
+  };
 
   // Handle square click
   const handleSquareClick = (square) => {
@@ -331,11 +625,14 @@ const App = () => {
       setHighlightedSquares({
         [square]: { backgroundColor: 'rgba(173, 216, 230, 0.6)' }
       });
-      addFeedbackMessage('Select the destination square of your move.', 'info');
+      setFeedbackMessage('Select the destination square of your move.');
+      setFeedbackType('info');
     } else {
       const from = selectedSquares[0];
       const to = square;
-      
+      const userGuess = from + to;
+      const correctMove = puzzles[currentPuzzleIndex].moves[sequenceLength - 1];
+
       setHighlightedSquares({
         [from]: { backgroundColor: 'rgba(173, 216, 230, 0.6)' },
         [to]: { backgroundColor: 'rgba(173, 216, 230, 0.6)' }
@@ -343,64 +640,191 @@ const App = () => {
 
       setTimeout(() => {
         setHighlightedSquares({});
-        // Mock evaluation
-        const correct = Math.random() > 0.5;
-        addFeedbackMessage(
-          correct ? 'Correct! Well done.' : 'Incorrect. Try again.',
-          correct ? 'success' : 'error'
-        );
+        evaluateUserMove(from, to, userGuess, correctMove);
       }, 1000);
 
       setSelectedSquares([]);
     }
   };
 
-  // Control handlers
-  const startAutoPlay = () => {
-    setIsAutoPlaying(true);
-    addFeedbackMessage('Watch carefully and memorize these moves!', 'warning');
-    
+  const evaluateUserMove = async (from, to, userGuess, correctMove) => {
+    const tempGame = new Chess(internalGameRef.current.fen());
+    const moveResult = tempGame.move({ from, to });
+
+    if (!moveResult) {
+      setFeedbackMessage('Illegal move.');
+      setFeedbackType('error');
+      return;
+    }
+
+    setIsUserTurnToMove(false);
+    setPuzzlePhase('complete');
+    setFeedbackMessage('Analyzing your move…');
+    setFeedbackType('info');
+
+    const timeTaken = puzzleStartTime ? Math.round((Date.now() - puzzleStartTime) / 1000) : null;
+    const solved = userGuess === correctMove;
+    const currentPuzzle = puzzles[currentPuzzleIndex];
+
+    // Mark that user has attempted this puzzle
+    setPuzzleAttempted(true);
+
+    if (solved) {
+      setFeedbackMessage('Correct!');
+      setFeedbackType('success');
+    } else {
+      setFeedbackMessage('Incorrect.');
+      setFeedbackType('error');
+    }
+
+    // Play all moves for visualization
+    playFullSequence([...currentPuzzle.moves.slice(0, sequenceLength - 1), userGuess]);
+
+    if (!solved) {
+      try {
+        const explanation = await getIncorrectMoveExplanation(
+          currentPuzzle.fen,
+          currentPuzzle.moves,
+          userGuess,
+          correctMove,
+          userPlayingAs
+        );
+        
+        setTimeout(() => {
+          setFeedbackMessage(explanation);
+          setFeedbackType('error');
+        }, 2000);
+      } catch (err) {
+        console.error('Failed to get explanation:', err);
+      }
+    }
+  };
+
+  const playFullSequence = (moves) => {
+    const puzzle = puzzles[currentPuzzleIndex];
+    const game = new Chess(puzzle.fen);
+    setBoardPosition(puzzle.fen);
+    setCurrentMove(null);
+
+    moves.forEach((move, i) => {
+      setTimeout(() => {
+        const from = move.slice(0, 2);
+        const to = move.slice(2, 4);
+        const moveResult = game.move({ from, to });
+        
+        if (moveResult) {
+          setBoardPosition(game.fen());
+          setCurrentMove({ from, to });
+        }
+      }, i * 1000);
+    });
+
     setTimeout(() => {
-      setIsAutoPlaying(false);
-      setIsUserTurnToMove(true);
-      addFeedbackMessage('Now make your move!', 'info');
-    }, 3000);
+      setCurrentMove(null);
+    }, moves.length * 1000 + 700);
+  };
+
+  const handleRevealSolution = async () => {
+    const puzzle = puzzles[currentPuzzleIndex];
+    
+    setFeedbackMessage('Revealing solution...');
+    setFeedbackType('info');
+    
+    // Play all moves
+    playFullSequence(puzzle.moves);
+
+    // Show explanation after sequence
+    setTimeout(async () => {
+      try {
+        const explanation = await getCorrectMoveExplanation(puzzle, userSystem, userPlayingAs);
+        setFeedbackMessage(`The solution is ${puzzle.moves[sequenceLength - 1]}.`);
+        setFeedbackType('info');
+      } catch (error) {
+        setFeedbackMessage(`The solution is ${puzzle.moves[sequenceLength - 1]}.`);
+        setFeedbackType('info');
+      }
+    }, puzzle.moves.length * 1000 + 300);
   };
 
   const handleHint = () => {
+    const puzzle = puzzles[currentPuzzleIndex];
+    const correctMove = puzzle.moves[sequenceLength - 1];
+    const from = correctMove.slice(0, 2);
+    
+    // Mark that hint was used
     setHintUsed(true);
-    addFeedbackMessage('Hint: Look at the piece on E4', 'warning');
-  };
-
-  const handleRevealSolution = () => {
-    addFeedbackMessage('The solution is Bxf7+', 'info');
+    
+    setFeedbackMessage(`Hint: Look at the piece on ${from.toUpperCase()} (Note: Using hints prevents rating increases)`);
+    setFeedbackType('warning');
+    
+    // Briefly highlight the piece that should move
+    setHighlightedSquares({
+      [from]: { backgroundColor: 'rgba(255, 193, 7, 0.6)' }
+    });
+    
+    setTimeout(() => {
+      setHighlightedSquares({});
+    }, 3000);
   };
 
   const skipToNextPuzzle = () => {
-    addFeedbackMessage('Loading next puzzle...', 'info');
+    if (currentPuzzleIndex < puzzles.length - 1) {
+      setCurrentPuzzleIndex(currentPuzzleIndex + 1);
+    } else {
+      setCurrentPuzzleIndex(0);
+    }
   };
 
   const goToPreviousPuzzle = () => {
-    addFeedbackMessage('Loading previous puzzle...', 'info');
+    if (currentPuzzleIndex > 0) {
+      setCurrentPuzzleIndex(currentPuzzleIndex - 1);
+    }
   };
 
-  const handleDifficultyChange = (difficulty) => {
-    setSelectedDifficulty(difficulty);
-    addFeedbackMessage(`Difficulty changed to ${difficulty}`, 'info');
+  // Difficulty change handler
+  const handleDifficultyChange = useCallback((newDifficulty) => {
+    if (newDifficulty !== selectedDifficulty) {
+      console.log('🔄 Changing difficulty to:', newDifficulty);
+      setSelectedDifficulty(newDifficulty);
+      setCurrentPuzzleIndex(0);
+    }
+  }, [selectedDifficulty]);
+
+  // Theme change handler
+  const handleThemeChange = useCallback((newTheme) => {
+    if (newTheme !== selectedTheme) {
+      console.log('🏷️ Changing theme to:', newTheme);
+      setSelectedTheme(newTheme);
+      setCurrentPuzzleIndex(0);
+    }
+  }, [selectedTheme]);
+
+  // Auth handlers
+  const handleAuthSuccess = async (user) => {
+    setUser(user);
+    const profile = await userSystem.getUserProfile();
+    setUserProfile(profile);
+    setProfileUpdateKey(prev => prev + 1);
+    setShowAuthModal(false);
   };
 
-  const handleThemeChange = (theme) => {
-    setSelectedTheme(theme);
-    addFeedbackMessage(`Theme changed to ${theme}`, 'info');
+  const handleSignOut = async () => {
+    await userSystem.signOut();
+    setUser(null);
+    setUserProfile(null);
+    setShowProfileModal(false);
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   const handleDarkModeToggle = () => {
     setIsDarkMode(!isDarkMode);
-    addFeedbackMessage(`${isDarkMode ? 'Light' : 'Dark'} mode enabled`, 'info');
+    setFeedbackMessage(`${isDarkMode ? 'Light' : 'Dark'} mode enabled`);
+    setFeedbackType('info');
   };
 
   const handleSharePuzzle = () => {
-    addFeedbackMessage('Puzzle shared as GIF!', 'success');
+    setFeedbackMessage('Puzzle shared as GIF!');
+    setFeedbackType('success');
   };
 
   // Responsive layout styles
@@ -515,16 +939,16 @@ const App = () => {
 
   return (
     <div style={styles.container}>
-      {/* Full Width Header */}
+      {/* Full Width Header with Green Background */}
       <header style={{
         height: '80px',
-        backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
-        borderBottom: `1px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
+        backgroundColor: '#4caf50', // Green background like chessboard
+        color: 'white',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 20px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
       }}>
         {/* Left side - Logo */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -532,16 +956,16 @@ const App = () => {
             src="/logo.png"
             alt="Chess Trainer Logo"
             style={{
-              height: isMobile() ? '40px' : '50px',
+              height: isMobile() ? '80px' : '100px', // 2x bigger
               marginRight: '15px'
             }}
           />
           {!isMobile() && (
             <h1 style={{
-              fontSize: '24px',
+              fontSize: '18px', // 50% smaller
               fontWeight: 'bold',
               margin: 0,
-              color: isDarkMode ? '#ffffff' : '#333333'
+              color: 'white'
             }}>
               Chess Visualization Trainer
             </h1>
@@ -562,7 +986,7 @@ const App = () => {
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              color: isDarkMode ? '#ffffff' : '#333333',
+              color: 'white',
               fontSize: '16px',
               fontWeight: '500',
               padding: '8px 12px',
@@ -580,7 +1004,7 @@ const App = () => {
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              color: isDarkMode ? '#ffffff' : '#333333',
+              color: 'white',
               fontSize: '16px',
               fontWeight: '500',
               padding: '8px 12px',
@@ -598,7 +1022,7 @@ const App = () => {
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              color: isDarkMode ? '#ffffff' : '#333333',
+              color: 'white',
               fontSize: '16px',
               fontWeight: '500',
               padding: '8px 12px',
@@ -626,20 +1050,20 @@ const App = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '10px',
-                  backgroundColor: isDarkMode ? '#404040' : 'rgba(255,255,255,0.9)',
+                  backgroundColor: 'rgba(255,255,255,0.2)',
                   padding: '8px 12px',
                   borderRadius: '20px',
-                  border: `1px solid ${isDarkMode ? '#555555' : '#ddd'}`,
+                  border: '1px solid rgba(255,255,255,0.3)',
                   cursor: 'pointer',
                   transition: 'background-color 0.2s ease',
-                  color: isDarkMode ? '#ffffff' : '#333333'
+                  color: 'white'
                 }}
               >
                 <div style={{ fontSize: isMobile() ? '13px' : '14px' }}>
-                  <strong>{userProfile?.display_name || 'Player'}</strong>
+                  <strong>{userProfile?.username || userProfile?.display_name || 'Player'}</strong>
                 </div>
                 <div style={{
-                  backgroundColor: '#4CAF50',
+                  backgroundColor: 'rgba(255,255,255,0.3)',
                   color: 'white',
                   padding: '4px 8px',
                   borderRadius: '12px',
@@ -655,9 +1079,9 @@ const App = () => {
               onClick={() => setShowAuthModal(true)}
               style={{
                 padding: '8px 16px',
-                backgroundColor: '#4CAF50',
+                backgroundColor: 'rgba(255,255,255,0.2)',
                 color: 'white',
-                border: 'none',
+                border: '1px solid rgba(255,255,255,0.3)',
                 borderRadius: '20px',
                 cursor: 'pointer',
                 fontSize: isMobile() ? '13px' : '14px',
@@ -747,16 +1171,27 @@ const App = () => {
                 </div>
               </div>
 
-              {/* Theme Selection */}
+              {/* Theme Selection with Collapse/Minimize */}
               <div>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '10px',
-                  fontWeight: 'bold',
-                  fontSize: '14px'
-                }}>
-                  🎯 Puzzle Themes
-                </label>
+                <div 
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '10px',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setIsThemesCollapsed(!isThemesCollapsed)}
+                >
+                  <label style={{
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                    cursor: 'pointer'
+                  }}>
+                    🎯 Puzzle Themes
+                  </label>
+                  <CollapseIcon isCollapsed={isThemesCollapsed} />
+                </div>
                 
                 <div style={{
                   display: 'flex',
@@ -782,7 +1217,8 @@ const App = () => {
                     All Themes
                   </button>
 
-                  {['fork', 'pin', 'skewer', 'opening', 'endgame'].map(theme => (
+                  {/* Collapsible theme options */}
+                  {!isThemesCollapsed && Object.keys(THEME_DISPLAY_NAMES).map(theme => (
                     <button
                       key={theme}
                       onClick={() => handleThemeChange(theme)}
@@ -800,7 +1236,7 @@ const App = () => {
                         textAlign: 'left'
                       }}
                     >
-                      {THEME_DISPLAY_NAMES[theme] || theme.charAt(0).toUpperCase() + theme.slice(1)}
+                      {THEME_DISPLAY_NAMES[theme]}
                     </button>
                   ))}
                 </div>
@@ -928,6 +1364,7 @@ const App = () => {
               customDarkSquareStyle={{ backgroundColor: isDarkMode ? '#769656' : '#4caf50' }}
               customLightSquareStyle={{ backgroundColor: isDarkMode ? '#eeeed2' : '#f1f1e6' }}
             />
+            {renderMoveArrow()}
           </div>
 
           {/* Control Buttons */}
@@ -954,7 +1391,7 @@ const App = () => {
                 color: 'white',
                 borderRadius: '6px'
               }}
-              onClick={isAutoPlaying ? () => setIsAutoPlaying(false) : startAutoPlay}
+              onClick={isAutoPlaying ? pauseAutoPlay : startAutoPlay}
               title={isAutoPlaying ? "Pause" : "Play Sequence"}
             >
               <PlayIcon isPlaying={isAutoPlaying} />
@@ -987,7 +1424,7 @@ const App = () => {
           </div>
         </div>
 
-        {/* Right Column - Feedback Panel */}
+        {/* Right Column - Messages Panel */}
         <div style={{
           ...styles.feedbackPanel,
           backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
@@ -997,7 +1434,7 @@ const App = () => {
           flexDirection: 'column',
           color: isDarkMode ? '#ffffff' : '#333333'
         }}>
-          {/* Feedback Header */}
+          {/* Messages Header */}
           <h3 style={{ 
             margin: '0 0 15px 0', 
             fontSize: '18px', 
@@ -1005,34 +1442,19 @@ const App = () => {
             borderBottom: `2px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
             paddingBottom: '10px'
           }}>
-            Activity Log
+            Messages
           </h3>
 
-          {/* Feedback Messages */}
+          {/* Current Message */}
           <div style={{
             flex: 1,
             overflow: 'auto',
             marginBottom: '20px'
           }}>
-            {feedbackMessages.length === 0 ? (
-              <div style={{
-                padding: '20px',
-                textAlign: 'center',
-                color: isDarkMode ? '#888888' : '#666666',
-                fontStyle: 'italic'
-              }}>
-                Activity will appear here...
-              </div>
-            ) : (
-              feedbackMessages.map((msg) => (
-                <FeedbackCard
-                  key={msg.id}
-                  message={msg.message}
-                  type={msg.type}
-                  timestamp={msg.timestamp}
-                />
-              ))
-            )}
+            <FeedbackCard
+              message={feedbackMessage}
+              type={feedbackType}
+            />
           </div>
 
           {/* Bottom Options */}
@@ -1092,24 +1514,4 @@ const App = () => {
       {/* Modals */}
       <AuthModal
         isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onAuthSuccess={() => setShowAuthModal(false)}
-        userSystem={userSystem}
-      />
-
-      <UserProfile
-        isOpen={showProfileModal}
-        user={user}
-        profile={userProfile}
-        onSignOut={() => {
-          setUser(null);
-          setUserProfile(null);
-          setShowProfileModal(false);
-        }}
-        onClose={() => setShowProfileModal(false)}
-      />
-    </div>
-  );
-};
-
-export default App;
+        onClose={()

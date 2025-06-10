@@ -6,11 +6,180 @@ import './index.css';
 import UserSystem from './user-system';
 import { AuthModal, UserProfile } from './auth-components';
 
-const getBoardSize = () => (window.innerWidth < 500 ? window.innerWidth - 40 : 400);
+const getBoardSize = () => {
+  if (window.innerWidth < 500) {
+    return window.innerWidth - 40; // Mobile
+  } else if (window.innerWidth < 800) {
+    return 450; // Tablet
+  } else {
+    return 600; // Desktop - much larger like Chess.com
+  }
+};
 
 // Helper function to determine whose turn it is from FEN
 const getActiveColor = (fen) => {
   const parts = fen.split(' ');
+
+// Theme Display Names
+const THEME_DISPLAY_NAMES = {
+  'advantage': 'Advantage',
+  'crushing': 'Crushing',
+  'sacrifice': 'Sacrifice',
+  'discoveredAttack': 'Discovered Attack',
+  'deflection': 'Deflection',
+  'pin': 'Pin',
+  'hangingPiece': 'Hanging Piece',
+  'defensiveMove': 'Defensive Move',
+  'kingsideAttack': 'Kingside Attack',
+  'endgame': 'Endgame',
+  'middlegame': 'Middlegame',
+  'queenEndgame': 'Queen Endgame',
+  'pawnEndgame': 'Pawn Endgame',
+  'short': 'Short',
+  'long': 'Long', 
+  'veryLong': 'Very Long',
+  'master': 'Master Level',
+  '32': 'Special #32'
+};
+
+// Theme Selector Component
+const ThemeSelector = ({ 
+  themes, 
+  selectedTheme, 
+  onThemeChange, 
+  disabled = false 
+}) => {
+  const [showAllThemes, setShowAllThemes] = useState(false);
+
+  // Get display name for theme
+  const getThemeDisplayName = (theme) => {
+    return THEME_DISPLAY_NAMES[theme] || theme.charAt(0).toUpperCase() + theme.slice(1);
+  };
+
+  // Get top themes (most common)
+  const topThemes = themes
+    .filter(theme => theme.count >= 5) // Only themes with 5+ puzzles
+    .slice(0, 8); // Top 8 themes
+
+  if (themes.length === 0) return null;
+
+  return (
+    <div style={{
+      margin: '15px 0',
+      padding: '12px',
+      backgroundColor: '#f8f9fa',
+      borderRadius: '8px',
+      border: '1px solid #e9ecef'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '10px'
+      }}>
+        <label style={{
+          fontSize: '14px',
+          fontWeight: 'bold',
+          color: '#333'
+        }}>
+          🎯 Puzzle Themes
+        </label>
+        
+        {themes.length > 8 && (
+          <button
+            onClick={() => setShowAllThemes(!showAllThemes)}
+            style={{
+              padding: '4px 8px',
+              fontSize: '12px',
+              border: '1px solid #ddd',
+              backgroundColor: 'white',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            {showAllThemes ? 'Show Less' : 'Show All'}
+          </button>
+        )}
+      </div>
+
+      <div style={{
+        display: 'flex',
+        gap: '6px',
+        flexWrap: 'wrap',
+        justifyContent: 'center'
+      }}>
+        {/* All Themes Button */}
+        <button
+          onClick={() => onThemeChange('all')}
+          disabled={disabled}
+          style={{
+            padding: '6px 12px',
+            border: '2px solid',
+            borderColor: selectedTheme === 'all' ? '#2196F3' : '#ddd',
+            backgroundColor: selectedTheme === 'all' ? '#2196F3' : 'white',
+            color: selectedTheme === 'all' ? 'white' : '#333',
+            borderRadius: '16px',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            fontSize: '12px',
+            fontWeight: selectedTheme === 'all' ? 'bold' : 'normal',
+            transition: 'all 0.2s ease',
+            opacity: disabled ? 0.6 : 1
+          }}
+        >
+          All Themes
+        </button>
+
+        {/* Popular Themes */}
+        {(showAllThemes ? themes : topThemes).map(theme => {
+          const isSelected = selectedTheme === theme.name;
+          const displayName = getThemeDisplayName(theme.name);
+          
+          return (
+            <button
+              key={theme.name}
+              onClick={() => onThemeChange(theme.name)}
+              disabled={disabled}
+              title={`${theme.count} puzzles`}
+              style={{
+                padding: '6px 12px',
+                border: '2px solid',
+                borderColor: isSelected ? '#4CAF50' : '#ddd',
+                backgroundColor: isSelected ? '#4CAF50' : 'white',
+                color: isSelected ? 'white' : '#333',
+                borderRadius: '16px',
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                fontSize: '12px',
+                fontWeight: isSelected ? 'bold' : 'normal',
+                transition: 'all 0.2s ease',
+                opacity: disabled ? 0.6 : 1
+              }}
+            >
+              {displayName}
+              <span style={{
+                fontSize: '10px',
+                opacity: 0.7,
+                marginLeft: '4px'
+              }}>
+                ({theme.count})
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {selectedTheme !== 'all' && (
+        <div style={{
+          textAlign: 'center',
+          fontSize: '11px',
+          color: '#666',
+          marginTop: '8px'
+        }}>
+          Showing puzzles with "{getThemeDisplayName(selectedTheme)}" theme
+        </div>
+      )}
+    </div>
+  );
+};
   return parts[1] === 'w' ? 'white' : 'black';
 };
 
@@ -168,13 +337,18 @@ const SettingsDropdown = ({ isOpen, onClose, playSpeed, onSpeedChange, sequenceL
           {[4, 6, 8].map(length => (
             <button
               key={length}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 onSequenceLengthChange(length);
-                // Close the dropdown after showing the selection
+                // Keep dropdown open briefly to show selection
                 setTimeout(() => {
                   onClose();
-                }, 150);
+                }, 300);
               }}
               style={{
                 padding: '6px 12px',
@@ -332,6 +506,10 @@ const App = () => {
 
   const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState(0);
   
+  // THEME SELECTION STATE
+  const [selectedTheme, setSelectedTheme] = useState('all');
+  const [availableThemes, setAvailableThemes] = useState([]);
+  
   // BOARD ORIENTATION STATE
   const [boardOrientation, setBoardOrientation] = useState('white');
   const [userPlayingAs, setUserPlayingAs] = useState('white');
@@ -404,16 +582,16 @@ const App = () => {
       return;
     }
 
-    console.log('🐟 Loading puzzles:', selectedDifficulty, `${sequenceLength}-move`, 'for user:', user?.id || 'guest');
+    console.log('🐟 Loading puzzles:', selectedDifficulty, `${sequenceLength}-move`, 'theme:', selectedTheme, 'for user:', user?.id || 'guest');
     setIsLoadingPuzzles(true);
     
     try {
       let fetchedPuzzles = [];
       
       if (user) {
-        fetchedPuzzles = await userSystem.getPuzzlesForUser(selectedDifficulty, 50, sequenceLength);
+        fetchedPuzzles = await userSystem.getPuzzlesForUser(selectedDifficulty, 50, sequenceLength, selectedTheme);
       } else {
-        fetchedPuzzles = await userSystem.getPublicPuzzles(selectedDifficulty, 25, sequenceLength);
+        fetchedPuzzles = await userSystem.getPublicPuzzles(selectedDifficulty, 25, sequenceLength, selectedTheme);
       }
       
       console.log('📦 Received puzzles:', fetchedPuzzles.length);
@@ -423,7 +601,7 @@ const App = () => {
         setCurrentPuzzleIndex(0);
         console.log(`✅ Ready! ${selectedDifficulty} ${sequenceLength}-move puzzles loaded`);
       } else {
-        setFeedbackMessage(`Failed to load ${selectedDifficulty} ${sequenceLength}-move puzzles.`);
+        setFeedbackMessage(`Failed to load ${selectedDifficulty} ${sequenceLength}-move puzzles with theme "${selectedTheme}".`);
         setFeedbackType('error');
       }
       
@@ -434,15 +612,35 @@ const App = () => {
     } finally {
       setIsLoadingPuzzles(false);
     }
-  }, [isLoadingAuth, user, userSystem, selectedDifficulty, sequenceLength, isLoadingPuzzles]);
+  }, [isLoadingAuth, user, userSystem, selectedDifficulty, sequenceLength, selectedTheme, isLoadingPuzzles]);
 
   // Trigger puzzle loading
-  const puzzleLoadTrigger = `${!isLoadingAuth}-${user?.id || 'guest'}-${selectedDifficulty}-${sequenceLength}`;
+  const puzzleLoadTrigger = `${!isLoadingAuth}-${user?.id || 'guest'}-${selectedDifficulty}-${sequenceLength}-${selectedTheme}`;
   useEffect(() => {
     if (!isLoadingAuth) {
       loadPuzzles();
     }
   }, [puzzleLoadTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load themes when difficulty/sequence changes
+  useEffect(() => {
+    const loadThemes = async () => {
+      if (!isLoadingAuth && userSystem) {
+        try {
+          const themes = await userSystem.fetchPuzzleThemes(
+            selectedDifficulty, 
+            sequenceLength
+          );
+          setAvailableThemes(themes);
+        } catch (error) {
+          console.error('Failed to load themes:', error);
+          setAvailableThemes([]);
+        }
+      }
+    };
+    
+    loadThemes();
+  }, [selectedDifficulty, sequenceLength, isLoadingAuth, userSystem]);
 
   // Close settings dropdown when clicking outside
   useEffect(() => {
@@ -973,6 +1171,15 @@ const App = () => {
     }
   }, [selectedDifficulty]);
 
+  // Theme change handler
+  const handleThemeChange = useCallback((newTheme) => {
+    if (newTheme !== selectedTheme) {
+      console.log('🏷️ Changing theme to:', newTheme);
+      setSelectedTheme(newTheme);
+      setCurrentPuzzleIndex(0);
+    }
+  }, [selectedTheme]);
+
   // Auth handlers
   const handleAuthSuccess = async (user) => {
     setUser(user);
@@ -1163,6 +1370,13 @@ const App = () => {
       <DifficultyToggle 
         currentDifficulty={selectedDifficulty}
         onDifficultyChange={handleDifficultyChange}
+        disabled={isLoadingPuzzles}
+      />
+
+      <ThemeSelector
+        themes={availableThemes}
+        selectedTheme={selectedTheme}
+        onThemeChange={handleThemeChange}
         disabled={isLoadingPuzzles}
       />
 

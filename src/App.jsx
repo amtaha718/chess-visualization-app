@@ -6,7 +6,13 @@ import './index.css';
 import UserSystem from './user-system';
 import { AuthModal, UserProfile } from './auth-components';
 
-const getBoardSize = () => {
+const getBoardSize = (isExpanded = false) => {
+  if (isExpanded) {
+    // Expanded mode: 65% of viewport (good balance for most screens)
+    return Math.min(window.innerWidth * 0.65, window.innerHeight * 0.65);
+  }
+  
+  // Normal mode
   if (window.innerWidth < 500) {
     return window.innerWidth - 40; // Mobile
   } else if (window.innerWidth < 800) {
@@ -73,9 +79,27 @@ const RevealIcon = () => (
   </svg>
 );
 
-const GearIcon = () => (
+const ExpandIcon = ({ isExpanded }) => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="black">
-    <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5a3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97c0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1c0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/>
+    {isExpanded ? (
+      // Contract/minimize icon
+      <path d="M5.5,5.5 L18.5,5.5 L18.5,18.5 L5.5,18.5 Z M7,7 L17,7 L17,17 L7,17 Z M9,9 L15,9 L15,15 L9,15 Z" />
+    ) : (
+      // Expand/maximize icon
+      <path d="M5,5 L19,5 L19,19 L5,19 Z M7,7 L17,7 L17,17 L7,17 Z" />
+    )}
+  </svg>
+);
+
+const CollapseIcon = ({ isCollapsed }) => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="black">
+    {isCollapsed ? (
+      // Expand arrow (pointing down)
+      <path d="M7 10l5 5 5-5z"/>
+    ) : (
+      // Collapse arrow (pointing up)
+      <path d="M7 14l5-5 5 5z"/>
+    )}
   </svg>
 );
 
@@ -241,138 +265,153 @@ const ThemeSelector = ({
   );
 };
 
-// Settings Dropdown Component - FIXED
-const SettingsDropdown = ({ isOpen, onClose, playSpeed, onSpeedChange, sequenceLength, onSequenceLengthChange, buttonRef }) => {
-  if (!isOpen) return null;
+// Settings Container Component
+const SettingsContainer = ({ 
+  playSpeed, 
+  onSpeedChange, 
+  sequenceLength, 
+  onSequenceLengthChange, 
+  disabled = false 
+}) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <div 
-      style={{
-        position: 'absolute',
-        top: buttonRef.current ? buttonRef.current.offsetTop + buttonRef.current.offsetHeight + 5 : '50px',
-        left: buttonRef.current ? buttonRef.current.offsetLeft : '50%',
-        transform: buttonRef.current ? 'none' : 'translateX(-50%)',
-        backgroundColor: 'white',
-        border: '1px solid #ddd',
-        borderRadius: '8px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        padding: '16px',
-        zIndex: 1000,
-        minWidth: '220px'
+    <div style={{
+      margin: '15px 0',
+      padding: '12px',
+      backgroundColor: '#f8f9fa',
+      borderRadius: '8px',
+      border: '1px solid #e9ecef'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: isCollapsed ? '0' : '12px',
+        cursor: 'pointer'
       }}
-    >
-      <div style={{ marginBottom: '16px' }}>
-        <label style={{ 
-          display: 'block', 
-          marginBottom: '8px', 
-          fontWeight: 'bold',
+      onClick={() => setIsCollapsed(!isCollapsed)}
+      >
+        <label style={{
           fontSize: '14px',
-          color: '#333'
+          fontWeight: 'bold',
+          color: '#333',
+          cursor: 'pointer'
         }}>
-          Speed
+          ⚙️ Settings
         </label>
         
-        <input
-          type="range"
-          min="500"
-          max="3000"
-          step="250"
-          value={3500 - playSpeed}
-          onChange={(e) => onSpeedChange(3500 - Number(e.target.value))}
-          onMouseDown={(e) => e.stopPropagation()}
-          onMouseUp={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            width: '100%',
-            height: '4px',
-            borderRadius: '2px',
-            background: '#ddd',
-            outline: 'none',
-            cursor: 'pointer'
-          }}
-        />
-        
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: '10px',
-          color: '#666',
-          marginTop: '4px'
-        }}>
-          <span>Slow</span>
-          <span>Fast</span>
-        </div>
-        
-        <div style={{
-          textAlign: 'center',
-          fontSize: '12px',
-          color: '#666',
-          marginTop: '8px'
-        }}>
-          {playSpeed / 1000}s per move
-        </div>
+        <CollapseIcon isCollapsed={isCollapsed} />
       </div>
 
-      <div style={{ marginBottom: '12px' }}>
-        <label style={{ 
-          display: 'block', 
-          marginBottom: '8px', 
-          fontWeight: 'bold',
-          fontSize: '14px',
-          color: '#333'
-        }}>
-          Sequence Moves
-        </label>
-        
-        <div style={{
-          display: 'flex',
-          gap: '8px',
-          justifyContent: 'center'
-        }}>
-          {[4, 6, 8].map(length => (
-            <button
-              key={length}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onSequenceLengthChange(length);
-                // Keep dropdown open briefly to show selection
-                setTimeout(() => {
-                  onClose();
-                }, 300);
-              }}
+      {!isCollapsed && (
+        <div>
+          {/* Speed Control */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: 'bold',
+              fontSize: '13px',
+              color: '#333'
+            }}>
+              Move Speed
+            </label>
+            
+            <input
+              type="range"
+              min="500"
+              max="3000"
+              step="250"
+              value={3500 - playSpeed}
+              onChange={(e) => onSpeedChange(3500 - Number(e.target.value))}
+              disabled={disabled}
               style={{
-                padding: '6px 12px',
-                border: '2px solid',
-                borderColor: sequenceLength === length ? '#4CAF50' : '#ddd',
-                backgroundColor: sequenceLength === length ? '#4CAF50' : 'white',
-                color: sequenceLength === length ? 'white' : '#333',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: sequenceLength === length ? 'bold' : 'normal',
-                transition: 'all 0.2s ease',
-                minWidth: '36px'
+                width: '100%',
+                height: '4px',
+                borderRadius: '2px',
+                background: '#ddd',
+                outline: 'none',
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                opacity: disabled ? 0.6 : 1
               }}
-            >
-              {length}
-            </button>
-          ))}
+            />
+            
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '10px',
+              color: '#666',
+              marginTop: '4px'
+            }}>
+              <span>Slow</span>
+              <span>Fast</span>
+            </div>
+            
+            <div style={{
+              textAlign: 'center',
+              fontSize: '12px',
+              color: '#666',
+              marginTop: '6px'
+            }}>
+              {playSpeed / 1000}s per move
+            </div>
+          </div>
+
+          {/* Sequence Length Control */}
+          <div style={{ marginBottom: '8px' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: 'bold',
+              fontSize: '13px',
+              color: '#333'
+            }}>
+              Sequence Length
+            </label>
+            
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              justifyContent: 'center',
+              flexWrap: 'wrap'
+            }}>
+              {[4, 6, 8].map(length => (
+                <button
+                  key={length}
+                  onClick={() => onSequenceLengthChange(length)}
+                  disabled={disabled}
+                  style={{
+                    padding: '6px 12px',
+                    border: '2px solid',
+                    borderColor: sequenceLength === length ? '#4CAF50' : '#ddd',
+                    backgroundColor: sequenceLength === length ? '#4CAF50' : 'white',
+                    color: sequenceLength === length ? 'white' : '#333',
+                    borderRadius: '12px',
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    fontWeight: sequenceLength === length ? 'bold' : 'normal',
+                    transition: 'all 0.2s ease',
+                    minWidth: '36px',
+                    opacity: disabled ? 0.6 : 1
+                  }}
+                >
+                  {length}
+                </button>
+              ))}
+            </div>
+            
+            <div style={{
+              textAlign: 'center',
+              fontSize: '11px',
+              color: '#666',
+              marginTop: '8px'
+            }}>
+              Watch {sequenceLength - 1} moves, play move {sequenceLength}
+            </div>
+          </div>
         </div>
-        
-        <div style={{
-          textAlign: 'center',
-          fontSize: '11px',
-          color: '#666',
-          marginTop: '6px'
-        }}>
-          Watch {sequenceLength - 1} moves, play move {sequenceLength}
-        </div>
-      </div>
+      )}
     </div>
   );
 };
@@ -488,7 +527,6 @@ const DifficultyToggle = ({ currentDifficulty, onDifficultyChange, disabled }) =
 
 const App = () => {
   // EXISTING STATE VARIABLES
-  const [boardSize, setBoardSize] = useState(getBoardSize());
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [boardPosition, setBoardPosition] = useState('');
   const [currentMove, setCurrentMove] = useState(null);
@@ -501,8 +539,8 @@ const App = () => {
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [playSpeed, setPlaySpeed] = useState(2250);
   const [sequenceLength, setSequenceLength] = useState(4);
-  const [showSettings, setShowSettings] = useState(false);
-  const settingsButtonRef = useRef(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [boardSize, setBoardSize] = useState(() => getBoardSize(false));
   const autoPlayRef = useRef(null);
   const internalGameRef = useRef(null);
 
@@ -668,26 +706,18 @@ const App = () => {
     loadThemes();
   }, [selectedDifficulty, sequenceLength, isLoadingAuth, userSystem]);
 
-  // Close settings dropdown when clicking outside
+  // Update board size on resize and expansion toggle
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showSettings && settingsButtonRef.current && !settingsButtonRef.current.contains(event.target)) {
-        setShowSettings(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showSettings]);
-
-  // Update board size on resize
-  useEffect(() => {
-    const handleResize = () => setBoardSize(getBoardSize());
+    const handleResize = () => setBoardSize(getBoardSize(isExpanded));
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [isExpanded]);
+
+  // Handle board expansion toggle
+  const toggleBoardExpansion = () => {
+    setIsExpanded(!isExpanded);
+    setBoardSize(getBoardSize(!isExpanded));
+  };
 
   // Helper function to validate puzzle data
   const validatePuzzle = (puzzle) => {
@@ -1406,6 +1436,14 @@ const App = () => {
         disabled={isLoadingPuzzles}
       />
 
+      <SettingsContainer
+        playSpeed={playSpeed}
+        onSpeedChange={setPlaySpeed}
+        sequenceLength={sequenceLength}
+        onSequenceLengthChange={setSequenceLength}
+        disabled={isLoadingPuzzles}
+      />
+
       <FeedbackCard 
         message={feedbackMessage}
         type={feedbackType} 
@@ -1465,27 +1503,14 @@ const App = () => {
           <PlayIcon isPlaying={isAutoPlaying} />
         </button>
 
-        {/* Settings Button */}
-        <div style={{ position: 'relative' }}>
-          <button 
-            ref={settingsButtonRef}
-            style={iconButtonStyle}
-            onClick={() => setShowSettings(!showSettings)}
-            title="Settings"
-          >
-            <GearIcon />
-          </button>
-          
-          <SettingsDropdown
-            isOpen={showSettings}
-            onClose={() => setShowSettings(false)}
-            playSpeed={playSpeed}
-            onSpeedChange={setPlaySpeed}
-            sequenceLength={sequenceLength}
-            onSequenceLengthChange={setSequenceLength}
-            buttonRef={settingsButtonRef}
-          />
-        </div>
+        {/* Expand Board Button */}
+        <button 
+          style={iconButtonStyle}
+          onClick={toggleBoardExpansion}
+          title={isExpanded ? "Normal Size" : "Expand Board"}
+        >
+          <ExpandIcon isExpanded={isExpanded} />
+        </button>
 
         {/* Hint Button */}
         <button 

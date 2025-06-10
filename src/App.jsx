@@ -1682,7 +1682,12 @@ const App = () => {
               color: '#666',
               marginTop: '8px'
             }}>
-              Current: {difficulties.find(d => d.value === selectedDifficulty)?.label || 'Intermediate'}
+              Current: {[
+                { value: 'beginner', label: 'Beginner' },
+                { value: 'intermediate', label: 'Intermediate' },
+                { value: 'advanced', label: 'Advanced' },
+                { value: 'expert', label: 'Expert' }
+              ].find(d => d.value === selectedDifficulty)?.label || 'Intermediate'}
             </div>
           </div>
 

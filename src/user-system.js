@@ -1,4 +1,4 @@
-// src/user-system.js - Modified to fetch puzzles from database instead of generating
+// src/user-system.js - Complete fixed version with theme support and correct database schema
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -129,19 +129,77 @@ class UserSystem {
     }
   }
 
-  // ===== PUZZLE FETCHING FROM DATABASE =====
+  // ===== THEME FETCHING =====
+
+  async fetchPuzzleThemes(difficulty = null, sequenceLength = null) {
+    try {
+      console.log('🏷️ Fetching puzzle themes...');
+      
+      let query = this.supabase
+        .from('puzzles')
+        .select('themes')
+        .eq('is_validated', true);
+      
+      if (difficulty) {
+        query = query.eq('difficulty', difficulty);
+      }
+      
+      if (sequenceLength) {
+        query = query.eq('move_count', sequenceLength);
+      }
+      
+      const { data: puzzles, error } = await query;
+      
+      if (error) {
+        console.error('❌ Error fetching themes:', error);
+        return [];
+      }
+      
+      // Count individual themes from JSON arrays
+      const themeCount = {};
+      
+      puzzles.forEach(puzzle => {
+        if (puzzle.themes && Array.isArray(puzzle.themes)) {
+          puzzle.themes.forEach(theme => {
+            themeCount[theme] = (themeCount[theme] || 0) + 1;
+          });
+        }
+      });
+      
+      // Convert to array and sort by count
+      const themes = Object.entries(themeCount)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count);
+      
+      console.log('📊 Found themes:', themes);
+      return themes;
+      
+    } catch (error) {
+      console.error('❌ Failed to fetch themes:', error);
+      return [];
+    }
+  }
+
+  // ===== PUZZLE FETCHING WITH THEMES =====
   
-  async getPuzzlesForUser(difficulty = 'intermediate', limit = 50, sequenceLength = 4) {
+  async getPuzzlesForUser(difficulty = 'intermediate', limit = 50, sequenceLength = 4, selectedTheme = 'all') {
     try {
       const user = await this.getCurrentUser();
       
       console.log('🎯 Fetching puzzles from database for user:', user?.id || 'guest');
       console.log('- Difficulty:', difficulty);
       console.log('- Sequence Length:', sequenceLength);
+      console.log('- Theme:', selectedTheme);
       console.log('- Requested:', limit);
       
-      // Fetch puzzles from database
-      const puzzles = await this.fetchPuzzlesFromDatabase(difficulty, limit, user?.id, sequenceLength);
+      // Fetch puzzles from database with theme filter
+      const puzzles = await this.fetchPuzzlesFromDatabase(
+        difficulty, 
+        limit, 
+        user?.id, 
+        sequenceLength, 
+        selectedTheme
+      );
       
       if (user && puzzles.length > 0) {
         // Add user progress tracking for logged-in users
@@ -163,14 +221,15 @@ class UserSystem {
     }
   }
 
-  async getPublicPuzzles(difficulty = 'intermediate', limit = 25, sequenceLength = 4) {
-    // For guest users, fetch from database
-    return this.fetchPuzzlesFromDatabase(difficulty, limit, null, sequenceLength);
+  async getPublicPuzzles(difficulty = 'intermediate', limit = 25, sequenceLength = 4, selectedTheme = 'all') {
+    // For guest users, fetch from database with theme filter
+    return this.fetchPuzzlesFromDatabase(difficulty, limit, null, sequenceLength, selectedTheme);
   }
 
-  async fetchPuzzlesFromDatabase(difficulty, limit, userId = null, sequenceLength = 4) {
+  async fetchPuzzlesFromDatabase(difficulty, limit, userId = null, sequenceLength = 4, selectedTheme = 'all') {
     try {
       console.log(`📚 Fetching puzzles from database`);
+      console.log(`- Theme filter: ${selectedTheme}`);
       
       // Define rating ranges for each difficulty
       const ratingRanges = {
@@ -191,6 +250,12 @@ class UserSystem {
         .eq('is_validated', true)
         .eq('move_count', sequenceLength);
       
+      // Add theme filter if not 'all'
+      if (selectedTheme !== 'all') {
+        // Use PostgreSQL array contains operator for your text array
+        query = query.contains('themes', [selectedTheme]);
+      }
+      
       // Get puzzles
       const { data: puzzles, error } = await query;
       
@@ -199,10 +264,10 @@ class UserSystem {
         throw error;
       }
       
-      console.log(`📦 Found ${puzzles?.length || 0} puzzles in database for ${sequenceLength}-move sequences`);
+      console.log(`📦 Found ${puzzles?.length || 0} puzzles for theme: ${selectedTheme}`);
       
       if (!puzzles || puzzles.length === 0) {
-        console.warn(`⚠️ No ${sequenceLength}-move puzzles found for difficulty:`, difficulty);
+        console.warn(`⚠️ No puzzles found for theme: ${selectedTheme}`);
         return [];
       }
       
@@ -228,14 +293,17 @@ class UserSystem {
     return ratings[difficulty] || 1500;
   }
 
+  // ===== FIXED USER PROGRESS (WORKS WITH EXISTING SCHEMA) =====
+
   async addUserProgress(puzzles, userId) {
     try {
       // Get user's progress on these puzzle IDs
       const puzzleIds = puzzles.map(p => p.id);
       
+      // Query using your actual column names
       const { data: progress, error } = await this.supabase
         .from('user_puzzle_progress')
-        .select('puzzle_id, solved, attempt_count, best_time')
+        .select('puzzle_id, status, attempts_count, best_time, first_solved_at')
         .eq('user_id', userId)
         .in('puzzle_id', puzzleIds);
       
@@ -251,15 +319,16 @@ class UserSystem {
         });
       }
       
-      // Merge progress with puzzles
+      // Merge progress with puzzles using your schema
       return puzzles.map(puzzle => {
         const userProgress = progressMap.get(puzzle.id);
         return {
           ...puzzle,
-          solved: userProgress?.solved || false,
-          attempted: userProgress?.attempt_count > 0 || false,
+          solved: userProgress?.status === 'solved' || false, // Convert status to boolean
+          attempted: userProgress?.attempts_count > 0 || false,
           bestTime: userProgress?.best_time || null,
-          attemptCount: userProgress?.attempt_count || 0
+          attemptCount: userProgress?.attempts_count || 0,
+          firstSolvedAt: userProgress?.first_solved_at || null
         };
       });
       
@@ -307,6 +376,7 @@ class UserSystem {
         // Update user's rating in profile
         await this.updateUserProfile({
           current_rating: newRating,
+          highest_rating: Math.max(profile?.highest_rating || 1200, newRating),
           puzzles_attempted: (profile?.puzzles_attempted || 0) + 1,
           puzzles_solved: (profile?.puzzles_solved || 0) + (solved ? 1 : 0)
         });
@@ -320,6 +390,74 @@ class UserSystem {
         });
 
         console.log(`📊 Stats updated (no rating change): attempts +1, solved +${solved ? 1 : 0}`);
+      }
+
+      // Record in user_puzzle_attempts table (detailed history)
+      try {
+        await this.supabase
+          .from('user_puzzle_attempts')
+          .insert({
+            user_id: user.id,
+            puzzle_id: puzzleId,
+            solved: solved,
+            time_taken: timeTaken,
+            moves_tried: movesTried,
+            rating_before: ratingBefore,
+            rating_after: newRating
+          });
+      } catch (attemptError) {
+        console.warn('⚠️ Failed to record detailed attempt:', attemptError);
+      }
+
+      // Update user_puzzle_progress table (summary status)
+      try {
+        // First get current progress to handle attempts_count properly
+        const { data: currentProgress } = await this.supabase
+          .from('user_puzzle_progress')
+          .select('attempts_count, status, best_time')
+          .eq('user_id', user.id)
+          .eq('puzzle_id', puzzleId)
+          .single();
+
+        const currentAttempts = currentProgress?.attempts_count || 0;
+        const currentBestTime = currentProgress?.best_time;
+        const newBestTime = solved ? 
+          (currentBestTime ? Math.min(currentBestTime, timeTaken) : timeTaken) : 
+          currentBestTime;
+
+        await this.supabase
+          .from('user_puzzle_progress')
+          .upsert({
+            user_id: user.id,
+            puzzle_id: puzzleId,
+            status: solved ? 'solved' : (currentProgress?.status === 'solved' ? 'solved' : 'attempted'),
+            best_time: newBestTime,
+            attempts_count: currentAttempts + 1,
+            first_solved_at: solved && currentProgress?.status !== 'solved' ? new Date().toISOString() : currentProgress?.first_solved_at,
+            last_attempted_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,puzzle_id'
+          });
+      } catch (progressError) {
+        console.warn('⚠️ Failed to update progress:', progressError);
+      }
+
+      // Record rating history if rating changed
+      if (shouldChangeRating && ratingChange !== 0) {
+        try {
+          await this.supabase
+            .from('rating_history')
+            .insert({
+              user_id: user.id,
+              old_rating: ratingBefore,
+              new_rating: newRating,
+              rating_change: ratingChange,
+              puzzle_id: puzzleId,
+              reason: solved ? 'puzzle_solved' : 'puzzle_failed'
+            });
+        } catch (historyError) {
+          console.warn('⚠️ Failed to record rating history:', historyError);
+        }
       }
       
       return {
@@ -350,7 +488,7 @@ class UserSystem {
     }
   }
 
-  // ===== KEEP ALL OTHER EXISTING METHODS =====
+  // ===== USER STATS =====
   
   async getUserStats() {
     try {
@@ -359,10 +497,25 @@ class UserSystem {
 
       const profile = await this.getUserProfile();
       
+      // Get recent rating history
+      const { data: recentHistory } = await this.supabase
+        .from('rating_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      // Get user weaknesses
+      const { data: weaknesses } = await this.supabase
+        .from('user_weaknesses')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('weakness_score', { ascending: false });
+      
       return {
         profile,
-        recentHistory: [],
-        weaknesses: []
+        recentHistory: recentHistory || [],
+        weaknesses: weaknesses || []
       };
 
     } catch (error) {
@@ -387,6 +540,8 @@ class UserSystem {
     }
   }
 
+  // ===== UTILITY METHODS =====
+
   async isAuthenticated() {
     const user = await this.getCurrentUser();
     return !!user;
@@ -404,6 +559,65 @@ class UserSystem {
     // Cache AI explanations
     console.log('💾 Caching AI explanation for puzzle:', puzzleId);
     this.puzzleCache.set(`explanation_${puzzleId}`, aiExplanation);
+  }
+
+  // ===== THEME ANALYSIS (OPTIONAL HELPER METHODS) =====
+
+  async getThemeStats(userId = null) {
+    try {
+      const user = userId || (await this.getCurrentUser())?.id;
+      if (!user) return null;
+
+      // Get user's performance by theme
+      const { data: attempts } = await this.supabase
+        .from('user_puzzle_attempts')
+        .select(`
+          solved,
+          puzzles!inner(themes)
+        `)
+        .eq('user_id', user);
+
+      if (!attempts) return {};
+
+      const themeStats = {};
+      
+      attempts.forEach(attempt => {
+        if (attempt.puzzles?.themes) {
+          attempt.puzzles.themes.forEach(theme => {
+            if (!themeStats[theme]) {
+              themeStats[theme] = { attempted: 0, solved: 0 };
+            }
+            themeStats[theme].attempted++;
+            if (attempt.solved) {
+              themeStats[theme].solved++;
+            }
+          });
+        }
+      });
+
+      // Calculate percentages
+      Object.keys(themeStats).forEach(theme => {
+        const stat = themeStats[theme];
+        stat.percentage = stat.attempted > 0 ? (stat.solved / stat.attempted) * 100 : 0;
+      });
+
+      return themeStats;
+      
+    } catch (error) {
+      console.error('❌ Failed to get theme stats:', error);
+      return {};
+    }
+  }
+
+  async getPopularThemes(limit = 20) {
+    try {
+      // This would require a more complex query to count theme popularity
+      // For now, return the themes from fetchPuzzleThemes
+      return await this.fetchPuzzleThemes();
+    } catch (error) {
+      console.error('❌ Failed to get popular themes:', error);
+      return [];
+    }
   }
 }
 

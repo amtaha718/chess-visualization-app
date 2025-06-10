@@ -8,8 +8,8 @@ import { AuthModal, UserProfile } from './auth-components';
 
 const getBoardSize = (isExpanded = false) => {
   if (isExpanded) {
-    // Expanded mode: 90% of viewport
-    return Math.min(window.innerWidth * 0.9, window.innerHeight * 0.9);
+    // Expanded mode: 80% of viewport
+    return Math.min(window.innerWidth * 0.8, window.innerHeight * 0.8);
   }
   
   // Normal mode
@@ -82,20 +82,20 @@ const RevealIcon = () => (
 const ExpandIcon = ({ isExpanded }) => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="black">
     {isExpanded ? (
-      // Contract icon - arrows pointing inward
-      <g>
-        <path d="M8 8L3 3M3 3V8M3 3H8"/>
-        <path d="M16 8L21 3M21 3V8M21 3H16"/>
-        <path d="M8 16L3 21M3 21V16M3 21H8"/>
-        <path d="M16 16L21 21M21 21V16M21 21H16"/>
+      // Minimize icon - arrows pointing inward to corners
+      <g stroke="black" strokeWidth="2" fill="none">
+        <path d="M9 15L3 21M3 21H9M3 21V15"/>
+        <path d="M15 15L21 21M21 21H15M21 21V15"/>
+        <path d="M9 9L3 3M3 3H9M3 3V9"/>
+        <path d="M15 9L21 3M21 3H15M21 3V9"/>
       </g>
     ) : (
-      // Expand icon - arrows pointing outward like your image
-      <g>
-        <path d="M3 8L8 3M8 3H3M8 3V8" strokeWidth="2" stroke="black" fill="none"/>
-        <path d="M21 8L16 3M16 3H21M16 3V8" strokeWidth="2" stroke="black" fill="none"/>
-        <path d="M3 16L8 21M8 21H3M8 21V16" strokeWidth="2" stroke="black" fill="none"/>
-        <path d="M21 16L16 21M16 21H21M16 21V16" strokeWidth="2" stroke="black" fill="none"/>
+      // Expand icon - arrows pointing outward from corners
+      <g stroke="black" strokeWidth="2" fill="none">
+        <path d="M3 15L9 9M9 9H3M9 9V15"/>
+        <path d="M21 15L15 9M15 9H21M15 9V15"/>
+        <path d="M3 9L9 15M9 15H3M9 15V9"/>
+        <path d="M21 9L15 15M15 15H21M15 15V9"/>
       </g>
     )}
   </svg>
@@ -364,7 +364,7 @@ const SettingsContainer = ({
               display: 'flex',
               gap: '8px',
               flexWrap: 'wrap',
-              justifyContent: 'center'
+              justifyContent: 'flex-start'
             }}>
               {difficulties.map(diff => (
                 <button
@@ -419,7 +419,7 @@ const SettingsContainer = ({
                 display: 'flex',
                 gap: '6px',
                 flexWrap: 'wrap',
-                justifyContent: 'center'
+                justifyContent: 'flex-start'
               }}>
                 {/* All Themes Button */}
                 <button
@@ -560,7 +560,7 @@ const SettingsContainer = ({
             <div style={{
               display: 'flex',
               gap: '8px',
-              justifyContent: 'center',
+              justifyContent: 'flex-start',
               flexWrap: 'wrap'
             }}>
               {[4, 6, 8].map(length => (
@@ -1609,19 +1609,6 @@ const App = () => {
         moves play out, then use your recall skills to find the best fourth move
         without any visual aids.
       </p>
-
-      <DifficultyToggle 
-        currentDifficulty={selectedDifficulty}
-        onDifficultyChange={handleDifficultyChange}
-        disabled={isLoadingPuzzles}
-      />
-
-      <ThemeSelector
-        themes={availableThemes}
-        selectedTheme={selectedTheme}
-        onThemeChange={handleThemeChange}
-        disabled={isLoadingPuzzles}
-      />
 
       <SettingsContainer
         currentDifficulty={selectedDifficulty}

@@ -1889,19 +1889,6 @@ const App = () => {
         </div>
       )}
 
-      <SettingsContainer
-        currentDifficulty={selectedDifficulty}
-        onDifficultyChange={handleDifficultyChange}
-        themes={availableThemes}
-        selectedTheme={selectedTheme}
-        onThemeChange={handleThemeChange}
-        playSpeed={playSpeed}
-        onSpeedChange={setPlaySpeed}
-        sequenceLength={sequenceLength}
-        onSequenceLengthChange={setSequenceLength}
-        disabled={isLoadingPuzzles}
-      />
-
       <FeedbackCard 
         message={feedbackMessage}
         type={feedbackType} 

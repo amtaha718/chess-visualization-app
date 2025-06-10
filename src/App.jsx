@@ -56,15 +56,26 @@ const loadSessionData = () => {
 const isMobile = () => window.innerWidth <= 768;
 
 // Icon Components
+// Updated flame icon to match the new design
 const FlameIcon = ({ streak }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    padding: '8px 12px',
+    borderRadius: '20px',
+    border: '1px solid rgba(255,255,255,0.3)'
+  }}>
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <path d="M12 2C12 2 8 6 8 12C8 16.4183 10.5817 19 12 19C13.4183 19 16 16.4183 16 12C16 6 12 2 12 2Z" 
-            fill="#FF6B35" stroke="#FF4500" strokeWidth="1"/>
-      <path d="M10 12C10 12 9 9 12 9C15 9 14 12 14 12C14 14 13 15 12 15C11 15 10 14 10 12Z" 
+      <path d="M12 2C12 2 8 5.5 8 10C8 14 10 16.5 12 16.5C14 16.5 16 14 16 10C16 5.5 12 2 12 2Z" 
+            fill="#FF6B35"/>
+      <path d="M10.5 10C10.5 10 9.5 7.5 12 7.5C14.5 7.5 13.5 10 13.5 10C13.5 12 12.5 13 12 13C11.5 13 10.5 12 10.5 10Z" 
             fill="#FFD700"/>
+      <path d="M14 8C14 8 15 6 16.5 8C17.5 9 17 10.5 16 11C15.5 11.5 15 11 15 10.5C15 9.5 14.5 8.5 14 8Z" 
+            fill="#FF8A50"/>
     </svg>
-    <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#FF4500' }}>
+    <span style={{ fontSize: '14px', fontWeight: 'bold', color: 'white' }}>
       {streak}
     </span>
   </div>
@@ -184,7 +195,7 @@ const THEME_DISPLAY_NAMES = {
   'defensiveMove': 'Defensive Move'
 };
 
-const FeedbackCard = ({ message, type = 'info' }) => {
+const FeedbackCard = ({ message, type = 'info', userPlayingAs }) => {
   if (!message) return null;
   
   const colors = {
@@ -209,6 +220,17 @@ const FeedbackCard = ({ message, type = 'info' }) => {
       boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
       lineHeight: '1.4'
     }}>
+      {userPlayingAs && (
+        <div style={{ 
+          fontWeight: 'bold',
+          marginBottom: '8px',
+          fontSize: '14px',
+          color: style.text,
+          opacity: 0.8
+        }}>
+          Playing as {userPlayingAs === 'white' ? 'White' : 'Black'}
+        </div>
+      )}
       {message}
     </div>
   );
@@ -259,7 +281,7 @@ const App = () => {
   const [isThemesCollapsed, setIsThemesCollapsed] = useState(true);
   const [boardOrientation, setBoardOrientation] = useState('white');
   const [userPlayingAs, setUserPlayingAs] = useState('white');
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(isMobile()); // Mobile collapsed by default, desktop expanded
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Save session data when things change
@@ -949,11 +971,12 @@ const App = () => {
           paddingBottom: '40px'
         },
         feedbackPanel: {
-          order: 3,
+          order: 1.5, // Place feedback above board on mobile
           backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
           borderRadius: '8px',
           padding: '15px',
-          color: isDarkMode ? '#ffffff' : '#333333'
+          color: isDarkMode ? '#ffffff' : '#333333',
+          marginBottom: '10px'
         }
       };
     } else {
@@ -1021,6 +1044,14 @@ const App = () => {
       }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <img
+            src="/logo.png"
+            alt="Chess Trainer Logo"
+            style={{
+              height: isMobile() ? '80px' : '100px',
+              marginRight: '15px'
+            }}
+          />
+        </div><img
             src="/logo.png"
             alt="Chess Trainer Logo"
             style={{
@@ -1126,7 +1157,7 @@ const App = () => {
                 }}
               >
                 <div style={{ fontSize: isMobile() ? '13px' : '14px' }}>
-                  <strong>{userProfile?.username || userProfile?.display_name || 'Player'}</strong>
+                  <strong>{userProfile?.display_name || 'Player'}</strong>
                 </div>
                 <div style={{
                   backgroundColor: 'rgba(255,255,255,0.3)',
@@ -1411,26 +1442,32 @@ const App = () => {
                   ))}
                 </div>
               </div>
-
-              {userPlayingAs && (
-                <div style={{
-                  padding: '12px',
-                  backgroundColor: isDarkMode ? '#404040' : '#f0f0f0',
-                  borderRadius: '8px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ 
-                    fontWeight: 'bold',
-                    color: userPlayingAs === 'white' ? '#333' : '#666',
-                    fontSize: '14px'
-                  }}>
-                    Playing as {userPlayingAs === 'white' ? 'White' : 'Black'}
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
+
+        {/* Mobile: Feedback panel above board */}
+        {isMobile() && (
+          <div style={styles.feedbackPanel}>
+            <h3 style={{ 
+              margin: '0 0 15px 0', 
+              fontSize: '18px', 
+              fontWeight: 'bold',
+              borderBottom: `2px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
+              paddingBottom: '10px'
+            }}>
+              Messages
+            </h3>
+
+            <div>
+              <FeedbackCard 
+                message={feedbackMessage}
+                type={feedbackType}
+                userPlayingAs={userPlayingAs}
+              />
+            </div>
+          </div>
+        )}
 
         <div style={styles.boardContainer}>
           <div style={{ position: 'relative', marginBottom: '20px' }}>
@@ -1508,78 +1545,82 @@ const App = () => {
           </div>
         </div>
 
-        <div style={styles.feedbackPanel}>
-          <h3 style={{ 
-            margin: '0 0 15px 0', 
-            fontSize: '18px', 
-            fontWeight: 'bold',
-            borderBottom: `2px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
-            paddingBottom: '10px'
-          }}>
-            Messages
-          </h3>
+        {/* Desktop: Right feedback panel */}
+        {!isMobile() && (
+          <div style={styles.feedbackPanel}>
+            <h3 style={{ 
+              margin: '0 0 15px 0', 
+              fontSize: '18px', 
+              fontWeight: 'bold',
+              borderBottom: `2px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
+              paddingBottom: '10px'
+            }}>
+              Messages
+            </h3>
 
-          <div style={{
-            flex: 1,
-            marginBottom: '20px'
-          }}>
-            <FeedbackCard 
-              message={feedbackMessage}
-              type={feedbackType} 
-            />
+            <div style={{
+              flex: 1,
+              marginBottom: '20px'
+            }}>
+              <FeedbackCard 
+                message={feedbackMessage}
+                type={feedbackType}
+                userPlayingAs={userPlayingAs}
+              />
+            </div>
+
+            <div style={{
+              borderTop: `1px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
+              paddingTop: '15px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <button
+                onClick={handleDarkModeToggle}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'none',
+                  border: `1px solid ${isDarkMode ? '#555555' : '#ddd'}`,
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  color: isDarkMode ? '#ffffff' : '#333333',
+                  fontSize: '13px',
+                  transition: 'background-color 0.2s ease'
+                }}
+                title="Toggle Dark Mode"
+              >
+                <DarkModeIcon isDark={isDarkMode} />
+                {!isMobile() && (isDarkMode ? 'Light' : 'Dark')}
+              </button>
+
+              <button
+                onClick={handleSharePuzzle}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: '#2196F3',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  transition: 'background-color 0.2s ease'
+                }}
+                title="Share as GIF"
+              >
+                <ShareIcon />
+                {!isMobile() && 'Share'}
+              </button>
+            </div>
           </div>
-
-          <div style={{
-            borderTop: `1px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
-            paddingTop: '15px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <button
-              onClick={handleDarkModeToggle}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                background: 'none',
-                border: `1px solid ${isDarkMode ? '#555555' : '#ddd'}`,
-                padding: '8px 12px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                color: isDarkMode ? '#ffffff' : '#333333',
-                fontSize: '13px',
-                transition: 'background-color 0.2s ease'
-              }}
-              title="Toggle Dark Mode"
-            >
-              <DarkModeIcon isDark={isDarkMode} />
-              {!isMobile() && (isDarkMode ? 'Light' : 'Dark')}
-            </button>
-
-            <button
-              onClick={handleSharePuzzle}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                backgroundColor: '#2196F3',
-                color: 'white',
-                border: 'none',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: 'bold',
-                transition: 'background-color 0.2s ease'
-              }}
-              title="Share as GIF"
-            >
-              <ShareIcon />
-              {!isMobile() && 'Share'}
-            </button>
-          </div>
-        </div>
+        )}
       </div>
 
       <AuthModal

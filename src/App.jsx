@@ -599,7 +599,7 @@ const FeedbackCard = ({ message, type = 'info' }) => {
 
 // Difficulty Toggle Component - Styled like themes menu
 const DifficultyToggle = ({ currentDifficulty, onDifficultyChange, disabled }) => {
-  const difficulties = [
+  const difficultyOptions = [
     { value: 'beginner', label: 'Beginner', color: '#4CAF50' },
     { value: 'intermediate', label: 'Intermediate', color: '#FF9800' },
     { value: 'advanced', label: 'Advanced', color: '#f44336' },
@@ -636,7 +636,7 @@ const DifficultyToggle = ({ currentDifficulty, onDifficultyChange, disabled }) =
         justifyContent: 'center',
         maxWidth: '100%'
       }}>
-        {difficulties.map(diff => (
+        {difficultyOptions.map(diff => (
           <button
             key={diff.value}
             onClick={() => onDifficultyChange(diff.value)}
@@ -668,7 +668,7 @@ const DifficultyToggle = ({ currentDifficulty, onDifficultyChange, disabled }) =
         color: '#666',
         marginTop: '8px'
       }}>
-        Current: {difficulties.find(d => d.value === currentDifficulty)?.label || 'Intermediate'}
+        Current: {difficultyOptions.find(d => d.value === currentDifficulty)?.label || 'Intermediate'}
       </div>
     </div>
   );

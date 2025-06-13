@@ -1953,21 +1953,22 @@ const App = () => {
         </div>
       )}
 
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onAuthSuccess={handleAuthSuccess}
-        userSystem={userSystem}
-      />
-
-      <UserProfile
-        isOpen={showProfileModal}
-        user={user}
-        profile={userProfile}
-        onSignOut={handleSignOut}
-        onClose={() => setShowProfileModal(false)}
-      />
-    </div>
+     <>
+  <AuthModal
+    isOpen={showAuthModal}
+    onClose={() => setShowAuthModal(false)}
+    onAuthSuccess={handleAuthSuccess}
+    userSystem={userSystem}
+  />
+  
+  <UserProfile
+    isOpen={showProfileModal}
+    user={user}
+    profile={userProfile}
+    onSignOut={handleSignOut}
+    onClose={() => setShowProfileModal(false)}
+  />
+</>
   );
 };
 

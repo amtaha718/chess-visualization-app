@@ -24,9 +24,53 @@ const OpeningCourse = ({ userSystem }) => {
 
   const loadOpenings = async () => {
     try {
-      const response = await fetch('/api/openings?action=list');
-      const data = await response.json();
-      setOpeningsList(data.openings || []);
+      console.log('🔍 Testing with mock data first...');
+      
+      // Use mock data to test the UI
+      const mockData = {
+        openings: [
+          {
+            id: '1',
+            name: 'Italian Game',
+            eco_code: 'C50',
+            category: 'Open',
+            difficulty: 'beginner',
+            description: 'One of the oldest chess openings, focusing on rapid development.',
+            opening_variations: [
+              {
+                id: '1',
+                variation_name: 'Classical Italian',
+                move_count: 6,
+                moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5'],
+                moves_uci: ['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1c4', 'f8c5'],
+                key_ideas: ['Control center', 'Develop pieces quickly', 'Castle early']
+              }
+            ]
+          },
+          {
+            id: '2',
+            name: 'Ruy López',
+            eco_code: 'C60',
+            category: 'Open',
+            difficulty: 'intermediate',
+            description: 'A classical opening aiming for long-term positional pressure.',
+            opening_variations: [
+              {
+                id: '2',
+                variation_name: 'Berlin Defense',
+                move_count: 6,
+                moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'Nf6'],
+                moves_uci: ['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1b5', 'g8f6'],
+                key_ideas: ['Solid defense', 'Simplification', 'Endgame advantage']
+              }
+            ]
+          }
+        ]
+      };
+      
+      console.log('✅ Using mock data:', mockData);
+      setOpeningsList(mockData.openings || []);
+      
     } catch (error) {
       console.error('Failed to load openings:', error);
     } finally {

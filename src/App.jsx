@@ -5,6 +5,7 @@ import { getIncorrectMoveExplanation, getCorrectMoveExplanation } from './ai';
 import './index.css';
 import UserSystem from './user-system';
 import { AuthModal, UserProfile } from './auth-components';
+import OpeningCourse from './components/OpeningCourse';
 
 const getBoardSize = (isExpanded = false) => {
   if (isExpanded) {
@@ -291,6 +292,7 @@ const App = () => {
   const [isCollapsed, setIsCollapsed] = useState(isMobile()); // Mobile collapsed by default, desktop expanded
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showMobileSettings, setShowMobileSettings] = useState(false);
+  const [showOpeningCourse, setShowOpeningCourse] = useState(false); // ← ADD THIS LINE
 
   // Save session data when things change
   useEffect(() => {
@@ -1067,23 +1069,26 @@ const App = () => {
             gap: '30px',
             alignItems: 'center'
           }}>
-            <button style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'white',
-              fontSize: '16px',
-              fontWeight: '500',
-              padding: '8px 12px',
-              borderRadius: '8px',
-              transition: 'background-color 0.2s ease'
-            }}>
-              <CoursesIcon />
-              Courses
-            </button>
+            <button 
+  onClick={() => setShowOpeningCourse(!showOpeningCourse)}
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    background: showOpeningCourse ? 'rgba(255,255,255,0.2)' : 'none',
+    border: 'none',
+    cursor: 'pointer',
+    color: 'white',
+    fontSize: '16px',
+    fontWeight: '500',
+    padding: '8px 12px',
+    borderRadius: '8px',
+    transition: 'background-color 0.2s ease'
+  }}
+>
+  <CoursesIcon />
+  {showOpeningCourse ? 'Back to Puzzles' : 'Courses'}
+</button>
 
             <button style={{
               display: 'flex',
@@ -1183,26 +1188,15 @@ const App = () => {
         </div>
       </header>
 
-      <div style={styles.mainContent}>
-        {/* Desktop Settings Panel */}
-        {!isMobile() && (
-          <div style={styles.settingsPanel}>
-            <div 
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '20px',
-                cursor: 'pointer',
-                padding: '8px 0'
-              }}
-              onClick={() => setIsCollapsed(!isCollapsed)}
-            >
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
-                Settings
-              </h3>
-              <CollapseIcon isCollapsed={isCollapsed} />
-            </div>
+      {showOpeningCourse ? (
+  <OpeningCourse userSystem={userSystem} />
+) : (
+  // Your existing main content here - everything from <div style={styles.mainContent}> to the closing </div>
+  <div style={styles.mainContent}>
+    {/* All your existing puzzle trainer content goes here */}
+    {/* Keep everything exactly as it is now */}
+  </div>
+)}
 
             {!isCollapsed && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

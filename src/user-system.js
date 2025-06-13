@@ -619,6 +619,751 @@ class UserSystem {
       return [];
     }
   }
+  // Add these methods to your existing src/user-system.js file
+
+// ===== OPENING COURSE METHODS =====
+
+/**
+ * Get all available openings with optional filtering
+ */
+async getOpenings(filters = {}) {
+  try {
+    const { category, difficulty, search, limit = 50 } = filters;
+    
+    console.log('🔍 Fetching openings with filters:', filters);
+
+    let query = this.supabase
+      .from('openings')
+      .select(`
+        *,
+        opening_variations!inner(
+          id,
+          variation_name,
+          move_count,
+          is_main_line,
+          frequency_score,
+          notes,
+          key_ideas
+        )
+      `)
+      .eq('is_active', true)
+      .order('popularity_score', { ascending: false });
+
+    // Apply filters
+    if (category && category !== 'all') {
+      query = query.eq('category', category);
+    }
+
+    if (difficulty && difficulty !== 'all') {
+      query = query.eq('difficulty', difficulty);
+    }
+
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+    }
+
+    if (limit) {
+      query = query.limit(parseInt(limit));
+    }
+
+    const { data: openings, error } = await query;
+
+    if (error) throw error;
+
+    console.log(`✅ Retrieved ${openings?.length || 0} openings`);
+    return openings || [];
+
+  } catch (error) {
+    console.error('❌ Failed to fetch openings:', error);
+    return [];
+  }
+}
+
+/**
+ * Get variations for a specific opening
+ */
+async getOpeningVariations(openingId) {
+  try {
+    console.log('🔍 Fetching variations for opening:', openingId);
+
+    const { data: variations, error } = await this.supabase
+      .from('opening_variations')
+      .select(`
+        *,
+        openings!inner(
+          name,
+          eco_code,
+          category,
+          difficulty,
+          description
+        )
+      `)
+      .eq('opening_id', openingId)
+      .order('is_main_line', { ascending: false })
+      .order('frequency_score', { ascending: false });
+
+    if (error) throw error;
+
+    console.log(`✅ Retrieved ${variations?.length || 0} variations`);
+    return variations || [];
+
+  } catch (error) {
+    console.error('❌ Failed to fetch variations:', error);
+    return [];
+  }
+}
+
+/**
+ * Get user's progress for a specific opening variation
+ */
+async getOpeningProgress(variationId) {
+  try {
+    const user = await this.getCurrentUser();
+    if (!user) {
+      console.log('❌ No authenticated user');
+      return null;
+    }
+
+    console.log('📊 Fetching opening progress:', { userId: user.id, variationId });
+
+    const { data: progress, error } = await this.supabase
+      .from('user_opening_progress')
+      .select(`
+        *,
+        opening_variations!inner(
+          variation_name,
+          move_count,
+          moves,
+          moves_uci,
+          openings!inner(
+            name,
+            eco_code,
+            difficulty
+          )
+        )
+      `)
+      .eq('user_id', user.id)
+      .eq('variation_id', variationId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // Not found is OK
+      throw error;
+    }
+
+    return progress;
+
+  } catch (error) {
+    console.error('❌ Failed to get opening progress:', error);
+    return null;
+  }
+}
+
+/**
+ * Get all user's opening progress
+ */
+async getAllOpeningProgress() {
+  try {
+    const user = await this.getCurrentUser();
+    if (!user) return {};
+
+    console.log('📊 Fetching all opening progress for user:', user.id);
+
+    const { data: progress, error } = await this.supabase
+      .from('user_opening_progress')
+      .select(`
+        *,
+        opening_variations!inner(
+          variation_name,
+          move_count,
+          openings!inner(
+            name,
+            eco_code,
+            category,
+            difficulty
+          )
+        )
+      `)
+      .eq('user_id', user.id)
+      .order('last_practiced_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Convert to map for easy lookup by variation ID
+    const progressMap = {};
+    if (progress) {
+      progress.forEach(p => {
+        progressMap[p.variation_id] = p;
+      });
+    }
+
+    console.log(`✅ Retrieved progress for ${progress?.length || 0} variations`);
+    return progressMap;
+
+  } catch (error) {
+    console.error('❌ Failed to get all opening progress:', error);
+    return {};
+  }
+}
+
+/**
+ * Initialize user progress for a new opening variation
+ */
+async initializeOpeningProgress(variationId) {
+  try {
+    const user = await this.getCurrentUser();
+    if (!user) throw new Error('Not authenticated');
+
+    console.log('🆕 Initializing opening progress:', { userId: user.id, variationId });
+
+    // Get variation details
+    const { data: variation, error: variationError } = await this.supabase
+      .from('opening_variations')
+      .select('move_count')
+      .eq('id', variationId)
+      .single();
+
+    if (variationError) throw variationError;
+
+    // Initialize progress record
+    const { data: progress, error } = await this.supabase
+      .from('user_opening_progress')
+      .upsert({
+        user_id: user.id,
+        variation_id: variationId,
+        current_move_depth: 6, // Start with first 6 moves (3 for each side)
+        max_move_depth: variation.move_count,
+        mastery_level: 0,
+        consecutive_correct: 0,
+        total_practice_rounds: 0,
+        is_completed: false,
+        started_at: new Date().toISOString(),
+        last_practiced_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,variation_id'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log('✅ Initialized opening progress:', progress.id);
+    return progress;
+
+  } catch (error) {
+    console.error('❌ Failed to initialize opening progress:', error);
+    return null;
+  }
+}
+
+/**
+ * Record an opening practice attempt
+ */
+async recordOpeningAttempt(attemptData) {
+  try {
+    const user = await this.getCurrentUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const {
+      variationId,
+      moveDepth,
+      attemptedMoves,
+      correctMoves,
+      isPerfect,
+      timeTaken,
+      practiceRound,
+      mistakeMoves = []
+    } = attemptData;
+
+    console.log('📝 Recording opening attempt:', {
+      userId: user.id,
+      variationId,
+      moveDepth,
+      isPerfect,
+      practiceRound
+    });
+
+    // Record the attempt
+    const { data: attempt, error: attemptError } = await this.supabase
+      .from('user_opening_attempts')
+      .insert({
+        user_id: user.id,
+        variation_id: variationId,
+        move_depth: moveDepth,
+        attempted_moves: attemptedMoves,
+        correct_moves: correctMoves,
+        is_perfect: isPerfect,
+        mistakes_count: mistakeMoves.length,
+        time_taken: timeTaken,
+        mistake_moves: mistakeMoves,
+        practice_round: practiceRound
+      })
+      .select()
+      .single();
+
+    if (attemptError) throw attemptError;
+
+    // Update progress statistics
+    await this.updateOpeningProgressStats(variationId);
+
+    console.log('✅ Recorded opening attempt:', attempt.id);
+    return attempt;
+
+  } catch (error) {
+    console.error('❌ Failed to record opening attempt:', error);
+    return null;
+  }
+}
+
+/**
+ * Update opening progress statistics after an attempt
+ */
+async updateOpeningProgressStats(variationId) {
+  try {
+    const user = await this.getCurrentUser();
+    if (!user) return;
+
+    console.log('🔄 Updating opening progress stats:', { userId: user.id, variationId });
+
+    // Get recent attempts for this variation
+    const { data: recentAttempts, error: attemptsError } = await this.supabase
+      .from('user_opening_attempts')
+      .select('is_perfect, created_at')
+      .eq('user_id', user.id)
+      .eq('variation_id', variationId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (attemptsError) throw attemptsError;
+
+    if (!recentAttempts || recentAttempts.length === 0) return;
+
+    // Calculate statistics
+    const totalAttempts = recentAttempts.length;
+    const perfectAttempts = recentAttempts.filter(a => a.is_perfect).length;
+    const masteryLevel = Math.round((perfectAttempts / totalAttempts) * 100);
+
+    // Calculate consecutive correct (from most recent backwards)
+    let consecutiveCorrect = 0;
+    for (const attempt of recentAttempts) {
+      if (attempt.is_perfect) {
+        consecutiveCorrect++;
+      } else {
+        break;
+      }
+    }
+
+    // Update progress record
+    const { error: updateError } = await this.supabase
+      .from('user_opening_progress')
+      .update({
+        mastery_level: masteryLevel,
+        consecutive_correct: consecutiveCorrect,
+        total_practice_rounds: totalAttempts,
+        last_practiced_at: new Date().toISOString()
+      })
+      .eq('user_id', user.id)
+      .eq('variation_id', variationId);
+
+    if (updateError) throw updateError;
+
+    console.log(`✅ Updated stats: ${masteryLevel}% mastery, ${consecutiveCorrect} consecutive`);
+
+  } catch (error) {
+    console.error('❌ Failed to update opening progress stats:', error);
+  }
+}
+
+/**
+ * Update opening progress (for advancing to next move depth)
+ */
+async updateOpeningProgress(variationId, updates) {
+  try {
+    const user = await this.getCurrentUser();
+    if (!user) throw new Error('Not authenticated');
+
+    console.log('🔄 Updating opening progress:', { userId: user.id, variationId, updates });
+
+    const { error } = await this.supabase
+      .from('user_opening_progress')
+      .update({
+        ...updates,
+        last_practiced_at: new Date().toISOString()
+      })
+      .eq('user_id', user.id)
+      .eq('variation_id', variationId);
+
+    if (error) throw error;
+
+    console.log('✅ Updated opening progress');
+    return true;
+
+  } catch (error) {
+    console.error('❌ Failed to update opening progress:', error);
+    return false;
+  }
+}
+
+/**
+ * Get recent opening attempts for a variation and move depth
+ */
+async getRecentOpeningAttempts(variationId, moveDepth, limit = 10) {
+  try {
+    const user = await this.getCurrentUser();
+    if (!user) return [];
+
+    console.log('📊 Fetching recent attempts:', { userId: user.id, variationId, moveDepth, limit });
+
+    const { data: attempts, error } = await this.supabase
+      .from('user_opening_attempts')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('variation_id', variationId)
+      .eq('move_depth', moveDepth)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+
+    console.log(`✅ Retrieved ${attempts?.length || 0} recent attempts`);
+    return attempts || [];
+
+  } catch (error) {
+    console.error('❌ Failed to get recent attempts:', error);
+    return [];
+  }
+}
+
+/**
+ * Check if user should advance to next move depth
+ */
+async checkAdvancementCriteria(variationId, currentMoveDepth) {
+  try {
+    const recentAttempts = await this.getRecentOpeningAttempts(variationId, currentMoveDepth, 7);
+    
+    if (recentAttempts.length < 7) {
+      return { shouldAdvance: false, reason: 'Need to complete 7 practice rounds' };
+    }
+
+    const successfulAttempts = recentAttempts.filter(a => a.is_perfect).length;
+    const successRate = (successfulAttempts / recentAttempts.length) * 100;
+
+    console.log(`📊 Advancement check: ${successfulAttempts}/7 perfect (${Math.round(successRate)}%)`);
+
+    if (successfulAttempts >= 5) { // 5 out of 7 success rate
+      return { shouldAdvance: true, successRate };
+    } else {
+      return { shouldAdvance: false, reason: `Need 5/7 success rate (currently ${successfulAttempts}/7)` };
+    }
+
+  } catch (error) {
+    console.error('❌ Failed to check advancement criteria:', error);
+    return { shouldAdvance: false, reason: 'Error checking criteria' };
+  }
+}
+
+/**
+ * Advance user to next move depth in opening sequence
+ */
+async advanceToNextMoveDepth(variationId) {
+  try {
+    const progress = await this.getOpeningProgress(variationId);
+    if (!progress) {
+      throw new Error('No progress found for this variation');
+    }
+
+    const newMoveDepth = Math.min(
+      progress.current_move_depth + 2, // Add 2 moves (one for each side)
+      progress.max_move_depth
+    );
+
+    console.log('⬆️ Advancing move depth:', {
+      variationId,
+      from: progress.current_move_depth,
+      to: newMoveDepth
+    });
+
+    const isCompleted = newMoveDepth >= progress.max_move_depth;
+
+    const success = await this.updateOpeningProgress(variationId, {
+      current_move_depth: newMoveDepth,
+      consecutive_correct: progress.consecutive_correct + 1,
+      is_completed: isCompleted,
+      completed_at: isCompleted ? new Date().toISOString() : null
+    });
+
+    if (success) {
+      console.log(`✅ Advanced to ${newMoveDepth} moves${isCompleted ? ' (COMPLETED!)' : ''}`);
+      return { newMoveDepth, isCompleted };
+    }
+
+    return null;
+
+  } catch (error) {
+    console.error('❌ Failed to advance move depth:', error);
+    return null;
+  }
+}
+
+/**
+ * Get opening categories for filtering
+ */
+async getOpeningCategories() {
+  try {
+    const { data: categories, error } = await this.supabase
+      .from('openings')
+      .select('category')
+      .eq('is_active', true)
+      .group('category');
+
+    if (error) throw error;
+
+    const uniqueCategories = [...new Set(categories?.map(c => c.category) || [])];
+    console.log('✅ Retrieved opening categories:', uniqueCategories);
+    
+    return uniqueCategories;
+
+  } catch (error) {
+    console.error('❌ Failed to get categories:', error);
+    return ['Open', 'Semi-Open', 'Closed', 'Flank']; // Fallback
+  }
+}
+
+/**
+ * Get opening statistics for the user
+ */
+async getOpeningStats() {
+  try {
+    const user = await this.getCurrentUser();
+    if (!user) return null;
+
+    console.log('📈 Fetching opening statistics for user:', user.id);
+
+    // Get basic progress stats
+    const { data: progress, error: progressError } = await this.supabase
+      .from('user_opening_progress')
+      .select(`
+        *,
+        opening_variations!inner(
+          openings!inner(
+            category,
+            difficulty
+          )
+        )
+      `)
+      .eq('user_id', user.id);
+
+    if (progressError) throw progressError;
+
+    // Get attempt stats
+    const { data: attempts, error: attemptsError } = await this.supabase
+      .from('user_opening_attempts')
+      .select('is_perfect, time_taken, created_at')
+      .eq('user_id', user.id)
+      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()); // Last 30 days
+
+    if (attemptsError) throw attemptsError;
+
+    // Calculate statistics
+    const stats = {
+      totalVariations: progress?.length || 0,
+      completedVariations: progress?.filter(p => p.is_completed).length || 0,
+      averageMastery: progress?.length > 0 
+        ? Math.round(progress.reduce((sum, p) => sum + p.mastery_level, 0) / progress.length)
+        : 0,
+      totalPracticeTime: attempts?.reduce((sum, a) => sum + (a.time_taken || 0), 0) || 0,
+      averageAccuracy: attempts?.length > 0
+        ? Math.round((attempts.filter(a => a.is_perfect).length / attempts.length) * 100)
+        : 0,
+      practiceStreak: await this.calculateOpeningStreak(),
+      byCategory: {},
+      byDifficulty: {}
+    };
+
+    // Group by category and difficulty
+    progress?.forEach(p => {
+      const category = p.opening_variations.openings.category;
+      const difficulty = p.opening_variations.openings.difficulty;
+
+      if (!stats.byCategory[category]) {
+        stats.byCategory[category] = { total: 0, completed: 0, mastery: 0 };
+      }
+      if (!stats.byDifficulty[difficulty]) {
+        stats.byDifficulty[difficulty] = { total: 0, completed: 0, mastery: 0 };
+      }
+
+      stats.byCategory[category].total++;
+      stats.byDifficulty[difficulty].total++;
+      stats.byCategory[category].mastery += p.mastery_level;
+      stats.byDifficulty[difficulty].mastery += p.mastery_level;
+
+      if (p.is_completed) {
+        stats.byCategory[category].completed++;
+        stats.byDifficulty[difficulty].completed++;
+      }
+    });
+
+    // Calculate average mastery per category/difficulty
+    Object.keys(stats.byCategory).forEach(category => {
+      const cat = stats.byCategory[category];
+      cat.averageMastery = cat.total > 0 ? Math.round(cat.mastery / cat.total) : 0;
+      delete cat.mastery; // Remove intermediate calculation
+    });
+
+    Object.keys(stats.byDifficulty).forEach(difficulty => {
+      const diff = stats.byDifficulty[difficulty];
+      diff.averageMastery = diff.total > 0 ? Math.round(diff.mastery / diff.total) : 0;
+      delete diff.mastery; // Remove intermediate calculation
+    });
+
+    console.log('✅ Calculated opening statistics');
+    return stats;
+
+  } catch (error) {
+    console.error('❌ Failed to get opening statistics:', error);
+    return null;
+  }
+}
+
+/**
+ * Calculate practice streak for openings
+ */
+async calculateOpeningStreak() {
+  try {
+    const user = await this.getCurrentUser();
+    if (!user) return 0;
+
+    // Get practice days from attempts
+    const { data: attempts, error } = await this.supabase
+      .from('user_opening_attempts')
+      .select('created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(365); // Last year
+
+    if (error) throw error;
+
+    if (!attempts || attempts.length === 0) return 0;
+
+    // Get unique practice days
+    const practiceDays = [...new Set(attempts.map(a => a.created_at.split('T')[0]))].sort();
+
+    // Calculate current streak
+    let streak = 0;
+    const today = new Date();
+    let checkDate = new Date(today);
+
+    while (checkDate >= new Date(practiceDays[0])) {
+      const dateStr = checkDate.toISOString().split('T')[0];
+      if (practiceDays.includes(dateStr)) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+
+    return streak;
+
+  } catch (error) {
+    console.error('❌ Failed to calculate opening streak:', error);
+    return 0;
+  }
+}
+
+/**
+ * Get spaced repetition queue for openings
+ */
+async getSpacedRepetitionQueue(limit = 10) {
+  try {
+    const user = await this.getCurrentUser();
+    if (!user) return [];
+
+    console.log('🔄 Calculating spaced repetition queue for user:', user.id);
+
+    // Get completed variations
+    const { data: completedVariations, error } = await this.supabase
+      .from('user_opening_progress')
+      .select(`
+        *,
+        opening_variations!inner(
+          *,
+          openings!inner(
+            name,
+            category,
+            difficulty
+          )
+        )
+      `)
+      .eq('user_id', user.id)
+      .eq('is_completed', true)
+      .order('last_practiced_at', { ascending: true });
+
+    if (error) throw error;
+
+    // Calculate which are due for review
+    const now = new Date();
+    const dueForReview = [];
+
+    completedVariations?.forEach(progress => {
+      const lastPracticed = new Date(progress.last_practiced_at);
+      const daysSinceLastPractice = Math.floor((now - lastPracticed) / (1000 * 60 * 60 * 24));
+      
+      // Calculate review interval based on mastery
+      const interval = this.calculateReviewInterval(progress.mastery_level, progress.consecutive_correct);
+      
+      if (daysSinceLastPractice >= interval) {
+        dueForReview.push({
+          ...progress,
+          daysSinceLastPractice,
+          scheduledInterval: interval,
+          priority: this.calculateReviewPriority(daysSinceLastPractice, interval, progress.mastery_level)
+        });
+      }
+    });
+
+    // Sort by priority and limit
+    dueForReview.sort((a, b) => b.priority - a.priority);
+    
+    console.log(`✅ Found ${dueForReview.length} openings due for review`);
+    return dueForReview.slice(0, limit);
+
+  } catch (error) {
+    console.error('❌ Failed to get spaced repetition queue:', error);
+    return [];
+  }
+}
+
+/**
+ * Calculate review interval for spaced repetition
+ */
+calculateReviewInterval(masteryLevel, consecutiveCorrect) {
+  const baseIntervals = [1, 3, 7, 14, 30, 60, 120]; // Days
+  
+  let intervalIndex = Math.min(consecutiveCorrect, baseIntervals.length - 1);
+  
+  // Adjust based on mastery level
+  if (masteryLevel >= 95) {
+    intervalIndex = Math.min(intervalIndex + 1, baseIntervals.length - 1);
+  } else if (masteryLevel < 80) {
+    intervalIndex = Math.max(intervalIndex - 1, 0);
+  }
+  
+  return baseIntervals[intervalIndex];
+}
+
+/**
+ * Calculate review priority
+ */
+calculateReviewPriority(daysSincePractice, scheduledInterval, masteryLevel) {
+  let priority = daysSincePractice / scheduledInterval; // Overdue factor
+  
+  // Boost priority for lower mastery
+  if (masteryLevel < 85) {
+    priority *= 1.5;
+  }
+  
+  return Math.min(priority * 100, 1000);
+}
 }
 
 export default UserSystem;

@@ -48,7 +48,142 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: 'Endpoint not found' });
 
   } catch (error) {
-    console.error('API Error:', error);
+    console.log('✅ Updated progress:', progress.id);
+
+    return res.status(200).json({
+      progress,
+      message: 'Progress updated successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating progress:', error);
+    return res.status(500).json({ error: 'Failed to update progress' });
+  }
+}
+
+// ===== HELPER FUNCTIONS =====
+
+/**
+ * Extract user from authorization token
+ */
+async function getUserFromToken(authHeader) {
+  if (!authHeader) return null;
+  
+  try {
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error) throw error;
+    return user;
+  } catch (error) {
+    console.error('Token validation error:', error);
+    return null;
+  }
+}
+
+/**
+ * Get user progress data for multiple variations
+ */
+async function getUserProgressData(userId) {
+  const { data: progress, error } = await supabase
+    .from('user_opening_progress')
+    .select('*')
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error fetching user progress:', error);
+    return {};
+  }
+
+  const progressMap = {};
+  progress.forEach(p => {
+    progressMap[p.variation_id] = p;
+  });
+
+  return progressMap;
+}
+
+/**
+ * Update user progress after an attempt
+ */
+async function updateUserProgressAfterAttempt(userId, variationId, isPerfect, timeTaken) {
+  try {
+    // Get current progress
+    const { data: currentProgress, error: fetchError } = await supabase
+      .from('user_opening_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('variation_id', variationId)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // Not found is OK
+      throw fetchError;
+    }
+
+    // Get recent attempts to calculate mastery
+    const { data: recentAttempts, error: attemptsError } = await supabase
+      .from('user_opening_attempts')
+      .select('is_perfect, created_at')
+      .eq('user_id', userId)
+      .eq('variation_id', variationId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (attemptsError) throw attemptsError;
+
+    // Calculate new mastery level
+    const totalAttempts = recentAttempts.length;
+    const perfectAttempts = recentAttempts.filter(a => a.is_perfect).length;
+    const masteryLevel = totalAttempts > 0 ? Math.round((perfectAttempts / totalAttempts) * 100) : 0;
+
+    // Calculate consecutive correct
+    let consecutiveCorrect = 0;
+    for (const attempt of recentAttempts) {
+      if (attempt.is_perfect) {
+        consecutiveCorrect++;
+      } else {
+        break;
+      }
+    }
+
+    // Update progress
+    const progressUpdate = {
+      user_id: userId,
+      variation_id: variationId,
+      mastery_level: masteryLevel,
+      consecutive_correct: consecutiveCorrect,
+      total_practice_rounds: (currentProgress?.total_practice_rounds || 0) + 1,
+      last_practiced_at: new Date().toISOString()
+    };
+
+    // Set initial values if this is the first attempt
+    if (!currentProgress) {
+      const { data: variation } = await supabase
+        .from('opening_variations')
+        .select('move_count')
+        .eq('id', variationId)
+        .single();
+
+      progressUpdate.current_move_depth = 6; // Start with 6 moves (3 for each side)
+      progressUpdate.max_move_depth = variation?.move_count || 12;
+      progressUpdate.started_at = new Date().toISOString();
+    }
+
+    const { error: updateError } = await supabase
+      .from('user_opening_progress')
+      .upsert(progressUpdate, {
+        onConflict: 'user_id,variation_id'
+      });
+
+    if (updateError) throw updateError;
+
+    console.log(`✅ Updated progress stats: ${masteryLevel}% mastery, ${consecutiveCorrect} consecutive`);
+
+  } catch (error) {
+    console.error('❌ Error updating progress after attempt:', error);
+    // Don't throw - this is a background update
+  }
+}error('API Error:', error);
     return res.status(500).json({ 
       error: 'Internal server error',
       details: error.message 

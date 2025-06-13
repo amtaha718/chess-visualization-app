@@ -241,8 +241,6 @@ const FeedbackCard = ({ message, type = 'info', userPlayingAs }) => {
       )}
       {message}
     </div>
-};
-
 export default App;
 };
 

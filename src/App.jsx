@@ -1540,7 +1540,6 @@ const App = () => {
             </div>
           </div>
         )}
-      </div>
 
       {/* Mobile Settings Overlay */}
       {isMobile() && showMobileSettings && (

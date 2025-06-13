@@ -1,4 +1,13 @@
 {
+  "scripts": {
+    "populate-openings": "node populate-openings.js",
+    "validate-openings": "node populate-openings.js --validate",
+    "clear-openings": "node populate-openings.js --clear",
+    "opening-stats": "node populate-openings.js --stats"
+  }
+}
+
+{
   "name": "chess-visualization-app",
   "version": "0.1.0",
   "private": true,

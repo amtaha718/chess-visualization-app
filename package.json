@@ -1,13 +1,4 @@
 {
-  "scripts": {
-    "populate-openings": "node populate-openings.js",
-    "validate-openings": "node populate-openings.js --validate",
-    "clear-openings": "node populate-openings.js --clear",
-    "opening-stats": "node populate-openings.js --stats"
-  }
-}
-
-{
   "name": "chess-visualization-app",
   "version": "0.1.0",
   "private": true,
@@ -15,6 +6,7 @@
     "@anthropic-ai/sdk": "^0.20.1",
     "@supabase/supabase-js": "^2.38.0",
     "chess.js": "^0.13.4",
+    "node-fetch": "^3.3.2",
     "openai": "^5.0.1",
     "react": "^18.2.0",
     "react-chessboard": "^1.3.0",
@@ -26,7 +18,11 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "populate-openings": "node populate-openings.js",
+    "validate-openings": "node populate-openings.js --validate",
+    "clear-openings": "node populate-openings.js --clear",
+    "opening-stats": "node populate-openings.js --stats"
   },
   "browserslist": {
     "production": [

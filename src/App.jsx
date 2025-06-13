@@ -1968,6 +1968,7 @@ const App = () => {
     onSignOut={handleSignOut}
     onClose={() => setShowProfileModal(false)}
   />
+     </div>
   );
 };
 

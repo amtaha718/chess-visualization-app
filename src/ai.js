@@ -1,9 +1,9 @@
-// src/ai.js - ENHANCED VERSION WITH MOVE CONSEQUENCES
+// src/ai.js - ENHANCED VERSION WITH STOCKFISH MOVE CONSEQUENCES
 
 import { Chess } from 'chess.js';
 
 /**
- * Main incorrect move analysis - tries enhanced analysis first, then falls back gracefully
+ * Main incorrect move analysis - tries Stockfish analysis first, then falls back gracefully
  */
 export async function getIncorrectMoveExplanation(originalFen, moves, userMove, correctMove, playingAs = 'white') {
   try {
@@ -39,7 +39,18 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
       return getBasicPatternExplanation(userMove, correctMove, playingAs);
     }
     
-    // Try enhanced analysis first
+    // Try Stockfish-enhanced analysis first
+    try {
+      const stockfishResult = await tryStockfishEnhancedAnalysis(positionAfter3Moves, userMove, correctMove, playingAs);
+      if (stockfishResult) {
+        console.log('✅ Stockfish enhanced analysis successful:', stockfishResult.explanation);
+        return stockfishResult.explanation;
+      }
+    } catch (stockfishError) {
+      console.warn('⚠️ Stockfish enhanced analysis failed:', stockfishError.message);
+    }
+    
+    // Try regular enhanced analysis
     try {
       const enhancedResult = await tryEnhancedAnalysis(positionAfter3Moves, userMove, correctMove, playingAs);
       if (enhancedResult) {
@@ -72,11 +83,11 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
 }
 
 /**
- * NEW: Get move consequences for demonstration
+ * NEW: Get enhanced move consequences with Stockfish analysis
  */
-export async function getMoveConsequences(originalFen, moves, userMove, correctMove, playingAs = 'white') {
+export async function getMoveConsequencesEnhanced(originalFen, moves, userMove, correctMove, playingAs = 'white') {
   try {
-    console.log('🎭 === MOVE CONSEQUENCES ANALYSIS ===');
+    console.log('🎭 === ENHANCED MOVE CONSEQUENCES WITH STOCKFISH ===');
     console.log('📤 Request data:', { originalFen, moves, userMove, correctMove, playingAs });
     
     // Calculate position after first 3 moves
@@ -99,49 +110,66 @@ export async function getMoveConsequences(originalFen, moves, userMove, correctM
         }
         
         positionAfter3Moves = tempGame.fen();
-        console.log('📍 Position after 3 moves calculated for consequences');
+        console.log('📍 Position after 3 moves calculated for enhanced consequences');
       } else {
         throw new Error('Need at least 3 moves to analyze consequences');
       }
     } catch (error) {
-      console.error('⚠️ Could not calculate position for consequences:', error);
+      console.error('⚠️ Could not calculate position for enhanced consequences:', error);
       return null;
     }
     
-    // Try move consequences analysis
+    // Try enhanced Stockfish consequences analysis
     try {
-      const consequencesResult = await tryMoveConsequencesAnalysis(
+      const enhancedResult = await tryEnhancedStockfishConsequences(
         positionAfter3Moves, 
         userMove, 
         correctMove, 
         playingAs
       );
       
-      if (consequencesResult) {
-        console.log('✅ Move consequences analysis successful');
-        return consequencesResult;
+      if (enhancedResult) {
+        console.log('✅ Enhanced Stockfish consequences analysis successful');
+        return enhancedResult;
       }
     } catch (consequencesError) {
-      console.warn('⚠️ Move consequences analysis failed:', consequencesError.message);
+      console.warn('⚠️ Enhanced Stockfish consequences analysis failed:', consequencesError.message);
+    }
+    
+    // Fallback to basic consequences
+    try {
+      const basicResult = await tryMoveConsequencesAnalysis(
+        positionAfter3Moves, 
+        userMove, 
+        correctMove, 
+        playingAs
+      );
+      
+      if (basicResult) {
+        console.log('✅ Basic consequences analysis successful');
+        return basicResult;
+      }
+    } catch (basicError) {
+      console.warn('⚠️ Basic consequences analysis failed:', basicError.message);
     }
     
     return null;
     
   } catch (error) {
-    console.error('❌ Move consequences analysis failed:', error);
+    console.error('❌ Enhanced move consequences analysis failed:', error);
     return null;
   }
 }
 
 /**
- * Try move consequences analysis with timeout
+ * Try Stockfish-enhanced analysis for incorrect moves
  */
-async function tryMoveConsequencesAnalysis(positionAfter3Moves, userMove, correctMove, playingAs) {
+async function tryStockfishEnhancedAnalysis(positionAfter3Moves, userMove, correctMove, playingAs) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+  const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 second timeout for Stockfish
   
   try {
-    const response = await fetch('/api/analyzeMoveConsequences', {
+    const response = await fetch('/api/analyzeIncorrectMoveStockfishEnhanced', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -151,7 +179,63 @@ async function tryMoveConsequencesAnalysis(positionAfter3Moves, userMove, correc
         userMove, 
         correctMove, 
         playingAs,
-        depth: 3 // Analyze 3 moves deep
+        useStockfish: true,
+        depth: 12
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.explanation && data.explanation.trim()) {
+      return { 
+        explanation: data.explanation,
+        evaluation: data.evaluation,
+        engineUsed: data.engineUsed
+      };
+    } else {
+      throw new Error('Empty explanation returned');
+    }
+    
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      console.warn('Stockfish enhanced analysis timed out');
+    } else {
+      console.warn('Stockfish enhanced analysis failed:', error.message);
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * Try enhanced Stockfish consequences analysis
+ */
+async function tryEnhancedStockfishConsequences(positionAfter3Moves, userMove, correctMove, playingAs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for consequences
+  
+  try {
+    const response = await fetch('/api/analyzeMoveConsequencesStockfish', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        positionAfter3Moves,
+        userMove, 
+        correctMove, 
+        playingAs,
+        depth: 4,
+        useStockfish: true
       }),
       signal: controller.signal
     });
@@ -166,21 +250,30 @@ async function tryMoveConsequencesAnalysis(positionAfter3Moves, userMove, correc
     
     if (data.userConsequences && data.correctBenefits) {
       return {
-        userConsequences: data.userConsequences,
-        correctBenefits: data.correctBenefits,
-        explanation: data.explanation || 'Move consequences analyzed.'
+        userConsequences: {
+          ...data.userConsequences,
+          isEnhanced: true,
+          engineUsed: data.engineUsed || 'stockfish'
+        },
+        correctBenefits: {
+          ...data.correctBenefits,
+          isEnhanced: true,
+          engineUsed: data.engineUsed || 'stockfish'
+        },
+        explanation: data.explanation || 'Enhanced move consequences analyzed with Stockfish.',
+        comparison: data.comparison || null
       };
     } else {
-      throw new Error('Incomplete consequences data returned');
+      throw new Error('Incomplete enhanced consequences data returned');
     }
     
   } catch (error) {
     clearTimeout(timeoutId);
     
     if (error.name === 'AbortError') {
-      console.warn('Move consequences analysis timed out');
+      console.warn('Enhanced Stockfish consequences analysis timed out');
     } else {
-      console.warn('Move consequences analysis failed:', error.message);
+      console.warn('Enhanced Stockfish consequences analysis failed:', error.message);
     }
     
     throw error;
@@ -188,7 +281,7 @@ async function tryMoveConsequencesAnalysis(positionAfter3Moves, userMove, correc
 }
 
 /**
- * Try enhanced Stockfish analysis with timeout
+ * Try enhanced analysis with timeout (existing function, kept for compatibility)
  */
 async function tryEnhancedAnalysis(positionAfter3Moves, userMove, correctMove, playingAs) {
   const controller = new AbortController();
@@ -237,7 +330,61 @@ async function tryEnhancedAnalysis(positionAfter3Moves, userMove, correctMove, p
 }
 
 /**
- * Try basic pattern analysis
+ * Try basic move consequences analysis (existing function)
+ */
+async function tryMoveConsequencesAnalysis(positionAfter3Moves, userMove, correctMove, playingAs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+  
+  try {
+    const response = await fetch('/api/analyzeMoveConsequences', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        positionAfter3Moves,
+        userMove, 
+        correctMove, 
+        playingAs,
+        depth: 3
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.userConsequences && data.correctBenefits) {
+      return {
+        userConsequences: data.userConsequences,
+        correctBenefits: data.correctBenefits,
+        explanation: data.explanation || 'Move consequences analyzed.'
+      };
+    } else {
+      throw new Error('Incomplete consequences data returned');
+    }
+    
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      console.warn('Move consequences analysis timed out');
+    } else {
+      console.warn('Move consequences analysis failed:', error.message);
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * Try basic pattern analysis (existing function)
  */
 async function tryPatternAnalysis(userMove, correctMove, playingAs) {
   const controller = new AbortController();
@@ -278,7 +425,7 @@ async function tryPatternAnalysis(userMove, correctMove, playingAs) {
 }
 
 /**
- * Basic pattern explanation - always works
+ * Basic pattern explanation - always works (existing function)
  */
 function getBasicPatternExplanation(userMove, correctMove, playingAs) {
   const userFrom = userMove.slice(0, 2);
@@ -346,7 +493,7 @@ function getBasicPatternExplanation(userMove, correctMove, playingAs) {
 }
 
 /**
- * Correct move explanation - simple and reliable
+ * Correct move explanation - simple and reliable (existing function)
  */
 export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
   console.log('✅ === CORRECT MOVE EXPLANATION ===');
@@ -356,7 +503,7 @@ export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
   return "";
 }
 
-// Helper functions
+// Helper functions (existing)
 function isCenterSquare(square) {
   return ['d4', 'd5', 'e4', 'e5', 'c4', 'c5', 'f4', 'f5'].includes(square);
 }
@@ -388,7 +535,7 @@ function isEdgeSquare(square) {
   return file === 'a' || file === 'h' || rank === '1' || rank === '8';
 }
 
-// Validation utilities
+// Validation utilities (existing)
 export function validateChessPosition(fen) {
   try {
     const game = new Chess(fen);
@@ -414,17 +561,22 @@ export function validateMove(fen, move) {
   }
 }
 
+// Alias for backward compatibility
+export const getMoveConsequences = getMoveConsequencesEnhanced;
+
 // System info
 export const AnalysisInfo = {
-  version: '3.0-with-consequences',
+  version: '4.0-stockfish-enhanced',
   features: [
     'Multi-layer fallback system',
     'Timeout protection',
     'Pattern-based analysis',
-    'Basic chess logic',
-    'Reliable error handling',
-    'Move consequences demonstration' // NEW FEATURE
+    'Chess logic analysis',
+    'Stockfish engine integration',
+    'Enhanced move consequences',
+    'Evaluation-based explanations',
+    'Tactical theme detection'
   ],
-  accuracy: 'Excellent - Multiple analysis layers with move demonstration',
+  accuracy: 'Excellent - Stockfish-powered analysis with educational explanations',
   speed: 'Fast - Always responds quickly with optional deep analysis'
 };

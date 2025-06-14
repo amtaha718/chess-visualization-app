@@ -1,4 +1,5 @@
 // api/analyzeIncorrectMoveStockfish.js - VERCEL COMPATIBLE VERSION
+// 👆 DEPLOY THIS FILE TO FIX THE 500 ERROR 👆
 
 // Use dynamic import for chess.js to avoid ES Module issues
 let Chess;

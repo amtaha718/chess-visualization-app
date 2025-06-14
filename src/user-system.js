@@ -296,66 +296,39 @@ class UserSystem {
   // ===== FIXED USER PROGRESS (WORKS WITH EXISTING SCHEMA) =====
 
   async addUserProgress(puzzles, userId) {
-    try {
-      // Get user's progress on these puzzle IDs
-      const puzzleIds = puzzles.map(p => p.id);
+  try {
+    // Get user's progress on these puzzle IDs
+    const puzzleIds = puzzles.map(p => p.id);
+    
+    console.log('🔍 Fetching user progress for puzzles:', puzzleIds.length);
+    console.log('🔍 User ID:', userId);
+    console.log('🔍 Sample puzzle IDs:', puzzleIds.slice(0, 3));
+    
+    // Remove AbortSignal which might be causing 406 errors
+    const { data: progress, error } = await this.supabase
+      .from('user_puzzle_progress')
+      .select('puzzle_id, status, attempts_count, best_time, first_solved_at')
+      .eq('user_id', userId)
+      .in('puzzle_id', puzzleIds);
+      // Removed: .abortSignal(AbortSignal.timeout(10000))
+    
+    if (error) {
+      console.error('❌ Error fetching user progress:', error);
+      console.error('❌ Error code:', error.code);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error details:', error.details);
+      console.error('❌ Error hint:', error.hint);
       
-      console.log('🔍 Fetching user progress for puzzles:', puzzleIds.length);
-      
-      // Enhanced error handling for 406 errors
-      const { data: progress, error } = await this.supabase
-        .from('user_puzzle_progress')
-        .select('puzzle_id, status, attempts_count, best_time, first_solved_at')
-        .eq('user_id', userId)
-        .in('puzzle_id', puzzleIds);
-      
-      if (error) {
-        console.error('❌ Error fetching user progress:', error);
-        console.error('Error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        
-        // Return puzzles without progress data instead of failing completely
-        return puzzles.map(puzzle => ({
-          ...puzzle,
-          solved: false,
-          attempted: false,
-          bestTime: null,
-          attemptCount: 0,
-          firstSolvedAt: null
-        }));
-      }
-      
-      console.log('✅ Progress data fetched successfully:', progress?.length || 0, 'records');
-      
-      // Create a map for quick lookup
-      const progressMap = new Map();
-      if (progress && Array.isArray(progress)) {
-        progress.forEach(p => {
-          progressMap.set(p.puzzle_id, p);
-        });
-      }
-      
-      // Merge progress with puzzles using your schema
-      return puzzles.map(puzzle => {
-        const userProgress = progressMap.get(puzzle.id);
-        return {
-          ...puzzle,
-          solved: userProgress?.status === 'solved' || false,
-          attempted: userProgress?.attempts_count > 0 || false,
-          bestTime: userProgress?.best_time || null,
-          attemptCount: userProgress?.attempts_count || 0,
-          firstSolvedAt: userProgress?.first_solved_at || null
-        };
+      // Log the exact query that failed
+      console.error('❌ Failed query info:', {
+        table: 'user_puzzle_progress',
+        userId: userId,
+        puzzleIdsCount: puzzleIds.length,
+        sampleIds: puzzleIds.slice(0, 5)
       });
       
-    } catch (error) {
-      console.error('❌ Error in addUserProgress:', error);
-      
-      // Always return puzzles even if progress fetch fails
+      // Return puzzles without progress data instead of failing completely  
+      console.log('🔄 Returning puzzles without progress data due to 406 error');
       return puzzles.map(puzzle => ({
         ...puzzle,
         solved: false,
@@ -365,8 +338,50 @@ class UserSystem {
         firstSolvedAt: null
       }));
     }
+    
+    console.log('✅ Progress data fetched successfully:', progress?.length || 0, 'records');
+    
+    // Create a map for quick lookup
+    const progressMap = new Map();
+    if (progress && Array.isArray(progress)) {
+      progress.forEach(p => {
+        progressMap.set(p.puzzle_id, p);
+      });
+      console.log('📊 Progress map created with', progressMap.size, 'entries');
+    }
+    
+    // Merge progress with puzzles using your schema
+    const result = puzzles.map(puzzle => {
+      const userProgress = progressMap.get(puzzle.id);
+      return {
+        ...puzzle,
+        solved: userProgress?.status === 'solved' || false,
+        attempted: userProgress?.attempts_count > 0 || false,
+        bestTime: userProgress?.best_time || null,
+        attemptCount: userProgress?.attempts_count || 0,
+        firstSolvedAt: userProgress?.first_solved_at || null
+      };
+    });
+    
+    console.log('✅ Successfully merged progress with puzzles');
+    return result;
+    
+  } catch (error) {
+    console.error('❌ Unexpected error in addUserProgress:', error);
+    console.error('❌ Error stack:', error.stack);
+    
+    // Always return puzzles even if progress fetch fails
+    console.log('🔄 Returning puzzles without progress due to unexpected error');
+    return puzzles.map(puzzle => ({
+      ...puzzle,
+      solved: false,
+      attempted: false,
+      bestTime: null,
+      attemptCount: 0,
+      firstSolvedAt: null
+    }));
   }
-
+}
   // ===== PUZZLE ATTEMPTS WITH RATING PROTECTION =====
   
   async recordPuzzleAttempt(puzzleId, solved, timeTaken, movesTried = [], shouldChangeRating = true) {

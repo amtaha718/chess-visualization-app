@@ -190,13 +190,17 @@ function analyzeMovesSimple(positionBefore, positionAfterUser, positionAfterCorr
     }
 
     // 2. Check if user move puts king in check
-    const gameAfterUser = new ChessClass(positionAfterUser);
-    if (gameAfterUser.isCheck()) {
-      const currentTurn = gameAfterUser.turn();
-      const userColor = playingAs === 'white' ? 'w' : 'b';
-      if (currentTurn === userColor) {
-        return "This move puts your king in check. Try again.";
+    try {
+      const gameAfterUser = new ChessClass(positionAfterUser);
+      if (gameAfterUser.isCheck && gameAfterUser.isCheck()) {
+        const currentTurn = gameAfterUser.turn();
+        const userColor = playingAs === 'white' ? 'w' : 'b';
+        if (currentTurn === userColor) {
+          return "This move puts your king in check. Try again.";
+        }
       }
+    } catch (checkError) {
+      console.warn('Check detection failed:', checkError);
     }
 
     // 3. Hanging piece detection
@@ -259,6 +263,10 @@ function detectSimpleHangingPiece(positionBefore, positionAfterUser, userMove, C
 
     // Check if any opponent piece can capture on that square
     const opponentMoves = gameAfter.moves({ verbose: true });
+    if (!opponentMoves || !Array.isArray(opponentMoves)) {
+      return null;
+    }
+    
     const canBeCaptured = opponentMoves.some(move => move.to === toSquare);
     
     if (canBeCaptured) {

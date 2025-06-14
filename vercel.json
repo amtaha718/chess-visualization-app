@@ -1,17 +1,40 @@
 {
   "functions": {
-    "api/generate-puzzle.js": { "maxDuration": 30 },
-    "api/analyzeIncorrectMove.js": { "maxDuration": 15 },
-    "api/analyzeIncorrectMoveStockfish.js": { "maxDuration": 15 },
-    "api/analyzeMoveConsequencesStockfish.js": { "maxDuration": 20 },
-    "api/analyzeIncorrectMoveStockfishEnhanced.js": { "maxDuration": 25 }
+    "api/generate-puzzle.js": {
+      "maxDuration": 30
+    },
+    "api/analyzeIncorrectMove.js": {
+      "maxDuration": 15
+    },
+    "api/analyzeIncorrectMoveStockfish.js": {
+      "maxDuration": 15
+    },
+    "api/analyzeMoveConsequences.js": {
+      "maxDuration": 20
+    },
+    "api/analyzeMoveConsequencesStockfish.js": {
+      "maxDuration": 25
+    },
+    "api/analyzeIncorrectMoveStockfishEnhanced.js": {
+      "maxDuration": 30
+    }
   },
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" },
-        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" }
+        {
+          "key": "Cross-Origin-Embedder-Policy",
+          "value": "require-corp"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin"
+        },
+        {
+          "key": "Cross-Origin-Resource-Policy",
+          "value": "cross-origin"
+        }
       ]
     }
   ],
@@ -21,6 +44,8 @@
       "destination": "/stockfish-17-lite-single.js"
     },
     {
-      "source": "/stockfish-17-lite-single.wasm", 
+      "source": "/stockfish-17-lite-single.wasm",
       "destination": "/stockfish-17-lite-single.wasm"
     }
+  ]
+}

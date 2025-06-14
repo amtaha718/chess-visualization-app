@@ -5,7 +5,6 @@ import { getIncorrectMoveExplanation, getCorrectMoveExplanation, getMoveConseque
 import './index.css';
 import UserSystem from './user-system';
 import { AuthModal, UserProfile } from './auth-components';
-import MoveConsequenceDisplay from './MoveConsequenceDisplay';
 
 const getBoardSize = (isExpanded = false) => {
   if (isExpanded) {
@@ -862,10 +861,13 @@ const App = () => {
         userPlayingAs
       );
       
-      if (consequencesData) {
-        console.log('✅ Got consequences data:', consequencesData);
-        setMoveConsequencesData(consequencesData);
-        setShowConsequences(true);
+      if (consequencesData && consequencesData.userConsequences) {
+        console.log('✅ Got consequences data, playing sequence...');
+        setFeedbackMessage('Showing what happens after your move...');
+        setFeedbackType('info');
+        
+        // Play the user's incorrect move sequence on the main board
+        playConsequenceSequence(consequencesData.userConsequences.sequence);
       } else {
         setFeedbackMessage('Could not analyze move consequences. Try again.');
         setFeedbackType('warning');
@@ -877,6 +879,55 @@ const App = () => {
     } finally {
       setIsLoadingConsequences(false);
     }
+  };
+
+  // NEW: Play the consequence sequence on the main board
+  const playConsequenceSequence = (moveSequence) => {
+    if (!moveSequence || moveSequence.length === 0) return;
+    
+    const currentPuzzle = puzzles[currentPuzzleIndex];
+    const game = new Chess(currentPuzzle.fen);
+    
+    // Apply the first 3 moves to get to the position where user made their move
+    const setupMoves = currentPuzzle.moves.slice(0, sequenceLength - 1);
+    for (let i = 0; i < setupMoves.length; i++) {
+      const move = setupMoves[i];
+      game.move({ from: move.slice(0, 2), to: move.slice(2, 4) });
+    }
+    
+    // Reset board to this position
+    setBoardPosition(game.fen());
+    setCurrentMove(null);
+    
+    // Play the consequence sequence
+    moveSequence.forEach((move, i) => {
+      setTimeout(() => {
+        const from = move.slice(0, 2);
+        const to = move.slice(2, 4);
+        const moveResult = game.move({ from, to });
+        
+        if (moveResult) {
+          setBoardPosition(game.fen());
+          setCurrentMove({ from, to });
+          
+          // Update feedback message based on which move this is
+          if (i === 0) {
+            setFeedbackMessage('Your move...');
+          } else if (i === moveSequence.length - 1) {
+            setFeedbackMessage('...and this is the result. The correct move would have been better.');
+          } else {
+            setFeedbackMessage(`Opponent responds with the best defense...`);
+          }
+        }
+      }, i * 1500); // 1.5 seconds between moves
+    });
+    
+    // Clear the arrow after the sequence
+    setTimeout(() => {
+      setCurrentMove(null);
+      setFeedbackMessage('Sequence complete. Try the next puzzle!');
+      setFeedbackType('info');
+    }, moveSequence.length * 1500 + 1000);
   };
 
   // NEW: Component for consequences button
@@ -907,7 +958,7 @@ const App = () => {
         }}
       >
         <ConsequencesIcon />
-        {isLoadingConsequences ? 'Analyzing...' : 'Show What Happens'}
+        {isLoadingConsequences ? 'Analyzing...' : 'Show Moves'}
       </button>
     );
   };
@@ -2073,20 +2124,8 @@ const App = () => {
         onClose={() => setShowProfileModal(false)}
       />
 
-      {/* NEW: Move Consequences Modal */}
-      {showConsequences && moveConsequencesData && (
-        <MoveConsequenceDisplay
-          userConsequences={moveConsequencesData.userConsequences}
-          correctBenefits={moveConsequencesData.correctBenefits}
-          onClose={() => {
-            setShowConsequences(false);
-            setMoveConsequencesData(null);
-          }}
-          initialPosition={puzzles[currentPuzzleIndex] ? puzzles[currentPuzzleIndex].fen : ''}
-          boardSize={isMobile() ? Math.min(window.innerWidth - 40, 300) : 400}
-          boardOrientation={boardOrientation}
-        />
-      )}
+      {/* NEW: Move Consequences Modal - REMOVED */}
+      {/* Consequences now play directly on the main board */}
     </div>
   );
 };

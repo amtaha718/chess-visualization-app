@@ -1,9 +1,18 @@
-// api/analyzeIncorrectMoveStockfish.js - Ultra-simple version (no Workers)
+// api/analyzeIncorrectMoveStockfish.js - VERCEL COMPATIBLE VERSION
 
-import { Chess } from 'chess.js';
+// Use dynamic import for chess.js to avoid ES Module issues
+let Chess;
+
+async function loadChess() {
+  if (!Chess) {
+    const chessModule = await import('chess.js');
+    Chess = chessModule.Chess;
+  }
+  return Chess;
+}
 
 export default async function handler(req, res) {
-  console.log('🔍 === ULTRA-SIMPLE CHESS ANALYSIS ===');
+  console.log('🔍 === VERCEL-COMPATIBLE CHESS ANALYSIS ===');
   
   // Add CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -23,7 +32,11 @@ export default async function handler(req, res) {
 
   try {
     console.log('📥 Request received');
-    console.log('📋 Request body:', req.body);
+    console.log('📋 Loading chess.js dynamically...');
+    
+    // Load chess.js dynamically to avoid ES Module issues
+    const ChessClass = await loadChess();
+    console.log('✅ Chess.js loaded successfully');
 
     const { 
       positionAfter3Moves,
@@ -50,7 +63,7 @@ export default async function handler(req, res) {
     // Validate position
     let gameAtPosition;
     try {
-      gameAtPosition = new Chess(positionAfter3Moves);
+      gameAtPosition = new ChessClass(positionAfter3Moves);
       console.log('✅ Position is valid');
     } catch (fenError) {
       console.error('❌ Invalid FEN position:', fenError);
@@ -63,7 +76,7 @@ export default async function handler(req, res) {
     // Validate user move
     let gameAfterUser;
     try {
-      gameAfterUser = new Chess(positionAfter3Moves);
+      gameAfterUser = new ChessClass(positionAfter3Moves);
       const userMoveResult = gameAfterUser.move({
         from: userMove.slice(0, 2),
         to: userMove.slice(2, 4)
@@ -85,10 +98,10 @@ export default async function handler(req, res) {
       });
     }
 
-    // Validate correct move
+    // Validate correct move  
     let gameAfterCorrect;
     try {
-      gameAfterCorrect = new Chess(positionAfter3Moves);
+      gameAfterCorrect = new ChessClass(positionAfter3Moves);
       const correctMoveResult = gameAfterCorrect.move({
         from: correctMove.slice(0, 2),
         to: correctMove.slice(2, 4)
@@ -110,30 +123,34 @@ export default async function handler(req, res) {
       });
     }
 
-    // Simple chess analysis without Stockfish
+    // Simple chess analysis without external engines
     const explanation = analyzeMovesSimple(
       positionAfter3Moves,
       gameAfterUser.fen(),
       gameAfterCorrect.fen(),
       userMove,
       correctMove,
-      playingAs
+      playingAs,
+      ChessClass
     );
 
     console.log('🎯 Generated explanation:', explanation);
 
     return res.status(200).json({ 
       explanation,
-      method: 'simple_chess_analysis',
+      method: 'vercel_compatible_analysis',
       debug: {
         positionValid: true,
         userMoveValid: true,
-        correctMoveValid: true
+        correctMoveValid: true,
+        chessJsLoaded: true
       }
     });
 
   } catch (error) {
     console.error('❌ Unexpected error in analysis:', error);
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
     console.error('Error stack:', error.stack);
     
     return res.status(200).json({ 
@@ -145,7 +162,7 @@ export default async function handler(req, res) {
 }
 
 // Simple chess analysis function
-function analyzeMovesSimple(positionBefore, positionAfterUser, positionAfterCorrect, userMove, correctMove, playingAs) {
+function analyzeMovesSimple(positionBefore, positionAfterUser, positionAfterCorrect, userMove, correctMove, playingAs, ChessClass) {
   console.log('🔍 Starting simple chess analysis...');
   
   try {
@@ -172,16 +189,17 @@ function analyzeMovesSimple(positionBefore, positionAfterUser, positionAfterCorr
     }
 
     // 2. Check if user move puts king in check
-    const gameAfterUser = new Chess(positionAfterUser);
+    const gameAfterUser = new ChessClass(positionAfterUser);
     if (gameAfterUser.isCheck()) {
-      const kingInCheck = gameAfterUser.turn() === (playingAs === 'white' ? 'w' : 'b');
-      if (kingInCheck) {
+      const currentTurn = gameAfterUser.turn();
+      const userColor = playingAs === 'white' ? 'w' : 'b';
+      if (currentTurn === userColor) {
         return "This move puts your king in check. Try again.";
       }
     }
 
     // 3. Hanging piece detection
-    const hangingPiece = detectSimpleHangingPiece(positionBefore, positionAfterUser, userMove);
+    const hangingPiece = detectSimpleHangingPiece(positionBefore, positionAfterUser, userMove, ChessClass);
     if (hangingPiece) {
       return `This move hangs your ${hangingPiece}. Try again.`;
     }
@@ -230,9 +248,9 @@ function countMaterial(fen) {
   return whiteMaterial - blackMaterial; // Positive = white advantage
 }
 
-function detectSimpleHangingPiece(positionBefore, positionAfterUser, userMove) {
+function detectSimpleHangingPiece(positionBefore, positionAfterUser, userMove, ChessClass) {
   try {
-    const gameAfter = new Chess(positionAfterUser);
+    const gameAfter = new ChessClass(positionAfterUser);
     const toSquare = userMove.slice(2, 4);
     const movedPiece = gameAfter.get(toSquare);
     

@@ -701,7 +701,7 @@ const App = () => {
 
     setIsUserTurnToMove(false);
     setPuzzlePhase('complete');
-    setFeedbackMessage('Analyzing your move…');
+    setFeedbackMessage('Analyzing your move with Stockfish…');
     setFeedbackType('info');
 
     const timeTaken = puzzleStartTime ? Math.round((Date.now() - puzzleStartTime) / 1000) : null;
@@ -758,6 +758,7 @@ const App = () => {
 
     if (!puzzleSolved) {
       try {
+        console.log('🐟 Getting enhanced Stockfish explanation...');
         const explanation = await getIncorrectMoveExplanation(
           currentPuzzle.fen,
           currentPuzzle.moves,
@@ -770,7 +771,11 @@ const App = () => {
           setFeedbackMessage(prev => prev + ' ' + explanation);
         }, 2000);
       } catch (err) {
-        console.error('Failed to get explanation:', err);
+        console.error('Failed to get Stockfish explanation:', err);
+        // Fallback message without pattern analysis
+        setTimeout(() => {
+          setFeedbackMessage(prev => prev + ' Try the next puzzle to continue learning!');
+        }, 2000);
       }
     }
   };
@@ -877,51 +882,14 @@ const App = () => {
         // Play the enhanced consequence sequence
         playEnhancedConsequenceSequence(consequenceData);
       } else {
-        console.warn('⚠️ Enhanced analysis returned incomplete data, falling back to basic analysis');
-        setEnhancedAnalysisAvailable(false);
-        
-        // Fallback to basic local analysis
-        const basicSequence = generateMoveConsequences(
-          currentPuzzle.fen,
-          currentPuzzle.moves.slice(0, sequenceLength - 1),
-          lastAttemptedMove
-        );
-        
-        if (basicSequence && basicSequence.length > 0) {
-          setFeedbackMessage('Showing what happens after your move (basic analysis)...');
-          setFeedbackType('info');
-          playConsequenceSequence(basicSequence);
-        } else {
-          setFeedbackMessage('Could not analyze move consequences. The position might be terminal.');
-          setFeedbackType('warning');
-        }
+        console.warn('⚠️ Enhanced analysis returned incomplete data');
+        setFeedbackMessage('Could not complete detailed move analysis. Position may be too complex.');
+        setFeedbackType('warning');
       }
     } catch (error) {
       console.error('Failed to generate enhanced move consequences:', error);
-      setEnhancedAnalysisAvailable(false);
-      
-      // Fallback to basic analysis
-      try {
-        const currentPuzzle = puzzles[currentPuzzleIndex];
-        const basicSequence = generateMoveConsequences(
-          currentPuzzle.fen,
-          currentPuzzle.moves.slice(0, sequenceLength - 1),
-          lastAttemptedMove
-        );
-        
-        if (basicSequence && basicSequence.length > 0) {
-          setFeedbackMessage('Showing consequences with basic analysis...');
-          setFeedbackType('info');
-          playConsequenceSequence(basicSequence);
-        } else {
-          setFeedbackMessage('Failed to analyze move consequences.');
-          setFeedbackType('error');
-        }
-      } catch (fallbackError) {
-        console.error('Even fallback analysis failed:', fallbackError);
-        setFeedbackMessage('Failed to analyze move consequences.');
-        setFeedbackType('error');
-      }
+      setFeedbackMessage('Enhanced analysis temporarily unavailable. Try the next puzzle!');
+      setFeedbackType('error');
     } finally {
       setIsLoadingConsequences(false);
     }
@@ -1100,271 +1068,1199 @@ const App = () => {
     }
   };
 
-  // EXISTING: Generate move consequences starting after user's move (fallback method)
-  const generateMoveConsequences = (startingFen, setupMoves, userMove) => {
-    try {
-      console.log('🔍 Setting up position for consequences analysis');
-      const game = new Chess(startingFen);
-      
-      // Apply the first 3 moves to get to the decision point
-      for (let i = 0; i < setupMoves.length; i++) {
-        const move = setupMoves[i];
-        const moveResult = game.move({ from: move.slice(0, 2), to: move.slice(2, 4) });
-        if (!moveResult) {
-          console.error('Invalid setup move:', move);
-          return [];
-        }
-      }
-      
-      console.log('📍 Position before user move:', game.fen());
-      
-      // Now apply the user's incorrect move
-      const userMoveResult = game.move({ 
-        from: userMove.slice(0, 2), 
-        to: userMove.slice(2, 4) 
-      });
-      
-      if (!userMoveResult) {
-        console.error('Invalid user move:', userMove);
-        return [];
-      }
-      
-      console.log('📍 Position after user move:', game.fen());
-      console.log('🎯 Now generating opponent responses...');
-      
-      // The sequence will show opponent's responses to the user's move
-      const sequence = [];
-      
-      // Generate 2-3 opponent responses to show the consequences
-      for (let i = 0; i < 3; i++) {
-        // Check if game is over using proper Chess.js methods
-        if (game.isGameOver() || game.isDraw() || game.isStalemate() || game.isThreefoldRepetition()) {
-          console.log(`Game over detected after ${i} moves`);
-          break;
-        }
-        
-        const opponentMove = findBestOpponentMove(game);
-        if (!opponentMove) {
-          console.log('No more moves available');
-          break;
-        }
-        
-        console.log(`🤖 Opponent move ${i + 1}: ${opponentMove.from}${opponentMove.to}`);
-        
-        const moveResult = game.move(opponentMove);
-        if (moveResult) {
-          sequence.push(opponentMove.from + opponentMove.to);
-          console.log(`✅ Applied opponent move: ${opponentMove.from}${opponentMove.to}`);
-          console.log(`📍 New position: ${game.fen()}`);
-        } else {
-          console.error('Failed to apply opponent move');
-          break;
-        }
-      }
-      
-      console.log('Generated opponent sequence:', sequence);
-      return sequence;
-      
-    } catch (error) {
-      console.error('Error generating move consequences:', error);
-      return [];
-    }
-  };
-
-  // EXISTING: Find best opponent move using improved heuristics (fallback method)
-  const findBestOpponentMove = (game) => {
-    try {
-      const moves = game.moves({ verbose: true });
-      if (moves.length === 0) {
-        console.log('No legal moves available');
-        return null;
-      }
-      
-      console.log(`🔍 Evaluating ${moves.length} possible opponent moves`);
-      
-      let bestMove = null;
-      let bestScore = -Infinity;
-      
-      for (const move of moves) {
-        let score = 0;
-        
-        // Create a copy to test the move
-        const gameCopy = new Chess(game.fen());
-        const testMoveResult = gameCopy.move(move);
-        
-        if (!testMoveResult) {
-          console.warn(`Failed to apply test move: ${move.from}${move.to}`);
-          continue;
-        }
-        
-        // High priority: Checkmate
-        if (gameCopy.isCheckmate()) {
-          console.log(`🎯 Found checkmate move: ${move.from}${move.to}`);
-          score += 10000;
-        }
-        // High priority: Check
-        else if (gameCopy.isCheck()) {
-          console.log(`⚡ Found check move: ${move.from}${move.to}`);
-          score += 500;
-        }
-        
-        // High priority: Captures (by piece value)
-        if (move.captured) {
-          const pieceValues = { p: 100, n: 300, b: 300, r: 500, q: 900 };
-          const captureValue = pieceValues[move.captured] || 0;
-          score += captureValue;
-          console.log(`💰 Capture move ${move.from}${move.to} gains ${captureValue} points`);
-        }
-        
-        // Medium priority: Attacks on valuable pieces
-        try {
-          const opponentMoves = gameCopy.moves({ verbose: true });
-          const threatens = opponentMoves.filter(m => m.captured);
-          if (threatens.length > 0) {
-            const maxThreat = Math.max(...threatens.map(m => {
-              const pieceValues = { p: 100, n: 300, b: 300, r: 500, q: 900 };
-              return pieceValues[m.captured] || 0;
-            }));
-            score += maxThreat * 0.5; // Half points for threats
-          }
-        } catch (threatError) {
-          console.warn('Error analyzing threats:', threatError);
-        }
-        
-        // Low priority: Center control
-        const centerSquares = ['d4', 'd5', 'e4', 'e5'];
-        if (centerSquares.includes(move.to)) {
-          score += 10;
-        }
-        
-        // Penalty: Hanging pieces (simplified check)
-        try {
-          const nextMoves = gameCopy.moves({ verbose: true });
-          const isHanging = nextMoves.some(nextMove => nextMove.to === move.to);
-          if (isHanging) {
-            const pieceValues = { p: 100, n: 300, b: 300, r: 500, q: 900 };
-            score -= (pieceValues[move.piece] || 0) * 0.8;
-          }
-        } catch (hangingError) {
-          console.warn('Error checking hanging pieces:', hangingError);
-        }
-        
-        if (score > bestScore) {
-          bestScore = score;
-          bestMove = move;
-        }
-      }
-      
-      console.log(`🏆 Best opponent move: ${bestMove?.from}${bestMove?.to} (score: ${bestScore})`);
-      return bestMove;
-      
-    } catch (error) {
-      console.error('Error in findBestOpponentMove:', error);
+  // Component for consequences button
+  const ConsequencesButton = () => {
+    if (puzzlePhase !== 'complete' || solved || !puzzleAttempted || !lastAttemptedMove) {
       return null;
     }
+    
+    return (
+      <button
+        onClick={showMoveConsequences}
+        disabled={isLoadingConsequences}
+        style={{
+          width: '100%',
+          padding: '10px',
+          backgroundColor: isLoadingConsequences ? '#ccc' : '#FF9800',
+          color: 'white',
+          border: 'none',
+          borderRadius: '6px',
+          cursor: isLoadingConsequences ? 'not-allowed' : 'pointer',
+          fontWeight: 'bold',
+          fontSize: '14px',
+          marginTop: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px'
+        }}
+      >
+        <ConsequencesIcon />
+        {isLoadingConsequences ? 'Analyzing with Stockfish...' : 'Show Enhanced Analysis'}
+      </button>
+    );
   };
 
-  // EXISTING: Play the consequence sequence on the main board (fallback method)
-  const playConsequenceSequence = (moveSequence) => {
-    if (!moveSequence || moveSequence.length === 0) {
-      console.error('No move sequence to play');
-      return;
+  const skipToNextPuzzle = () => {
+    if (currentPuzzleIndex < puzzles.length - 1) {
+      setCurrentPuzzleIndex(currentPuzzleIndex + 1);
+    } else {
+      loadPuzzles();
+      setCurrentPuzzleIndex(0);
     }
-    
-    console.log('🎬 Playing consequence sequence:', moveSequence);
-    
-    const currentPuzzle = puzzles[currentPuzzleIndex];
-    const game = new Chess(currentPuzzle.fen);
-    
-    // Apply the first 3 moves to get to the decision point
-    const setupMoves = currentPuzzle.moves.slice(0, sequenceLength - 1);
-    for (let i = 0; i < setupMoves.length; i++) {
-      const move = setupMoves[i];
-      game.move({ from: move.slice(0, 2), to: move.slice(2, 4) });
+  };
+
+  const goToPreviousPuzzle = () => {
+    if (currentPuzzleIndex > 0) {
+      setCurrentPuzzleIndex(currentPuzzleIndex - 1);
     }
-    
-    // Apply the user's move to get to the position after their incorrect move
-    const userMoveResult = game.move({ 
-      from: lastAttemptedMove.slice(0, 2), 
-      to: lastAttemptedMove.slice(2, 4) 
-    });
-    
-    if (!userMoveResult) {
-      console.error('Failed to apply user move');
-      return;
+  };
+
+  const handleDifficultyChange = useCallback((newDifficulty) => {
+    if (newDifficulty !== selectedDifficulty) {
+      console.log('🔄 Changing difficulty to:', newDifficulty);
+      setSelectedDifficulty(newDifficulty);
+      setCurrentPuzzleIndex(0);
     }
+  }, [selectedDifficulty]);
+
+  const handleThemeChange = useCallback((newTheme) => {
+    if (newTheme !== selectedTheme) {
+      console.log('🏷️ Changing theme to:', newTheme);
+      setSelectedTheme(newTheme);
+      setCurrentPuzzleIndex(0);
+    }
+  }, [selectedTheme]);
+
+  const handleAuthSuccess = async (user) => {
+    setUser(user);
+    const profile = await userSystem.getUserProfile();
+    setUserProfile(profile);
+    setProfileUpdateKey(prev => prev + 1);
+    setShowAuthModal(false);
+  };
+
+  const handleSignOut = async () => {
+    await userSystem.signOut();
+    setUser(null);
+    setUserProfile(null);
+    setShowProfileModal(false);
+    localStorage.removeItem(STORAGE_KEY);
+  };
+
+  const handleDarkModeToggle = () => {
+    setIsDarkMode(!isDarkMode);
+  };
+
+  const handleSharePuzzle = () => {
+    setFeedbackMessage('Puzzle shared as GIF!');
+    setFeedbackType('success');
+  };
+
+  const iconButtonStyle = {
+    width: '36px',
+    height: '36px',
+    border: 'none',
+    backgroundColor: 'transparent',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
+    margin: '0 3px'
+  };
+
+  const disabledIconButtonStyle = {
+    ...iconButtonStyle,
+    cursor: 'not-allowed',
+    opacity: 0.4
+  };
+
+  if (isLoadingAuth) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column'
+      }}>
+        <h2>Setting up authentication...</h2>
+      </div>
+    );
+  }
+
+  if (isLoadingPuzzles) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column'
+      }}>
+        <h2>Loading Puzzles...</h2>
+        <p>Difficulty: {selectedDifficulty}</p>
+        <p>🧩 Preparing challenging visualization puzzles...</p>
+      </div>
+    );
+  }
+
+  if (puzzles.length === 0) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column'
+      }}>
+        <h2>Failed to Load Puzzles</h2>
+        <p>Difficulty: {selectedDifficulty}</p>
+        <button onClick={() => loadPuzzles()} style={iconButtonStyle}>
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  const getLayoutStyles = () => {
+    const mobile = isMobile();
     
-    // Set the board to show the position after user's move
-    setBoardPosition(game.fen());
-    setCurrentMove(null);
-    
-    console.log('🎯 Starting opponent response sequence...');
-    
-    // Show immediate feedback about user's move
-    setTimeout(() => {
-      setFeedbackMessage(`After your move ${lastAttemptedMove}, here's what happens...`);
-      setFeedbackType('warning');
-    }, 500);
-    
-    // Play the opponent's response sequence with delays
-    moveSequence.forEach((move, i) => {
-      setTimeout(() => {
-        console.log(`Playing opponent move ${i + 1}/${moveSequence.length}: ${move}`);
-        
-        const from = move.slice(0, 2);
-        const to = move.slice(2, 4);
-        
-        try {
-          const moveResult = game.move({ from, to });
-          
-          if (moveResult) {
-            setBoardPosition(game.fen());
-            setCurrentMove({ from, to });
-            
-            // Update feedback message based on which move this is
-            if (i === 0) {
-              setFeedbackMessage(`Opponent responds with ${move} - putting pressure on your position!`);
-              setFeedbackType('info');
-            } else if (i === moveSequence.length - 1) {
-              // Analyze the final position
-              const finalAnalysis = analyzePosition(game);
-              setFeedbackMessage(`Final result: ${finalAnalysis} The correct move would have avoided this.`);
-              setFeedbackType('error');
-            } else {
-              setFeedbackMessage(`Opponent continues with ${move}...`);
-              setFeedbackType('info');
-            }
-            
-            console.log(`✅ Played opponent move ${i + 1}: ${move}`);
-          } else {
-            console.error(`❌ Failed to play opponent move ${i + 1}: ${move}`);
-          }
-        } catch (error) {
-          console.error(`Error playing opponent move ${i + 1} (${move}):`, error);
+    if (mobile) {
+      return {
+        container: {
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          backgroundColor: isDarkMode ? '#1a1a1a' : '#f8f9fa'
+        },
+        mainContent: {
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          padding: '8px',
+          gap: '8px',
+          overflow: 'hidden'
+        },
+        settingsPanel: {
+          order: 1,
+          backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
+          borderRadius: '8px',
+          padding: '10px',
+          color: isDarkMode ? '#ffffff' : '#333333'
+        },
+        boardContainer: {
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingTop: '10px',
+          paddingBottom: '80px',
+        },
+        feedbackPanel: {
+          order: 1.5,
+          backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
+          borderRadius: '8px',
+          padding: '10px',
+          color: isDarkMode ? '#ffffff' : '#333333',
+          marginBottom: '8px'
         }
-      }, (i + 1) * 2000); // Start after 2 seconds, then 2 seconds between moves
-    });
-    
-    // Clear the arrow and show final message after the sequence
-    setTimeout(() => {
-      setCurrentMove(null);
-      setFeedbackMessage('Consequence sequence complete. See how your move led to problems? Try the next puzzle!');
-      setFeedbackType('info');
-      console.log('🏁 Consequence sequence playback complete');
-    }, (moveSequence.length + 1) * 2000 + 1000);
+      };
+    } else {
+      return {
+        container: {
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          backgroundColor: isDarkMode ? '#1a1a1a' : '#f8f9fa'
+        },
+        mainContent: {
+          display: 'flex',
+          flex: 1,
+          overflow: 'hidden'
+        },
+        settingsPanel: {
+          width: '25%',
+          minWidth: '250px',
+          maxWidth: '350px',
+          backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
+          borderRight: `1px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
+          padding: '20px',
+          overflow: 'auto',
+          color: isDarkMode ? '#ffffff' : '#333333'
+        },
+        boardContainer: {
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingTop: '50px',
+          paddingBottom: '50px',
+          paddingLeft: '20px',
+          paddingRight: '20px'
+        },
+        feedbackPanel: {
+          width: '25%',
+          minWidth: '250px',
+          maxWidth: '350px',
+          backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
+          borderLeft: `1px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
+          padding: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          color: isDarkMode ? '#ffffff' : '#333333'
+        }
+      };
+    }
   };
 
-  // EXISTING: Analyze the final position to give educational feedback (fallback method)
-  const analyzePosition = (game) => {
-    if (game.isCheckmate()) {
-      return "You've been checkmated!";
-    }
-    if (game.isCheck()) {
-      return "Your king is in check and under pressure.";
-    }
-    if (game.isStalemate()) {
-      return "The position is stalemate.";
-    }
-    if (game.isDraw()) {
-      return "The position is drawn.";
-    }
+  const styles = getLayoutStyles();
+
+  return (
+    <div style={styles.container}>
+      <header style={{
+        height: '60px',
+        backgroundColor: '#64B5F6',
+        color: 'white',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: isMobile() ? '0 10px' : '0 20px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <img
+            src="/logo.png"
+            alt="Chess Trainer Logo"
+            style={{
+              height: isMobile() ? '50px' : '100px',
+              marginRight: isMobile() ? '8px' : '15px'
+            }}
+          />
+        </div>
+
+        {!isMobile() && (
+          <nav style={{
+            display: 'flex',
+            gap: '30px',
+            alignItems: 'center'
+          }}>
+            <button style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'white',
+              fontSize: '16px',
+              fontWeight: '500',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              transition: 'background-color 0.2s ease'
+            }}>
+              <CoursesIcon />
+              Courses
+            </button>
+
+            <button style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'white',
+              fontSize: '16px',
+              fontWeight: '500',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              transition: 'background-color 0.2s ease'
+            }}>
+              <InviteIcon />
+              Invite Friends
+            </button>
+
+            <button style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'white',
+              fontSize: '16px',
+              fontWeight: '500',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              transition: 'background-color 0.2s ease'
+            }}>
+              <AboutIcon />
+              About Us
+            </button>
+          </nav>
+        )}
+
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '15px'
+        }}>
+          {user ? (
+            <>
+              <FlameIcon streak={userProfile?.longest_streak || 0} />
+              <div 
+                onClick={() => setShowProfileModal(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: isMobile() ? '6px' : '10px',
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  padding: isMobile() ? '6px 10px' : '8px 12px',
+                  borderRadius: isMobile() ? '16px' : '20px',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s ease',
+                  color: 'white',
+                  height: '36px',
+                  minWidth: '80px'
+                }}
+              >
+                <div style={{ fontSize: isMobile() ? '11px' : '14px' }}>
+                  <strong>{userProfile?.display_name || 'Player'}</strong>
+                </div>
+                <div style={{
+                  backgroundColor: 'rgba(255,255,255,0.3)',
+                  color: 'white',
+                  padding: isMobile() ? '3px 6px' : '4px 8px',
+                  borderRadius: isMobile() ? '10px' : '12px',
+                  fontSize: isMobile() ? '10px' : '12px',
+                  fontWeight: 'bold'
+                }}>
+                  {userProfile?.current_rating || 1200}
+                </div>
+              </div>
+            </>
+          ) : (
+            <button
+              onClick={() => setShowAuthModal(true)}
+              style={{
+                padding: isMobile() ? '6px 12px' : '8px 16px',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: '16px',
+                cursor: 'pointer',
+                fontSize: isMobile() ? '12px' : '14px',
+                fontWeight: 'bold'
+              }}
+            >
+              Sign In
+            </button>
+          )}
+        </div>
+      </header>
+
+      <div style={styles.mainContent}>
+        {/* Desktop Settings Panel */}
+        {!isMobile() && (
+          <div style={styles.settingsPanel}>
+            <div 
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '20px',
+                cursor: 'pointer',
+                padding: '8px 0'
+              }}
+              onClick={() => setIsCollapsed(!isCollapsed)}
+            >
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
+                Settings
+              </h3>
+              <CollapseIcon isCollapsed={isCollapsed} />
+            </div>
+
+            {!isCollapsed && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: '10px',
+                    fontWeight: 'bold',
+                    fontSize: '13px',
+                    color: isDarkMode ? '#ffffff' : '#333'
+                  }}>
+                    🏆 Difficulty Level
+                  </label>
+                  
+                  <div style={{
+                    display: 'flex',
+                    gap: '8px',
+                    flexWrap: 'wrap',
+                    justifyContent: 'flex-start'
+                  }}>
+                    {[
+                      { value: 'beginner', label: 'Beginner', color: '#4CAF50' },
+                      { value: 'intermediate', label: 'Intermediate', color: '#FF9800' },
+                      { value: 'advanced', label: 'Advanced', color: '#f44336' },
+                      { value: 'expert', label: 'Expert', color: '#9C27B0' }
+                    ].map(diff => (
+                      <button
+                        key={diff.value}
+                        onClick={() => handleDifficultyChange(diff.value)}
+                        disabled={isLoadingPuzzles}
+                        style={{
+                          padding: '6px 12px',
+                          border: '2px solid',
+                          borderColor: selectedDifficulty === diff.value ? diff.color : '#ddd',
+                          backgroundColor: selectedDifficulty === diff.value ? diff.color : 'white',
+                          color: selectedDifficulty === diff.value ? 'white' : '#333',
+                          borderRadius: '16px',
+                          cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: selectedDifficulty === diff.value ? 'bold' : 'normal',
+                          transition: 'all 0.3s ease',
+                          opacity: isLoadingPuzzles ? 0.6 : 1,
+                          minWidth: '70px',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {diff.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {availableThemes && availableThemes.length > 0 && (
+                  <div>
+                    <div 
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: '10px',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => setIsThemesCollapsed(!isThemesCollapsed)}
+                    >
+                      <label style={{
+                        fontWeight: 'bold',
+                        fontSize: '13px',
+                        color: isDarkMode ? '#ffffff' : '#333'
+                      }}>
+                        🎯 Puzzle Themes
+                      </label>
+                      <CollapseIcon isCollapsed={isThemesCollapsed} />
+                    </div>
+                    
+                    <div style={{
+                      display: 'flex',
+                      gap: '6px',
+                      flexWrap: 'wrap',
+                      justifyContent: 'flex-start'
+                    }}>
+                      <button
+                        onClick={() => handleThemeChange('all')}
+                        disabled={isLoadingPuzzles}
+                        style={{
+                          padding: '6px 12px',
+                          border: '2px solid',
+                          borderColor: selectedTheme === 'all' ? '#2196F3' : '#ddd',
+                          backgroundColor: selectedTheme === 'all' ? '#2196F3' : 'white',
+                          color: selectedTheme === 'all' ? 'white' : '#333',
+                          borderRadius: '16px',
+                          cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: selectedTheme === 'all' ? 'bold' : 'normal',
+                          transition: 'all 0.2s ease',
+                          opacity: isLoadingPuzzles ? 0.6 : 1
+                        }}
+                      >
+                        All Themes
+                      </button>
+
+                      {!isThemesCollapsed && availableThemes
+                        .filter(theme => THEME_DISPLAY_NAMES[theme.name])
+                        .sort((a, b) => {
+                          if (a.name === 'opening') return -1;
+                          if (b.name === 'opening') return 1;
+                          return a.name.localeCompare(b.name);
+                        })
+                        .slice(0, 11)
+                        .map(theme => {
+                          const isSelected = selectedTheme === theme.name;
+                          const displayName = THEME_DISPLAY_NAMES[theme.name] || theme.name.charAt(0).toUpperCase() + theme.name.slice(1);
+                          
+                          return (
+                            <button
+                              key={theme.name}
+                              onClick={() => handleThemeChange(theme.name)}
+                              disabled={isLoadingPuzzles}
+                              title={`${theme.count} puzzles`}
+                              style={{
+                                padding: '6px 12px',
+                                border: '2px solid',
+                                borderColor: isSelected ? '#4CAF50' : '#ddd',
+                                backgroundColor: isSelected ? '#4CAF50' : 'white',
+                                color: isSelected ? 'white' : '#333',
+                                borderRadius: '16px',
+                                cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                                fontSize: '12px',
+                                fontWeight: isSelected ? 'bold' : 'normal',
+                                transition: 'all 0.2s ease',
+                                opacity: isLoadingPuzzles ? 0.6 : 1
+                              }}
+                            >
+                              {displayName}
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ 
+                    display: 'block', 
+                    marginBottom: '8px', 
+                    fontWeight: 'bold',
+                    fontSize: '13px',
+                    color: isDarkMode ? '#ffffff' : '#333'
+                  }}>
+                    ⚡ Move Speed
+                  </label>
+                  
+                  <input
+                    type="range"
+                    min="500"
+                    max="3000"
+                    step="250"
+                    value={3500 - playSpeed}
+                    onChange={(e) => setPlaySpeed(3500 - Number(e.target.value))}
+                    disabled={isLoadingPuzzles}
+                    style={{
+                      width: '100%',
+                      height: '4px',
+                      borderRadius: '2px',
+                      background: '#ddd',
+                      outline: 'none',
+                      cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                      opacity: isLoadingPuzzles ? 0.6 : 1
+                    }}
+                  />
+                  
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '10px',
+                    color: '#666',
+                    marginTop: '4px'
+                  }}>
+                    <span>Slow</span>
+                    <span>Fast</span>
+                  </div>
+                  
+                  <div style={{
+                    textAlign: 'left',
+                    fontSize: '12px',
+                    color: '#666',
+                    marginTop: '6px'
+                  }}>
+                    {playSpeed / 1000}s per move
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '8px' }}>
+                  <label style={{ 
+                    display: 'block', 
+                    marginBottom: '8px', 
+                    fontWeight: 'bold',
+                    fontSize: '13px',
+                    color: isDarkMode ? '#ffffff' : '#333'
+                  }}>
+                    🔢 Sequence Length
+                  </label>
+                  
+                  <div style={{
+                    display: 'flex',
+                    gap: '8px',
+                    justifyContent: 'flex-start',
+                    flexWrap: 'wrap'
+                  }}>
+                    {[4, 6, 8].map(length => (
+                      <button
+                        key={length}
+                        onClick={() => setSequenceLength(length)}
+                        disabled={isLoadingPuzzles}
+                        style={{
+                          padding: '6px 12px',
+                          border: '2px solid',
+                          borderColor: sequenceLength === length ? '#4CAF50' : '#ddd',
+                          backgroundColor: sequenceLength === length ? '#4CAF50' : 'white',
+                          color: sequenceLength === length ? 'white' : '#333',
+                          borderRadius: '12px',
+                          cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: sequenceLength === length ? 'bold' : 'normal',
+                          transition: 'all 0.2s ease',
+                          minWidth: '70px',
+                          opacity: isLoadingPuzzles ? 0.6 : 1
+                        }}
+                      >
+                        {length} Moves
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Mobile: Feedback panel above board */}
+        {isMobile() && (
+          <div style={styles.feedbackPanel}>
+            <div>
+              <FeedbackCard 
+                message={feedbackMessage}
+                type={feedbackType}
+                userPlayingAs={userPlayingAs}
+              />
+              
+              <ConsequencesButton />
+            </div>
+          </div>
+        )}
+
+        <div style={styles.boardContainer}>
+          <div style={{ position: 'relative' }}>
+            <Chessboard
+              position={boardPosition}
+              onSquareClick={handleSquareClick}
+              boardWidth={boardSize}
+              boardOrientation={boardOrientation}
+              arePiecesDraggable={false}
+              customSquareStyles={highlightedSquares}
+              customDarkSquareStyle={{ backgroundColor: isDarkMode ? '#769656' : '#4caf50' }}
+              customLightSquareStyle={{ backgroundColor: isDarkMode ? '#eeeed2' : '#f1f1e6' }}
+            />
+            {renderMoveArrow()}
+          </div>
+        </div>
+
+        {/* Desktop: Right feedback panel */}
+        {!isMobile() && (
+          <div style={styles.feedbackPanel}>
+            <h3 style={{ 
+              margin: '0 0 15px 0', 
+              fontSize: '18px', 
+              fontWeight: 'bold',
+              borderBottom: `2px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
+              paddingBottom: '10px'
+            }}>
+              Messages
+            </h3>
+
+            <div style={{
+              flex: 1,
+              marginBottom: '20px'
+            }}>
+              <FeedbackCard 
+                message={feedbackMessage}
+                type={feedbackType}
+                userPlayingAs={userPlayingAs}
+              />
+              
+              <ConsequencesButton />
+            </div>
+
+            <div style={{
+              borderTop: `1px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
+              paddingTop: '15px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <button
+                onClick={handleDarkModeToggle}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'none',
+                  border: `1px solid ${isDarkMode ? '#555555' : '#ddd'}`,
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  color: isDarkMode ? '#ffffff' : '#333333',
+                  fontSize: '13px',
+                  transition: 'background-color 0.2s ease'
+                }}
+                title="Toggle Dark Mode"
+              >
+                <DarkModeIcon isDark={isDarkMode} />
+                {!isMobile() && (isDarkMode ? 'Light' : 'Dark')}
+              </button>
+
+              <button
+                onClick={handleSharePuzzle}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: '#2196F3',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  transition: 'background-color 0.2s ease'
+                }}
+                title="Share as GIF"
+              >
+                <ShareIcon />
+                {!isMobile() && 'Share'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile Settings Overlay */}
+      {isMobile() && showMobileSettings && (
+        <div style={{
+          position: 'fixed',
+          bottom: '60px',
+          left: '10px',
+          right: '10px',
+          backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
+          borderRadius: '12px',
+          padding: '15px',
+          boxShadow: '0 -4px 20px rgba(0,0,0,0.2)',
+          zIndex: 999,
+          maxHeight: '60vh',
+          overflow: 'auto',
+          color: isDarkMode ? '#ffffff' : '#333333'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '15px'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
+              Settings
+            </h3>
+            <button
+              onClick={() => setShowMobileSettings(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '24px',
+                cursor: 'pointer',
+                color: isDarkMode ? '#ffffff' : '#333333'
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <div>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: 'bold',
+                fontSize: '13px'
+              }}>
+                🏆 Difficulty Level
+              </label>
+              
+              <div style={{
+                display: 'flex',
+                gap: '6px',
+                flexWrap: 'wrap'
+              }}>
+                {[
+                  { value: 'beginner', label: 'Beginner', color: '#4CAF50' },
+                  { value: 'intermediate', label: 'Intermediate', color: '#FF9800' },
+                  { value: 'advanced', label: 'Advanced', color: '#f44336' },
+                  { value: 'expert', label: 'Expert', color: '#9C27B0' }
+                ].map(diff => (
+                  <button
+                    key={diff.value}
+                    onClick={() => handleDifficultyChange(diff.value)}
+                    disabled={isLoadingPuzzles}
+                    style={{
+                      padding: '6px 12px',
+                      border: '2px solid',
+                      borderColor: selectedDifficulty === diff.value ? diff.color : '#ddd',
+                      backgroundColor: selectedDifficulty === diff.value ? diff.color : 'white',
+                      color: selectedDifficulty === diff.value ? 'white' : '#333',
+                      borderRadius: '16px',
+                      cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: selectedDifficulty === diff.value ? 'bold' : 'normal',
+                      flex: '1',
+                      minWidth: '70px'
+                    }}
+                  >
+                    {diff.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {availableThemes && availableThemes.length > 0 && (
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: 'bold',
+                  fontSize: '13px'
+                }}>
+                  🎯 Puzzle Themes
+                </label>
+                
+                <div style={{
+                  display: 'flex',
+                  gap: '6px',
+                  flexWrap: 'wrap'
+                }}>
+                  <button
+                    onClick={() => handleThemeChange('all')}
+                    disabled={isLoadingPuzzles}
+                    style={{
+                      padding: '6px 12px',
+                      border: '2px solid',
+                      borderColor: selectedTheme === 'all' ? '#2196F3' : '#ddd',
+                      backgroundColor: selectedTheme === 'all' ? '#2196F3' : 'white',
+                      color: selectedTheme === 'all' ? 'white' : '#333',
+                      borderRadius: '16px',
+                      cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: selectedTheme === 'all' ? 'bold' : 'normal'
+                    }}
+                  >
+                    All Themes
+                  </button>
+
+                  {availableThemes
+                    .filter(theme => THEME_DISPLAY_NAMES[theme.name])
+                    .sort((a, b) => {
+                      if (a.name === 'opening') return -1;
+                      if (b.name === 'opening') return 1;
+                      return a.name.localeCompare(b.name);
+                    })
+                    .slice(0, 8)
+                    .map(theme => {
+                      const isSelected = selectedTheme === theme.name;
+                      const displayName = THEME_DISPLAY_NAMES[theme.name] || theme.name.charAt(0).toUpperCase() + theme.name.slice(1);
+                      
+                      return (
+                        <button
+                          key={theme.name}
+                          onClick={() => handleThemeChange(theme.name)}
+                          disabled={isLoadingPuzzles}
+                          style={{
+                            padding: '6px 12px',
+                            border: '2px solid',
+                            borderColor: isSelected ? '#4CAF50' : '#ddd',
+                            backgroundColor: isSelected ? '#4CAF50' : 'white',
+                            color: isSelected ? 'white' : '#333',
+                            borderRadius: '16px',
+                            cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                            fontSize: '12px',
+                            fontWeight: isSelected ? 'bold' : 'normal'
+                          }}
+                        >
+                          {displayName}
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px', 
+                fontWeight: 'bold',
+                fontSize: '13px'
+              }}>
+                ⚡ Move Speed
+              </label>
+              
+              <input
+                type="range"
+                min="500"
+                max="3000"
+                step="250"
+                value={3500 - playSpeed}
+                onChange={(e) => setPlaySpeed(3500 - Number(e.target.value))}
+                disabled={isLoadingPuzzles}
+                style={{
+                  width: '100%',
+                  height: '4px',
+                  borderRadius: '2px',
+                  background: '#ddd',
+                  outline: 'none'
+                }}
+              />
+              
+              <div style={{
+                textAlign: 'center',
+                fontSize: '12px',
+                color: '#666',
+                marginTop: '6px'
+              }}>
+                {playSpeed / 1000}s per move
+              </div>
+            </div>
+
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px', 
+                fontWeight: 'bold',
+                fontSize: '13px'
+              }}>
+                🔢 Sequence Length
+              </label>
+              
+              <div style={{
+                display: 'flex',
+                gap: '8px'
+              }}>
+                {[4, 6, 8].map(length => (
+                  <button
+                    key={length}
+                    onClick={() => setSequenceLength(length)}
+                    disabled={isLoadingPuzzles}
+                    style={{
+                      padding: '6px 12px',
+                      border: '2px solid',
+                      borderColor: sequenceLength === length ? '#4CAF50' : '#ddd',
+                      backgroundColor: sequenceLength === length ? '#4CAF50' : 'white',
+                      color: sequenceLength === length ? 'white' : '#333',
+                      borderRadius: '12px',
+                      cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: sequenceLength === length ? 'bold' : 'normal',
+                      flex: 1
+                    }}
+                  >
+                    {length} Moves
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Sticky Control Bar */}
+      {isMobile() && (
+        <div style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
+          borderTop: `1px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
+          padding: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px',
+          boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
+          zIndex: 1000
+        }}>
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px',
+              opacity: currentPuzzleIndex > 0 ? 1 : 0.4
+            }}
+            onClick={goToPreviousPuzzle}
+            disabled={currentPuzzleIndex === 0}
+            title="Previous Puzzle"
+          >
+            <PrevIcon />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '38px',
+              height: '38px',
+              backgroundColor: isAutoPlaying ? '#ff9800' : '#4caf50',
+              borderRadius: '50%',
+              color: 'white'
+            }}
+            onClick={isAutoPlaying ? pauseAutoPlay : startAutoPlay}
+            title={isAutoPlaying ? "Pause" : puzzlePhase === 'ready' ? "Watch Moves 1-3" : "Replay Sequence"}
+          >
+            <PlayIcon isPlaying={isAutoPlaying} />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px'
+            }}
+            onClick={toggleBoardExpansion}
+            title={isExpanded ? "Normal Size" : "Expand Board"}
+          >
+            <ExpandIcon isExpanded={isExpanded} />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px',
+              opacity: puzzlePhase === 'playing' ? 1 : 0.4
+            }}
+            onClick={handleHint}
+            disabled={puzzlePhase !== 'playing'}
+            title="Hint"
+          >
+            <HintIcon />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px',
+              opacity: (puzzlePhase === 'playing' || puzzlePhase === 'complete') ? 1 : 0.4
+            }}
+            onClick={handleRevealSolution}
+            disabled={puzzlePhase !== 'playing' && puzzlePhase !== 'complete'}
+            title="Reveal Solution"
+          >
+            <RevealIcon />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px'
+            }}
+            onClick={skipToNextPuzzle}
+            title="Next Puzzle"
+          >
+            <NextIcon />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px',
+              backgroundColor: showMobileSettings ? '#2196F3' : 'transparent',
+              borderRadius: '6px',
+              color: showMobileSettings ? 'white' : 'black'
+            }}
+            onClick={() => setShowMobileSettings(!showMobileSettings)}
+            title="Settings"
+          >
+            <SettingsIcon />
+          </button>
+        </div>
+      )}
+
+      {/* Desktop Controls (inline with board) */}
+      {!isMobile() && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          marginTop: '20px',
+          marginBottom: '20px'
+        }}>
+          <button 
+            style={currentPuzzleIndex > 0 ? iconButtonStyle : disabledIconButtonStyle}
+            onClick={goToPreviousPuzzle}
+            disabled={currentPuzzleIndex === 0}
+            title="Previous Puzzle"
+          >
+            <PrevIcon />
+          </button>
+
+          <button 
+            style={iconButtonStyle}
+            onClick={isAutoPlaying ? pauseAutoPlay : startAutoPlay}
+            title={isAutoPlaying ? "Pause" : puzzlePhase === 'ready' ? "Watch Moves 1-3" : "Replay Sequence"}
+          >
+            <PlayIcon isPlaying={isAutoPlaying} />
+          </button>
+
+          <button 
+            style={iconButtonStyle}
+            onClick={toggleBoardExpansion}
+            title={isExpanded ? "Normal Size" : "Expand Board"}
+          >
+            <ExpandIcon isExpanded={isExpanded} />
+          </button>
+
+          <button 
+            style={puzzlePhase === 'playing' ? iconButtonStyle : disabledIconButtonStyle}
+            onClick={handleHint}
+            disabled={puzzlePhase !== 'playing'}
+            title="Hint"
+          >
+            <HintIcon />
+          </button>
+
+          <button 
+            style={puzzlePhase === 'playing' || puzzlePhase === 'complete' ? iconButtonStyle : disabledIconButtonStyle}
+            onClick={handleRevealSolution}
+            disabled={puzzlePhase !== 'playing' && puzzlePhase !== 'complete'}
+            title="Reveal Solution"
+          >
+            <RevealIcon />
+          </button>
+
+          <button 
+            style={iconButtonStyle}
+            onClick={skipToNextPuzzle}
+            title="Next Puzzle"
+          >
+            <NextIcon />
+          </button>
+        </div>
+      )}
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onAuthSuccess={handleAuthSuccess}
+        userSystem={userSystem}
+      />
+
+      <UserProfile
+        isOpen={showProfileModal}
+        user={user}
+        profile={userProfile}
+        onSignOut={handleSignOut}
+        onClose={() => setShowProfileModal(false)}
+      />
+    </div>
+  );
+};
+
+export default App;

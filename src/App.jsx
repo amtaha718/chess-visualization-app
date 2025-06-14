@@ -922,56 +922,88 @@ const App = () => {
     }, 3000);
   };
 
-  // NEW: Function to show move consequences
+  // NEW: Function to show move consequences using serverless API
   const showMoveConsequences = async () => {
     if (!puzzleAttempted || solved || !lastAttemptedMove) {
       console.log('Cannot show consequences:', { puzzleAttempted, solved, lastAttemptedMove });
       return;
     }
     
-    if (!isStockfishReady) {
-      setFeedbackMessage('Stockfish engine is not ready yet. Please wait a moment and try again.');
-      setFeedbackType('warning');
-      return;
-    }
-    
     setIsLoadingConsequences(true);
-    setFeedbackMessage('Analyzing move consequences with Stockfish...');
+    setFeedbackMessage('Analyzing move consequences...');
     setFeedbackType('info');
     
     try {
-      console.log('🐟 Generating move consequences with Stockfish...');
+      console.log('🎭 Requesting move consequences from API...');
       const currentPuzzle = puzzles[currentPuzzleIndex];
       
-      // Create the consequence sequence using Stockfish
-      const consequenceSequence = await generateConsequenceSequenceWithStockfish(
+      // Use the existing getMoveConsequences API call
+      const consequencesData = await getMoveConsequences(
         currentPuzzle.fen,
-        currentPuzzle.moves.slice(0, sequenceLength - 1), // First 3 moves
-        lastAttemptedMove
+        currentPuzzle.moves,
+        lastAttemptedMove,
+        currentPuzzle.moves[sequenceLength - 1], // correct move
+        userPlayingAs
       );
       
-      if (consequenceSequence && consequenceSequence.length > 0) {
-        console.log('✅ Generated consequence sequence with Stockfish:', consequenceSequence);
+      if (consequencesData && consequencesData.userConsequences && consequencesData.userConsequences.sequence) {
+        console.log('✅ Got consequences data from API:', consequencesData);
         setFeedbackMessage('Showing what happens after your move...');
         setFeedbackType('info');
         
         // Play the consequence sequence on the main board
-        playConsequenceSequence(consequenceSequence);
+        playConsequenceSequence(consequencesData.userConsequences.sequence);
       } else {
-        setFeedbackMessage('Could not generate move consequences. Try again.');
-        setFeedbackType('warning');
+        // Fallback to simple local generation if API fails
+        console.log('⚠️ API failed, trying simple local generation...');
+        const fallbackSequence = generateSimpleConsequenceSequence(
+          currentPuzzle.fen,
+          currentPuzzle.moves.slice(0, sequenceLength - 1),
+          lastAttemptedMove
+        );
+        
+        if (fallbackSequence && fallbackSequence.length > 0) {
+          setFeedbackMessage('Showing basic consequences of your move...');
+          setFeedbackType('info');
+          playConsequenceSequence(fallbackSequence);
+        } else {
+          setFeedbackMessage('Could not analyze move consequences. Try again.');
+          setFeedbackType('warning');
+        }
       }
     } catch (error) {
-      console.error('Failed to generate move consequences:', error);
-      setFeedbackMessage('Failed to analyze move consequences with Stockfish.');
-      setFeedbackType('error');
+      console.error('Failed to get move consequences:', error);
+      
+      // Fallback to simple local generation
+      try {
+        console.log('🔄 Using fallback local generation...');
+        const currentPuzzle = puzzles[currentPuzzleIndex];
+        const fallbackSequence = generateSimpleConsequenceSequence(
+          currentPuzzle.fen,
+          currentPuzzle.moves.slice(0, sequenceLength - 1),
+          lastAttemptedMove
+        );
+        
+        if (fallbackSequence && fallbackSequence.length > 0) {
+          setFeedbackMessage('Showing basic consequences of your move...');
+          setFeedbackType('info');
+          playConsequenceSequence(fallbackSequence);
+        } else {
+          setFeedbackMessage('Failed to analyze move consequences.');
+          setFeedbackType('error');
+        }
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+        setFeedbackMessage('Failed to analyze move consequences.');
+        setFeedbackType('error');
+      }
     } finally {
       setIsLoadingConsequences(false);
     }
   };
 
-  // NEW: Generate consequence sequence using Stockfish
-  const generateConsequenceSequenceWithStockfish = async (startingFen, setupMoves, userMove) => {
+  // NEW: Simple fallback move generation (no complex engine needed)
+  const generateSimpleConsequenceSequence = (startingFen, setupMoves, userMove) => {
     try {
       const game = new Chess(startingFen);
       
@@ -999,46 +1031,29 @@ const App = () => {
         return [];
       }
       
-      console.log('🎯 Position after user move:', game.fen());
-      
-      // Generate 2-3 opponent responses using Stockfish
-      for (let i = 0; i < 3 && !game.isGameOver(); i++) {
-        try {
-          console.log(`🐟 Getting Stockfish move ${i + 1} for position:`, game.fen());
-          
-          const bestMoveNotation = await getBestMoveFromStockfish(game.fen());
-          console.log(`🎯 Stockfish suggests: ${bestMoveNotation}`);
-          
-          // Convert notation (e.g., "e2e4") to move object
-          const from = bestMoveNotation.slice(0, 2);
-          const to = bestMoveNotation.slice(2, 4);
-          const promotion = bestMoveNotation.length > 4 ? bestMoveNotation[4] : undefined;
-          
-          const moveResult = game.move({ from, to, promotion });
-          if (moveResult) {
-            sequence.push(bestMoveNotation);
-            console.log(`✅ Applied Stockfish move: ${bestMoveNotation}`);
-          } else {
-            console.error(`❌ Failed to apply Stockfish move: ${bestMoveNotation}`);
-            break;
-          }
-          
-          // If game is over, stop
-          if (game.isGameOver()) {
-            console.log('🏁 Game over after Stockfish move');
-            break;
-          }
-        } catch (error) {
-          console.error(`Error getting Stockfish move ${i + 1}:`, error);
-          break;
+      // Generate 1-2 simple opponent responses
+      for (let i = 0; i < 2 && !game.isGameOver(); i++) {
+        const moves = game.moves({ verbose: true });
+        if (moves.length === 0) break;
+        
+        // Simple heuristic: prefer captures, then checks, then random
+        let bestMove = moves.find(move => move.captured) ||  // Captures first
+                      moves.find(move => move.flags.includes('+')) ||  // Checks second
+                      moves[Math.floor(Math.random() * Math.min(3, moves.length))]; // Random from top 3
+        
+        const moveResult = game.move(bestMove);
+        if (moveResult) {
+          sequence.push(bestMove.from + bestMove.to);
         }
+        
+        if (game.isGameOver()) break;
       }
       
-      console.log('Generated sequence with Stockfish:', sequence);
+      console.log('Generated simple sequence:', sequence);
       return sequence;
       
     } catch (error) {
-      console.error('Error generating consequence sequence with Stockfish:', error);
+      console.error('Error generating simple consequence sequence:', error);
       return [];
     }
   };
@@ -1123,15 +1138,15 @@ const App = () => {
     return (
       <button
         onClick={showMoveConsequences}
-        disabled={isLoadingConsequences || !isStockfishReady}
+        disabled={isLoadingConsequences}
         style={{
           width: '100%',
           padding: '10px',
-          backgroundColor: isLoadingConsequences || !isStockfishReady ? '#ccc' : '#FF9800',
+          backgroundColor: isLoadingConsequences ? '#ccc' : '#FF9800',
           color: 'white',
           border: 'none',
           borderRadius: '6px',
-          cursor: isLoadingConsequences || !isStockfishReady ? 'not-allowed' : 'pointer',
+          cursor: isLoadingConsequences ? 'not-allowed' : 'pointer',
           fontWeight: 'bold',
           fontSize: '14px',
           marginTop: '10px',
@@ -1142,8 +1157,7 @@ const App = () => {
         }}
       >
         <ConsequencesIcon />
-        {isLoadingConsequences ? 'Analyzing...' : 
-         !isStockfishReady ? 'Loading Engine...' : 'Show Moves'}
+        {isLoadingConsequences ? 'Analyzing...' : 'Show Moves'}
       </button>
     );
   };

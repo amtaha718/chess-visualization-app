@@ -1,9 +1,9 @@
-// api/analyzeIncorrectMoveStockfish.js - Simplified version for Vercel compatibility
+// api/analyzeIncorrectMoveStockfish.js - Ultra-simple version (no Workers)
 
 import { Chess } from 'chess.js';
 
 export default async function handler(req, res) {
-  console.log('🔍 === SIMPLIFIED STOCKFISH + PATTERN ANALYSIS ===');
+  console.log('🔍 === ULTRA-SIMPLE CHESS ANALYSIS ===');
   
   // Add CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -15,10 +15,16 @@ export default async function handler(req, res) {
   }
   
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
+    return res.status(405).json({ 
+      error: 'Method Not Allowed',
+      explanation: 'This move has issues. Try again.'
+    });
   }
 
   try {
+    console.log('📥 Request received');
+    console.log('📋 Request body:', req.body);
+
     const { 
       positionAfter3Moves,
       userMove,
@@ -26,183 +32,179 @@ export default async function handler(req, res) {
       playingAs 
     } = req.body;
     
-    console.log('📊 Analyzing moves...');
-    console.log('- Position:', positionAfter3Moves);
-    console.log('- User move:', userMove);
-    console.log('- Correct move:', correctMove);
-
-    // Validate input
+    // Validate required fields
     if (!positionAfter3Moves || !userMove || !correctMove) {
-      return res.status(400).json({ 
-        explanation: "Missing required data. Try again.",
+      console.log('❌ Missing required fields');
+      return res.status(200).json({ 
+        explanation: "Missing data for analysis. Try again.",
         method: 'validation_error'
       });
     }
 
-    // Validate and create positions
-    let positionAfterUser, positionAfterCorrect;
-    
+    console.log('📊 Analyzing moves...');
+    console.log('- Position FEN:', positionAfter3Moves);
+    console.log('- User move:', userMove);
+    console.log('- Correct move:', correctMove);
+    console.log('- Playing as:', playingAs);
+
+    // Validate position
+    let gameAtPosition;
     try {
-      // Test user's move
-      const gameAfterUser = new Chess(positionAfter3Moves);
+      gameAtPosition = new Chess(positionAfter3Moves);
+      console.log('✅ Position is valid');
+    } catch (fenError) {
+      console.error('❌ Invalid FEN position:', fenError);
+      return res.status(200).json({ 
+        explanation: "Position validation failed. Try again.",
+        method: 'fen_error'
+      });
+    }
+
+    // Validate user move
+    let gameAfterUser;
+    try {
+      gameAfterUser = new Chess(positionAfter3Moves);
       const userMoveResult = gameAfterUser.move({
         from: userMove.slice(0, 2),
         to: userMove.slice(2, 4)
       });
 
       if (!userMoveResult) {
+        console.log('❌ User move is illegal');
         return res.status(200).json({ 
-          explanation: "Invalid move. Try again.",
-          method: 'move_validation'
+          explanation: "Illegal move. Try again.",
+          method: 'illegal_move'
         });
       }
-      
-      positionAfterUser = gameAfterUser.fen();
+      console.log('✅ User move is legal');
+    } catch (userMoveError) {
+      console.error('❌ User move validation failed:', userMoveError);
+      return res.status(200).json({ 
+        explanation: "Move validation failed. Try again.",
+        method: 'user_move_error'
+      });
+    }
 
-      // Test correct move
-      const gameAfterCorrect = new Chess(positionAfter3Moves);
+    // Validate correct move
+    let gameAfterCorrect;
+    try {
+      gameAfterCorrect = new Chess(positionAfter3Moves);
       const correctMoveResult = gameAfterCorrect.move({
         from: correctMove.slice(0, 2),
         to: correctMove.slice(2, 4)
       });
 
       if (!correctMoveResult) {
-        throw new Error('Correct move is invalid');
+        console.log('❌ Correct move is illegal - puzzle error');
+        return res.status(200).json({ 
+          explanation: "Puzzle has an error. Try again.",
+          method: 'puzzle_error'
+        });
       }
-      
-      positionAfterCorrect = gameAfterCorrect.fen();
-      
-    } catch (moveError) {
-      console.error('❌ Move validation error:', moveError);
+      console.log('✅ Correct move is legal');
+    } catch (correctMoveError) {
+      console.error('❌ Correct move validation failed:', correctMoveError);
       return res.status(200).json({ 
-        explanation: "Move validation failed. Try again.",
-        method: 'move_error'
+        explanation: "Puzzle validation failed. Try again.",
+        method: 'correct_move_error'
       });
     }
 
-    // Try Stockfish analysis with timeout
-    let stockfishResult = null;
-    try {
-      stockfishResult = await Promise.race([
-        analyzeWithStockfish(positionAfter3Moves, positionAfterUser, positionAfterCorrect),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Stockfish timeout')), 5000)
-        )
-      ]);
-      console.log('✅ Stockfish analysis completed');
-    } catch (stockfishError) {
-      console.warn('⚠️ Stockfish analysis failed:', stockfishError.message);
-      stockfishResult = null;
-    }
-
-    // Generate explanation using pattern analysis
-    const explanation = generateExplanation(
+    // Simple chess analysis without Stockfish
+    const explanation = analyzeMovesSimple(
       positionAfter3Moves,
-      positionAfterUser,
-      positionAfterCorrect,
+      gameAfterUser.fen(),
+      gameAfterCorrect.fen(),
       userMove,
       correctMove,
-      playingAs,
-      stockfishResult
+      playingAs
     );
 
     console.log('🎯 Generated explanation:', explanation);
 
     return res.status(200).json({ 
       explanation,
-      method: stockfishResult ? 'stockfish_pattern_analysis' : 'pattern_analysis_only',
-      evaluations: stockfishResult?.evaluations || null
+      method: 'simple_chess_analysis',
+      debug: {
+        positionValid: true,
+        userMoveValid: true,
+        correctMoveValid: true
+      }
     });
 
   } catch (error) {
-    console.error('❌ Analysis error:', error);
-    
-    // Return a safe fallback explanation
-    const fallbackExplanation = `This move doesn't achieve the best result. Try again.`;
+    console.error('❌ Unexpected error in analysis:', error);
+    console.error('Error stack:', error.stack);
     
     return res.status(200).json({ 
-      explanation: fallbackExplanation,
+      explanation: "Analysis encountered an error. Try again.",
       method: 'error_fallback',
-      error: 'Analysis failed'
+      error: error.message
     });
   }
 }
 
-// Simplified Stockfish analysis without Worker (problematic on Vercel)
-async function analyzeWithStockfish(positionBefore, positionAfterUser, positionAfterCorrect) {
-  // For now, skip actual Stockfish and use material counting + basic analysis
-  // This can be enhanced later when Stockfish Worker issues are resolved
+// Simple chess analysis function
+function analyzeMovesSimple(positionBefore, positionAfterUser, positionAfterCorrect, userMove, correctMove, playingAs) {
+  console.log('🔍 Starting simple chess analysis...');
   
-  const userMaterial = countMaterial(positionAfterUser);
-  const correctMaterial = countMaterial(positionAfterCorrect);
-  
-  const materialDifference = correctMaterial - userMaterial;
-  
-  return {
-    evaluations: {
-      user: -materialDifference, // Negative if user loses material
-      correct: 0, // Baseline
-      difference: materialDifference
-    },
-    materialLoss: materialDifference
-  };
-}
+  try {
+    // 1. Material analysis
+    const materialBefore = countMaterial(positionBefore);
+    const materialAfterUser = countMaterial(positionAfterUser);
+    const materialAfterCorrect = countMaterial(positionAfterCorrect);
+    
+    const userMaterialChange = materialAfterUser - materialBefore;
+    const correctMaterialChange = materialAfterCorrect - materialBefore;
+    const materialDifference = correctMaterialChange - userMaterialChange;
+    
+    console.log('📊 Material analysis:');
+    console.log('- Before:', materialBefore);
+    console.log('- After user:', materialAfterUser);
+    console.log('- After correct:', materialAfterCorrect);
+    console.log('- Material difference:', materialDifference);
+    
+    if (materialDifference > 0) {
+      if (materialDifference >= 9) return "This move misses winning the queen. Try again.";
+      if (materialDifference >= 5) return "This move misses winning the rook. Try again.";
+      if (materialDifference >= 3) return "This move misses winning a minor piece. Try again.";
+      if (materialDifference >= 1) return "This move misses winning material. Try again.";
+    }
 
-// Enhanced pattern-based explanation generator
-function generateExplanation(positionBefore, positionAfterUser, positionAfterCorrect, userMove, correctMove, playingAs, stockfishResult) {
-  
-  // 1. Check for material loss using Stockfish result or basic counting
-  const materialLoss = stockfishResult?.materialLoss || 
-    (countMaterial(positionAfterCorrect) - countMaterial(positionAfterUser));
-  
-  if (materialLoss > 0) {
-    if (materialLoss >= 9) return "This move misses winning the queen. Try again.";
-    if (materialLoss >= 5) return "This move misses winning the rook. Try again.";
-    if (materialLoss >= 3) return "This move misses winning a minor piece. Try again.";
-    if (materialLoss >= 1) return "This move misses winning material. Try again.";
+    // 2. Check if user move puts king in check
+    const gameAfterUser = new Chess(positionAfterUser);
+    if (gameAfterUser.isCheck()) {
+      const kingInCheck = gameAfterUser.turn() === (playingAs === 'white' ? 'w' : 'b');
+      if (kingInCheck) {
+        return "This move puts your king in check. Try again.";
+      }
+    }
+
+    // 3. Hanging piece detection
+    const hangingPiece = detectSimpleHangingPiece(positionBefore, positionAfterUser, userMove);
+    if (hangingPiece) {
+      return `This move hangs your ${hangingPiece}. Try again.`;
+    }
+
+    // 4. Move pattern analysis
+    const patternAnalysis = analyzeMovePatterns(userMove, correctMove);
+    if (patternAnalysis) {
+      return patternAnalysis;
+    }
+
+    // 5. Position-based analysis
+    const positionalAnalysis = analyzePositionalFactors(userMove, correctMove);
+    if (positionalAnalysis) {
+      return positionalAnalysis;
+    }
+
+    // 6. Default explanation
+    return getDefaultExplanation(playingAs);
+    
+  } catch (analysisError) {
+    console.error('Error in simple analysis:', analysisError);
+    return getDefaultExplanation(playingAs);
   }
-
-  // 2. Check for hanging pieces
-  const hangingPiece = detectHangingPiece(positionBefore, positionAfterUser, userMove);
-  if (hangingPiece) {
-    return `This move hangs your ${hangingPiece.piece} on ${hangingPiece.square}. Try again.`;
-  }
-
-  // 3. Check for moving into check
-  if (isInCheck(positionAfterUser, playingAs)) {
-    return "This move puts your king in check. Try again.";
-  }
-
-  // 4. Check for piece movement patterns
-  const movePattern = analyzeMovePattern(userMove, correctMove, positionBefore);
-  if (movePattern) {
-    return movePattern;
-  }
-
-  // 5. Default explanations based on evaluation if available
-  if (stockfishResult?.evaluations) {
-    const evalDiff = stockfishResult.evaluations.difference;
-    if (evalDiff > 3) return "This move creates serious tactical problems. Try again.";
-    if (evalDiff > 1.5) return "This move gives your opponent a significant advantage. Try again.";
-    if (evalDiff > 0.5) return "This move is not the most accurate. Try again.";
-  }
-
-  // 6. Color-specific defaults
-  const colorDefaults = {
-    white: [
-      "This doesn't maintain White's advantage. Try again.",
-      "This allows Black to equalize. Try again.",
-      "This misses White's best continuation. Try again."
-    ],
-    black: [
-      "This doesn't defend against White's threats. Try again.",
-      "This allows White to increase pressure. Try again.", 
-      "This misses Black's best defense. Try again."
-    ]
-  };
-
-  const defaults = colorDefaults[playingAs] || colorDefaults.white;
-  return defaults[Math.floor(Math.random() * defaults.length)];
 }
 
 // Helper functions
@@ -225,54 +227,37 @@ function countMaterial(fen) {
     }
   }
   
-  return whiteMaterial - blackMaterial; // Positive favors white
+  return whiteMaterial - blackMaterial; // Positive = white advantage
 }
 
-function detectHangingPiece(positionBefore, positionAfterUser, userMove) {
+function detectSimpleHangingPiece(positionBefore, positionAfterUser, userMove) {
   try {
-    const game = new Chess(positionAfterUser);
+    const gameAfter = new Chess(positionAfterUser);
     const toSquare = userMove.slice(2, 4);
-    const movedPiece = game.get(toSquare);
+    const movedPiece = gameAfter.get(toSquare);
     
     if (!movedPiece) return null;
 
-    // Simple heuristic: check if the destination square is attacked
-    const opponentColor = movedPiece.color === 'w' ? 'b' : 'w';
-    const attackingMoves = game.moves({ verbose: true });
+    // Check if any opponent piece can capture on that square
+    const opponentMoves = gameAfter.moves({ verbose: true });
+    const canBeCaptured = opponentMoves.some(move => move.to === toSquare);
     
-    const isAttacked = attackingMoves.some(move => 
-      move.to === toSquare && move.color === opponentColor
-    );
-    
-    if (isAttacked) {
+    if (canBeCaptured) {
       const pieceNames = {
         'p': 'pawn', 'n': 'knight', 'b': 'bishop', 
         'r': 'rook', 'q': 'queen', 'k': 'king'
       };
-      
-      return {
-        piece: pieceNames[movedPiece.type] || 'piece',
-        square: toSquare.toUpperCase()
-      };
+      return pieceNames[movedPiece.type] || 'piece';
     }
     
     return null;
   } catch (error) {
-    console.warn('Error detecting hanging piece:', error);
+    console.warn('Error in hanging piece detection:', error);
     return null;
   }
 }
 
-function isInCheck(fen, playingAs) {
-  try {
-    const game = new Chess(fen);
-    return game.isCheck() && game.turn() === (playingAs === 'white' ? 'w' : 'b');
-  } catch (error) {
-    return false;
-  }
-}
-
-function analyzeMovePattern(userMove, correctMove, position) {
+function analyzeMovePatterns(userMove, correctMove) {
   const userFrom = userMove.slice(0, 2);
   const userTo = userMove.slice(2, 4);
   const correctFrom = correctMove.slice(0, 2);
@@ -285,17 +270,62 @@ function analyzeMovePattern(userMove, correctMove, position) {
   
   // Right piece, wrong destination
   if (userFrom === correctFrom && userTo !== correctTo) {
-    // Check if correct move goes to center vs edge
+    // Analyze destination differences
     if (isCenterSquare(correctTo) && !isCenterSquare(userTo)) {
       return "This doesn't centralize your piece effectively. Try again.";
     }
     
-    return "Right piece, but wrong destination square. Try again.";
+    if (isBackRank(correctTo) && !isBackRank(userTo)) {
+      return "This doesn't address the back rank. Try again.";
+    }
+    
+    return "Right piece, wrong destination. Try again.";
+  }
+  
+  return null;
+}
+
+function analyzePositionalFactors(userMove, correctMove) {
+  const userTo = userMove.slice(2, 4);
+  const correctTo = correctMove.slice(2, 4);
+  
+  // Center control
+  if (isCenterSquare(correctTo) && isEdgeSquare(userTo)) {
+    return "This move goes to the edge instead of controlling the center. Try again.";
   }
   
   return null;
 }
 
 function isCenterSquare(square) {
-  return ['d4', 'd5', 'e4', 'e5'].includes(square);
+  return ['d4', 'd5', 'e4', 'e5', 'c4', 'c5', 'f4', 'f5'].includes(square);
+}
+
+function isEdgeSquare(square) {
+  const file = square[0];
+  const rank = square[1];
+  return file === 'a' || file === 'h' || rank === '1' || rank === '8';
+}
+
+function isBackRank(square) {
+  const rank = square[1];
+  return rank === '1' || rank === '8';
+}
+
+function getDefaultExplanation(playingAs) {
+  const explanations = {
+    white: [
+      "This doesn't maintain White's advantage. Try again.",
+      "This allows Black to equalize. Try again.",
+      "This misses White's best continuation. Try again."
+    ],
+    black: [
+      "This doesn't defend against White's threats. Try again.",
+      "This allows White to increase pressure. Try again.",
+      "This misses Black's best defense. Try again."
+    ]
+  };
+  
+  const colorExplanations = explanations[playingAs] || explanations.white;
+  return colorExplanations[Math.floor(Math.random() * colorExplanations.length)];
 }

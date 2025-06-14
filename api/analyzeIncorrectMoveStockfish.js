@@ -182,6 +182,19 @@ function analyzeMovesWithCheckmate(positionBefore, positionAfterUser, positionAf
           return "This move misses checkmate! Look for a forcing move. Try again.";
         }
       }
+      
+      // Also check if the correct move leads to a position where opponent is in check with no legal moves
+      if (gameAfterCorrect.isCheck && typeof gameAfterCorrect.isCheck === 'function') {
+        const inCheck = gameAfterCorrect.isCheck();
+        if (inCheck && gameAfterCorrect.moves && typeof gameAfterCorrect.moves === 'function') {
+          const legalMoves = gameAfterCorrect.moves();
+          console.log('♔ Position after correct move: inCheck =', inCheck, ', legal moves =', legalMoves.length);
+          if (legalMoves.length === 0) {
+            console.log('🎯 CHECKMATE DETECTED: No legal moves available');
+            return "This move misses checkmate! Look for a forcing move. Try again.";
+          }
+        }
+      }
     } catch (checkmateError) {
       console.warn('Checkmate detection failed:', checkmateError);
     }

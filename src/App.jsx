@@ -1,9 +1,4 @@
-// NEW: State for move consequences feature
-  const [showConsequences, setShowConsequences] = useState(false);
-  const [moveConsequencesData, setMoveConsequencesData] = useState(null);
-  const [isLoadingConsequences, setIsLoadingConsequences] = useState(false);
-  const [lastAttemptedMove, setLastAttemptedMove] = useState(null);
-  const [solved, setSolved] = useState(false);import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { getIncorrectMoveExplanation, getCorrectMoveExplanation, getMoveConsequences } from './ai';
@@ -18,7 +13,7 @@ const getBoardSize = (isExpanded = false) => {
   
   const windowWidth = window.innerWidth;
   const windowHeight = window.innerHeight;
-  const headerHeight = 60; // Updated to match new mobile header height
+  const headerHeight = 60;
   
   if (windowWidth <= 768) {
     return Math.min(windowWidth - 40, windowHeight - headerHeight - 200);
@@ -76,8 +71,8 @@ const FlameIcon = ({ streak }) => (
     padding: '8px 12px',
     borderRadius: '20px',
     border: '1px solid rgba(255,255,255,0.3)',
-    height: '36px', // Match profile container height
-    minWidth: '60px' // Ensure consistent width
+    height: '36px',
+    minWidth: '60px'
   }}>
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
       <path d="M12 2C12 2 8 5.5 8 10C8 14 10 16.5 12 16.5C14 16.5 16 14 16 10C16 5.5 12 2 12 2Z" 
@@ -192,7 +187,6 @@ const NextIcon = () => (
   </svg>
 );
 
-// NEW: Show Consequences Icon
 const ConsequencesIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
     <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
@@ -300,93 +294,14 @@ const App = () => {
   const [isThemesCollapsed, setIsThemesCollapsed] = useState(true);
   const [boardOrientation, setBoardOrientation] = useState('white');
   const [userPlayingAs, setUserPlayingAs] = useState('white');
-  const [isCollapsed, setIsCollapsed] = useState(isMobile()); // Mobile collapsed by default, desktop expanded
+  const [isCollapsed, setIsCollapsed] = useState(isMobile());
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showMobileSettings, setShowMobileSettings] = useState(false);
 
-  // NEW: Stockfish engine reference
-  const stockfishRef = useRef(null);
-  const [isStockfishReady, setIsStockfishReady] = useState(false);
-
-  // Initialize Stockfish when component mounts
-  useEffect(() => {
-    const initializeStockfish = async () => {
-      try {
-        console.log('🐟 Initializing Stockfish...');
-        
-        // Create Stockfish worker
-        const stockfish = new Worker('https://cdn.jsdelivr.net/npm/stockfish@15.0.0/src/stockfish.js');
-        stockfishRef.current = stockfish;
-        
-        // Set up message handler
-        stockfish.onmessage = (event) => {
-          const message = event.data;
-          console.log('Stockfish:', message);
-          
-          if (message === 'uciok') {
-            console.log('✅ Stockfish ready!');
-            setIsStockfishReady(true);
-          }
-        };
-        
-        stockfish.onerror = (error) => {
-          console.error('❌ Stockfish error:', error);
-        };
-        
-        // Initialize UCI
-        stockfish.postMessage('uci');
-        
-      } catch (error) {
-        console.error('❌ Failed to initialize Stockfish:', error);
-      }
-    };
-    
-    initializeStockfish();
-    
-    // Cleanup on unmount
-    return () => {
-      if (stockfishRef.current) {
-        stockfishRef.current.terminate();
-      }
-    };
-  }, []);
-
-  // NEW: Function to get best move from Stockfish
-  const getBestMoveFromStockfish = (fen) => {
-    return new Promise((resolve, reject) => {
-      if (!stockfishRef.current || !isStockfishReady) {
-        reject(new Error('Stockfish not ready'));
-        return;
-      }
-      
-      const timeout = setTimeout(() => {
-        reject(new Error('Stockfish timeout'));
-      }, 3000);
-      
-      const messageHandler = (event) => {
-        const message = event.data;
-        
-        if (message.startsWith('bestmove')) {
-          clearTimeout(timeout);
-          stockfishRef.current.removeEventListener('message', messageHandler);
-          
-          const bestMoveMatch = message.match(/bestmove (\w+)/);
-          if (bestMoveMatch && bestMoveMatch[1] !== '(none)') {
-            resolve(bestMoveMatch[1]);
-          } else {
-            reject(new Error('No best move found'));
-          }
-        }
-      };
-      
-      stockfishRef.current.addEventListener('message', messageHandler);
-      
-      // Send position and request best move
-      stockfishRef.current.postMessage('ucinewgame');
-      stockfishRef.current.postMessage(`position fen ${fen}`);
-      stockfishRef.current.postMessage('go depth 10');
-    });
-  };
+  // NEW: State for move consequences feature
+  const [isLoadingConsequences, setIsLoadingConsequences] = useState(false);
+  const [lastAttemptedMove, setLastAttemptedMove] = useState(null);
+  const [solved, setSolved] = useState(false);
 
   // Save session data when things change
   useEffect(() => {
@@ -653,8 +568,8 @@ const App = () => {
     
     setPuzzleAttempted(false);
     setHintUsed(false);
-    setSolved(false); // NEW: Reset solved state
-    setLastAttemptedMove(null); // NEW: Reset attempted move
+    setSolved(false);
+    setLastAttemptedMove(null);
     
     if (autoPlayRef.current) {
       clearTimeout(autoPlayRef.current);
@@ -756,7 +671,7 @@ const App = () => {
       const userGuess = from + to;
       const correctMove = puzzles[currentPuzzleIndex].moves[sequenceLength - 1];
 
-      // NEW: Store the attempted move for consequences analysis
+      // Store the attempted move for consequences analysis
       setLastAttemptedMove(userGuess);
 
       setHighlightedSquares({
@@ -790,7 +705,7 @@ const App = () => {
 
     const timeTaken = puzzleStartTime ? Math.round((Date.now() - puzzleStartTime) / 1000) : null;
     const puzzleSolved = userGuess === correctMove;
-    setSolved(puzzleSolved); // NEW: Track if puzzle is solved
+    setSolved(puzzleSolved);
     const currentPuzzle = puzzles[currentPuzzleIndex];
 
     setPuzzleAttempted(true);
@@ -1300,15 +1215,15 @@ const App = () => {
           display: 'flex',
           flexDirection: 'column',
           flex: 1,
-          padding: '8px', // Reduced padding
-          gap: '8px', // Reduced gap
+          padding: '8px',
+          gap: '8px',
           overflow: 'hidden'
         },
         settingsPanel: {
           order: 1,
           backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
           borderRadius: '8px',
-          padding: '10px', // Reduced padding
+          padding: '10px',
           color: isDarkMode ? '#ffffff' : '#333333'
         },
         boardContainer: {
@@ -1318,15 +1233,15 @@ const App = () => {
           alignItems: 'center',
           justifyContent: 'center',
           paddingTop: '10px',
-          paddingBottom: '80px', // Space for sticky controls
+          paddingBottom: '80px',
         },
         feedbackPanel: {
-          order: 1.5, // Place feedback above board on mobile
+          order: 1.5,
           backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
           borderRadius: '8px',
-          padding: '10px', // Reduced padding
+          padding: '10px',
           color: isDarkMode ? '#ffffff' : '#333333',
-          marginBottom: '8px' // Reduced margin
+          marginBottom: '8px'
         }
       };
     } else {
@@ -1383,13 +1298,13 @@ const App = () => {
   return (
     <div style={styles.container}>
       <header style={{
-        height: '60px', // Reduced from 80px for mobile
+        height: '60px',
         backgroundColor: '#64B5F6',
         color: 'white',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: isMobile() ? '0 10px' : '0 20px', // Less padding on mobile
+        padding: isMobile() ? '0 10px' : '0 20px',
         boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -1397,8 +1312,8 @@ const App = () => {
             src="/logo.png"
             alt="Chess Trainer Logo"
             style={{
-              height: isMobile() ? '50px' : '100px', // Smaller logo on mobile
-              marginRight: isMobile() ? '8px' : '15px' // Less margin on mobile
+              height: isMobile() ? '50px' : '100px',
+              marginRight: isMobile() ? '8px' : '15px'
             }}
           />
         </div>
@@ -1478,27 +1393,27 @@ const App = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: isMobile() ? '6px' : '10px', // Less gap on mobile
+                  gap: isMobile() ? '6px' : '10px',
                   backgroundColor: 'rgba(255,255,255,0.2)',
-                  padding: isMobile() ? '6px 10px' : '8px 12px', // Smaller padding on mobile
-                  borderRadius: isMobile() ? '16px' : '20px', // Smaller border radius
+                  padding: isMobile() ? '6px 10px' : '8px 12px',
+                  borderRadius: isMobile() ? '16px' : '20px',
                   border: '1px solid rgba(255,255,255,0.3)',
                   cursor: 'pointer',
                   transition: 'background-color 0.2s ease',
                   color: 'white',
-                  height: '36px', // Match flame icon height
-                  minWidth: '80px' // Ensure consistent width
+                  height: '36px',
+                  minWidth: '80px'
                 }}
               >
-                <div style={{ fontSize: isMobile() ? '11px' : '14px' }}> {/* Smaller text on mobile */}
+                <div style={{ fontSize: isMobile() ? '11px' : '14px' }}>
                   <strong>{userProfile?.display_name || 'Player'}</strong>
                 </div>
                 <div style={{
                   backgroundColor: 'rgba(255,255,255,0.3)',
                   color: 'white',
-                  padding: isMobile() ? '3px 6px' : '4px 8px', // Smaller padding on mobile
-                  borderRadius: isMobile() ? '10px' : '12px', // Smaller border radius
-                  fontSize: isMobile() ? '10px' : '12px', // Smaller text on mobile
+                  padding: isMobile() ? '3px 6px' : '4px 8px',
+                  borderRadius: isMobile() ? '10px' : '12px',
+                  fontSize: isMobile() ? '10px' : '12px',
                   fontWeight: 'bold'
                 }}>
                   {userProfile?.current_rating || 1200}
@@ -1509,13 +1424,13 @@ const App = () => {
             <button
               onClick={() => setShowAuthModal(true)}
               style={{
-                padding: isMobile() ? '6px 12px' : '8px 16px', // Smaller padding on mobile
+                padding: isMobile() ? '6px 12px' : '8px 16px',
                 backgroundColor: 'rgba(255,255,255,0.2)',
                 color: 'white',
                 border: '1px solid rgba(255,255,255,0.3)',
-                borderRadius: '16px', // Smaller border radius
+                borderRadius: '16px',
                 cursor: 'pointer',
-                fontSize: isMobile() ? '12px' : '14px', // Smaller text on mobile
+                fontSize: isMobile() ? '12px' : '14px',
                 fontWeight: 'bold'
               }}
             >
@@ -1793,7 +1708,6 @@ const App = () => {
                 userPlayingAs={userPlayingAs}
               />
               
-              {/* NEW: Add consequences button for mobile */}
               <ConsequencesButton />
             </div>
           </div>
@@ -1838,7 +1752,6 @@ const App = () => {
                 userPlayingAs={userPlayingAs}
               />
               
-              {/* NEW: Add consequences button */}
               <ConsequencesButton />
             </div>
 
@@ -1900,7 +1813,7 @@ const App = () => {
       {isMobile() && showMobileSettings && (
         <div style={{
           position: 'fixed',
-          bottom: '60px', // Above sticky bar
+          bottom: '60px',
           left: '10px',
           right: '10px',
           backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
@@ -2322,9 +2235,6 @@ const App = () => {
         onSignOut={handleSignOut}
         onClose={() => setShowProfileModal(false)}
       />
-
-      {/* NEW: Move Consequences Modal - REMOVED */}
-      {/* Consequences now play directly on the main board */}
     </div>
   );
 };

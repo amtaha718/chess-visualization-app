@@ -5,6 +5,9 @@
     },
     "api/analyzeIncorrectMove.js": {
       "maxDuration": 15
+    },
+    "api/analyzeIncorrectMoveStockfish.js": {
+      "maxDuration": 15
     }
   },
   "headers": [
@@ -28,11 +31,4 @@
       "destination": "https://cdn.jsdelivr.net/npm/stockfish@15.0.0/src/stockfish.js"
     }
   ]
-  {
-  "functions": {
-    "api/analyzeIncorrectMoveStockfish.js": {
-      "maxDuration": 15
-}
-  
-  }
 }

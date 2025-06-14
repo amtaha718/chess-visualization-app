@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
-import { getIncorrectMoveExplanation, getCorrectMoveExplanation } from './ai';
+import { getIncorrectMoveExplanation, getCorrectMoveExplanation, getMoveConsequences } from './ai';
 import './index.css';
 import UserSystem from './user-system';
 import { AuthModal, UserProfile } from './auth-components';
+import MoveConsequenceDisplay from './MoveConsequenceDisplay';
 
 const getBoardSize = (isExpanded = false) => {
   if (isExpanded) {
@@ -187,6 +188,13 @@ const NextIcon = () => (
   </svg>
 );
 
+// NEW: Show Consequences Icon
+const ConsequencesIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+  </svg>
+);
+
 const THEME_DISPLAY_NAMES = {
   'opening': 'Openings',
   'endgame': 'End Game',
@@ -291,6 +299,13 @@ const App = () => {
   const [isCollapsed, setIsCollapsed] = useState(isMobile()); // Mobile collapsed by default, desktop expanded
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showMobileSettings, setShowMobileSettings] = useState(false);
+
+  // NEW: State for move consequences feature
+  const [showConsequences, setShowConsequences] = useState(false);
+  const [moveConsequencesData, setMoveConsequencesData] = useState(null);
+  const [isLoadingConsequences, setIsLoadingConsequences] = useState(false);
+  const [lastAttemptedMove, setLastAttemptedMove] = useState(null);
+  const [solved, setSolved] = useState(false);
 
   // Save session data when things change
   useEffect(() => {
@@ -557,6 +572,8 @@ const App = () => {
     
     setPuzzleAttempted(false);
     setHintUsed(false);
+    setSolved(false); // NEW: Reset solved state
+    setLastAttemptedMove(null); // NEW: Reset attempted move
     
     if (autoPlayRef.current) {
       clearTimeout(autoPlayRef.current);
@@ -658,6 +675,9 @@ const App = () => {
       const userGuess = from + to;
       const correctMove = puzzles[currentPuzzleIndex].moves[sequenceLength - 1];
 
+      // NEW: Store the attempted move for consequences analysis
+      setLastAttemptedMove(userGuess);
+
       setHighlightedSquares({
         [from]: { backgroundColor: 'rgba(173, 216, 230, 0.6)' },
         [to]: { backgroundColor: 'rgba(173, 216, 230, 0.6)' }
@@ -688,7 +708,8 @@ const App = () => {
     setFeedbackType('info');
 
     const timeTaken = puzzleStartTime ? Math.round((Date.now() - puzzleStartTime) / 1000) : null;
-    const solved = userGuess === correctMove;
+    const puzzleSolved = userGuess === correctMove;
+    setSolved(puzzleSolved); // NEW: Track if puzzle is solved
     const currentPuzzle = puzzles[currentPuzzleIndex];
 
     setPuzzleAttempted(true);
@@ -699,7 +720,7 @@ const App = () => {
         
         const result = await userSystem.recordPuzzleAttempt(
           currentPuzzle.id,
-          solved,
+          puzzleSolved,
           timeTaken,
           [userGuess],
           shouldChangeRating
@@ -714,20 +735,20 @@ const App = () => {
             }
           }, 500);
           
-          let feedbackText = solved ? 'Correct!' : 'Incorrect.';
+          let feedbackText = puzzleSolved ? 'Correct!' : 'Incorrect.';
           
           if (shouldChangeRating && result.ratingChange !== 0) {
             feedbackText += ` Rating: ${result.newRating} (${result.ratingChange >= 0 ? '+' : ''}${result.ratingChange})`;
           }
           
           setFeedbackMessage(feedbackText);
-          setFeedbackType(solved ? 'success' : 'error');
+          setFeedbackType(puzzleSolved ? 'success' : 'error');
         }
       } catch (error) {
         console.error('Failed to record attempt:', error);
       }
     } else if (!user) {
-      if (solved) {
+      if (puzzleSolved) {
         setFeedbackMessage('Correct!');
         setFeedbackType('success');
       } else {
@@ -738,7 +759,7 @@ const App = () => {
 
     playFullSequence([...currentPuzzle.moves.slice(0, sequenceLength - 1), userGuess]);
 
-    if (!solved) {
+    if (!puzzleSolved) {
       try {
         const explanation = await getIncorrectMoveExplanation(
           currentPuzzle.fen,
@@ -818,6 +839,77 @@ const App = () => {
     setTimeout(() => {
       setHighlightedSquares({});
     }, 3000);
+  };
+
+  // NEW: Function to show move consequences
+  const showMoveConsequences = async () => {
+    if (!puzzleAttempted || solved || !lastAttemptedMove) {
+      console.log('Cannot show consequences:', { puzzleAttempted, solved, lastAttemptedMove });
+      return;
+    }
+    
+    setIsLoadingConsequences(true);
+    const currentPuzzle = puzzles[currentPuzzleIndex];
+    const correctMove = currentPuzzle.moves[sequenceLength - 1];
+    
+    try {
+      console.log('🎭 Requesting move consequences...');
+      const consequencesData = await getMoveConsequences(
+        currentPuzzle.fen,
+        currentPuzzle.moves,
+        lastAttemptedMove,
+        correctMove,
+        userPlayingAs
+      );
+      
+      if (consequencesData) {
+        console.log('✅ Got consequences data:', consequencesData);
+        setMoveConsequencesData(consequencesData);
+        setShowConsequences(true);
+      } else {
+        setFeedbackMessage('Could not analyze move consequences. Try again.');
+        setFeedbackType('warning');
+      }
+    } catch (error) {
+      console.error('Failed to get move consequences:', error);
+      setFeedbackMessage('Failed to analyze move consequences.');
+      setFeedbackType('error');
+    } finally {
+      setIsLoadingConsequences(false);
+    }
+  };
+
+  // NEW: Component for consequences button
+  const ConsequencesButton = () => {
+    if (puzzlePhase !== 'complete' || solved || !puzzleAttempted || !lastAttemptedMove) {
+      return null;
+    }
+    
+    return (
+      <button
+        onClick={showMoveConsequences}
+        disabled={isLoadingConsequences}
+        style={{
+          width: '100%',
+          padding: '10px',
+          backgroundColor: isLoadingConsequences ? '#ccc' : '#FF9800',
+          color: 'white',
+          border: 'none',
+          borderRadius: '6px',
+          cursor: isLoadingConsequences ? 'not-allowed' : 'pointer',
+          fontWeight: 'bold',
+          fontSize: '14px',
+          marginTop: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px'
+        }}
+      >
+        <ConsequencesIcon />
+        {isLoadingConsequences ? 'Analyzing...' : 'Show What Happens'}
+      </button>
+    );
   };
 
   const skipToNextPuzzle = () => {
@@ -1450,6 +1542,9 @@ const App = () => {
                 type={feedbackType}
                 userPlayingAs={userPlayingAs}
               />
+              
+              {/* NEW: Add consequences button for mobile */}
+              <ConsequencesButton />
             </div>
           </div>
         )}
@@ -1492,6 +1587,9 @@ const App = () => {
                 type={feedbackType}
                 userPlayingAs={userPlayingAs}
               />
+              
+              {/* NEW: Add consequences button */}
+              <ConsequencesButton />
             </div>
 
             <div style={{
@@ -1974,6 +2072,21 @@ const App = () => {
         onSignOut={handleSignOut}
         onClose={() => setShowProfileModal(false)}
       />
+
+      {/* NEW: Move Consequences Modal */}
+      {showConsequences && moveConsequencesData && (
+        <MoveConsequenceDisplay
+          userConsequences={moveConsequencesData.userConsequences}
+          correctBenefits={moveConsequencesData.correctBenefits}
+          onClose={() => {
+            setShowConsequences(false);
+            setMoveConsequencesData(null);
+          }}
+          initialPosition={puzzles[currentPuzzleIndex] ? puzzles[currentPuzzleIndex].fen : ''}
+          boardSize={isMobile() ? Math.min(window.innerWidth - 40, 300) : 400}
+          boardOrientation={boardOrientation}
+        />
+      )}
     </div>
   );
 };

@@ -915,7 +915,13 @@ const App = () => {
       const sequence = [];
       
       // Generate 2-3 opponent responses to show the consequences
-      for (let i = 0; i < 3 && !game.isGameOver(); i++) {
+      for (let i = 0; i < 3; i++) {
+        // Check if game is over using proper Chess.js methods
+        if (game.isGameOver() || game.isDraw() || game.isStalemate() || game.isThreefoldRepetition()) {
+          console.log(`Game over detected after ${i} moves`);
+          break;
+        }
+        
         const opponentMove = findBestOpponentMove(game);
         if (!opponentMove) {
           console.log('No more moves available');
@@ -933,12 +939,6 @@ const App = () => {
           console.error('Failed to apply opponent move');
           break;
         }
-        
-        // If game is over, stop
-        if (game.isGameOver()) {
-          console.log('🏁 Game over detected');
-          break;
-        }
       }
       
       console.log('Generated opponent sequence:', sequence);
@@ -952,73 +952,95 @@ const App = () => {
 
   // NEW: Find best opponent move using improved heuristics
   const findBestOpponentMove = (game) => {
-    const moves = game.moves({ verbose: true });
-    if (moves.length === 0) return null;
-    
-    console.log(`🔍 Evaluating ${moves.length} possible opponent moves`);
-    
-    let bestMove = null;
-    let bestScore = -Infinity;
-    
-    for (const move of moves) {
-      let score = 0;
-      
-      // Create a copy to test the move
-      const gameCopy = new Chess(game.fen());
-      gameCopy.move(move);
-      
-      // High priority: Checkmate
-      if (gameCopy.isCheckmate()) {
-        console.log(`🎯 Found checkmate move: ${move.from}${move.to}`);
-        score += 10000;
-      }
-      // High priority: Check
-      else if (gameCopy.isCheck()) {
-        console.log(`⚡ Found check move: ${move.from}${move.to}`);
-        score += 500;
+    try {
+      const moves = game.moves({ verbose: true });
+      if (moves.length === 0) {
+        console.log('No legal moves available');
+        return null;
       }
       
-      // High priority: Captures (by piece value)
-      if (move.captured) {
-        const pieceValues = { p: 100, n: 300, b: 300, r: 500, q: 900 };
-        const captureValue = pieceValues[move.captured] || 0;
-        score += captureValue;
-        console.log(`💰 Capture move ${move.from}${move.to} gains ${captureValue} points`);
-      }
+      console.log(`🔍 Evaluating ${moves.length} possible opponent moves`);
       
-      // Medium priority: Attacks on valuable pieces
-      const opponentMoves = gameCopy.moves({ verbose: true });
-      const threatens = opponentMoves.filter(m => m.captured);
-      if (threatens.length > 0) {
-        const maxThreat = Math.max(...threatens.map(m => {
+      let bestMove = null;
+      let bestScore = -Infinity;
+      
+      for (const move of moves) {
+        let score = 0;
+        
+        // Create a copy to test the move
+        const gameCopy = new Chess(game.fen());
+        const testMoveResult = gameCopy.move(move);
+        
+        if (!testMoveResult) {
+          console.warn(`Failed to apply test move: ${move.from}${move.to}`);
+          continue;
+        }
+        
+        // High priority: Checkmate
+        if (gameCopy.isCheckmate()) {
+          console.log(`🎯 Found checkmate move: ${move.from}${move.to}`);
+          score += 10000;
+        }
+        // High priority: Check
+        else if (gameCopy.isCheck()) {
+          console.log(`⚡ Found check move: ${move.from}${move.to}`);
+          score += 500;
+        }
+        
+        // High priority: Captures (by piece value)
+        if (move.captured) {
           const pieceValues = { p: 100, n: 300, b: 300, r: 500, q: 900 };
-          return pieceValues[m.captured] || 0;
-        }));
-        score += maxThreat * 0.5; // Half points for threats
+          const captureValue = pieceValues[move.captured] || 0;
+          score += captureValue;
+          console.log(`💰 Capture move ${move.from}${move.to} gains ${captureValue} points`);
+        }
+        
+        // Medium priority: Attacks on valuable pieces
+        try {
+          const opponentMoves = gameCopy.moves({ verbose: true });
+          const threatens = opponentMoves.filter(m => m.captured);
+          if (threatens.length > 0) {
+            const maxThreat = Math.max(...threatens.map(m => {
+              const pieceValues = { p: 100, n: 300, b: 300, r: 500, q: 900 };
+              return pieceValues[m.captured] || 0;
+            }));
+            score += maxThreat * 0.5; // Half points for threats
+          }
+        } catch (threatError) {
+          console.warn('Error analyzing threats:', threatError);
+        }
+        
+        // Low priority: Center control
+        const centerSquares = ['d4', 'd5', 'e4', 'e5'];
+        if (centerSquares.includes(move.to)) {
+          score += 10;
+        }
+        
+        // Penalty: Hanging pieces (simplified check)
+        try {
+          const nextMoves = gameCopy.moves({ verbose: true });
+          const isHanging = nextMoves.some(nextMove => nextMove.to === move.to);
+          if (isHanging) {
+            const pieceValues = { p: 100, n: 300, b: 300, r: 500, q: 900 };
+            score -= (pieceValues[move.piece] || 0) * 0.8;
+          }
+        } catch (hangingError) {
+          console.warn('Error checking hanging pieces:', hangingError);
+        }
+        
+        if (score > bestScore) {
+          bestScore = score;
+          bestMove = move;
+        }
       }
       
-      // Low priority: Center control
-      const centerSquares = ['d4', 'd5', 'e4', 'e5'];
-      if (centerSquares.includes(move.to)) {
-        score += 10;
-      }
+      console.log(`🏆 Best opponent move: ${bestMove?.from}${bestMove?.to} (score: ${bestScore})`);
+      return bestMove;
       
-      // Penalty: Hanging pieces
-      const nextMoves = gameCopy.moves({ verbose: true });
-      const isHanging = nextMoves.some(nextMove => nextMove.to === move.to);
-      if (isHanging) {
-        const pieceValues = { p: 100, n: 300, b: 300, r: 500, q: 900 };
-        score -= (pieceValues[move.piece] || 0) * 0.8;
-      }
-      
-      if (score > bestScore) {
-        bestScore = score;
-        bestMove = move;
-      }
+    } catch (error) {
+      console.error('Error in findBestOpponentMove:', error);
+      return null;
     }
-    
-    console.log(`🏆 Best opponent move: ${bestMove?.from}${bestMove?.to} (score: ${bestScore})`);
-    return bestMove;
   };
 
   // NEW: Play the consequence sequence on the main board

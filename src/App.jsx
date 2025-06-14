@@ -5,7 +5,6 @@ import { getIncorrectMoveExplanation, getCorrectMoveExplanation } from './ai';
 import './index.css';
 import UserSystem from './user-system';
 import { AuthModal, UserProfile } from './auth-components';
-import OpeningCourse from './components/OpeningCourse';
 
 const getBoardSize = (isExpanded = false) => {
   if (isExpanded) {
@@ -14,7 +13,7 @@ const getBoardSize = (isExpanded = false) => {
   
   const windowWidth = window.innerWidth;
   const windowHeight = window.innerHeight;
-  const headerHeight = 60;
+  const headerHeight = 60; // Updated to match new mobile header height
   
   if (windowWidth <= 768) {
     return Math.min(windowWidth - 40, windowHeight - headerHeight - 200);
@@ -72,8 +71,8 @@ const FlameIcon = ({ streak }) => (
     padding: '8px 12px',
     borderRadius: '20px',
     border: '1px solid rgba(255,255,255,0.3)',
-    height: '36px',
-    minWidth: '60px'
+    height: '36px', // Match profile container height
+    minWidth: '60px' // Ensure consistent width
   }}>
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
       <path d="M12 2C12 2 8 5.5 8 10C8 14 10 16.5 12 16.5C14 16.5 16 14 16 10C16 5.5 12 2 12 2Z" 
@@ -289,10 +288,9 @@ const App = () => {
   const [isThemesCollapsed, setIsThemesCollapsed] = useState(true);
   const [boardOrientation, setBoardOrientation] = useState('white');
   const [userPlayingAs, setUserPlayingAs] = useState('white');
-  const [isCollapsed, setIsCollapsed] = useState(isMobile());
+  const [isCollapsed, setIsCollapsed] = useState(isMobile()); // Mobile collapsed by default, desktop expanded
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showMobileSettings, setShowMobileSettings] = useState(false);
-  const [showOpeningCourse, setShowOpeningCourse] = useState(false);
 
   // Save session data when things change
   useEffect(() => {
@@ -960,15 +958,15 @@ const App = () => {
           display: 'flex',
           flexDirection: 'column',
           flex: 1,
-          padding: '8px',
-          gap: '8px',
+          padding: '8px', // Reduced padding
+          gap: '8px', // Reduced gap
           overflow: 'hidden'
         },
         settingsPanel: {
           order: 1,
           backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
           borderRadius: '8px',
-          padding: '10px',
+          padding: '10px', // Reduced padding
           color: isDarkMode ? '#ffffff' : '#333333'
         },
         boardContainer: {
@@ -978,15 +976,15 @@ const App = () => {
           alignItems: 'center',
           justifyContent: 'center',
           paddingTop: '10px',
-          paddingBottom: '80px',
+          paddingBottom: '80px', // Space for sticky controls
         },
         feedbackPanel: {
-          order: 1.5,
+          order: 1.5, // Place feedback above board on mobile
           backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
           borderRadius: '8px',
-          padding: '10px',
+          padding: '10px', // Reduced padding
           color: isDarkMode ? '#ffffff' : '#333333',
-          marginBottom: '8px'
+          marginBottom: '8px' // Reduced margin
         }
       };
     } else {
@@ -1041,312 +1039,927 @@ const App = () => {
   const styles = getLayoutStyles();
 
   return (
-    <div style={styles.container} className={isDarkMode ? 'dark' : ''}>
-      {/* Header */}
-      <div className={`header ${isDarkMode ? 'dark' : ''}`}>
-        <div className="logo-section">
-          <h1 className={`app-title ${isDarkMode ? 'dark' : ''}`}>
-            Chess Visualization Trainer
-          </h1>
+    <div style={styles.container}>
+      <header style={{
+        height: '60px', // Reduced from 80px for mobile
+        backgroundColor: '#64B5F6',
+        color: 'white',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: isMobile() ? '0 10px' : '0 20px', // Less padding on mobile
+        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <img
+            src="/logo.png"
+            alt="Chess Trainer Logo"
+            style={{
+              height: isMobile() ? '50px' : '100px', // Smaller logo on mobile
+              marginRight: isMobile() ? '8px' : '15px' // Less margin on mobile
+            }}
+          />
         </div>
 
-        {/* Navigation */}
-        <div className="nav-menu">
-          <button 
-            className={`nav-button ${isDarkMode ? 'dark' : ''}`}
-            onClick={() => setShowOpeningCourse(!showOpeningCourse)}
-          >
-            <CoursesIcon />
-            Opening Course
-          </button>
-          <button className={`nav-button ${isDarkMode ? 'dark' : ''}`}>
-            <InviteIcon />
-            Invite Friends
-          </button>
-          <button className={`nav-button ${isDarkMode ? 'dark' : ''}`}>
-            <AboutIcon />
-            About
-          </button>
-        </div>
+        {!isMobile() && (
+          <nav style={{
+            display: 'flex',
+            gap: '30px',
+            alignItems: 'center'
+          }}>
+            <button style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'white',
+              fontSize: '16px',
+              fontWeight: '500',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              transition: 'background-color 0.2s ease'
+            }}>
+              <CoursesIcon />
+              Courses
+            </button>
 
-        {/* Profile Section */}
-        <div className="profile-section">
-          {user && userProfile && (
-            <FlameIcon streak={0} />
-          )}
-          
+            <button style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'white',
+              fontSize: '16px',
+              fontWeight: '500',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              transition: 'background-color 0.2s ease'
+            }}>
+              <InviteIcon />
+              Invite Friends
+            </button>
+
+            <button style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'white',
+              fontSize: '16px',
+              fontWeight: '500',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              transition: 'background-color 0.2s ease'
+            }}>
+              <AboutIcon />
+              About Us
+            </button>
+          </nav>
+        )}
+
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '15px'
+        }}>
           {user ? (
-            <div 
-              className={`profile-badge ${isDarkMode ? 'dark' : ''}`}
-              onClick={() => setShowProfileModal(true)}
-            >
-              <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
-                {userProfile?.display_name || 'Player'}
+            <>
+              <FlameIcon streak={userProfile?.longest_streak || 0} />
+              <div 
+                onClick={() => setShowProfileModal(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: isMobile() ? '6px' : '10px', // Less gap on mobile
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  padding: isMobile() ? '6px 10px' : '8px 12px', // Smaller padding on mobile
+                  borderRadius: isMobile() ? '16px' : '20px', // Smaller border radius
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s ease',
+                  color: 'white',
+                  height: '36px', // Match flame icon height
+                  minWidth: '80px' // Ensure consistent width
+                }}
+              >
+                <div style={{ fontSize: isMobile() ? '11px' : '14px' }}> {/* Smaller text on mobile */}
+                  <strong>{userProfile?.display_name || 'Player'}</strong>
+                </div>
+                <div style={{
+                  backgroundColor: 'rgba(255,255,255,0.3)',
+                  color: 'white',
+                  padding: isMobile() ? '3px 6px' : '4px 8px', // Smaller padding on mobile
+                  borderRadius: isMobile() ? '10px' : '12px', // Smaller border radius
+                  fontSize: isMobile() ? '10px' : '12px', // Smaller text on mobile
+                  fontWeight: 'bold'
+                }}>
+                  {userProfile?.current_rating || 1200}
+                </div>
               </div>
-              <div className="rating-badge">
-                {userProfile?.current_rating || 1200}
-              </div>
-            </div>
+            </>
           ) : (
             <button
-              className="sign-in-button"
               onClick={() => setShowAuthModal(true)}
+              style={{
+                padding: isMobile() ? '6px 12px' : '8px 16px', // Smaller padding on mobile
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: '16px', // Smaller border radius
+                cursor: 'pointer',
+                fontSize: isMobile() ? '12px' : '14px', // Smaller text on mobile
+                fontWeight: 'bold'
+              }}
             >
               Sign In
             </button>
           )}
         </div>
-      </div>
+      </header>
 
-      {/* Main Content */}
       <div style={styles.mainContent}>
-        {/* Settings Panel */}
-        <div style={styles.settingsPanel}>
-          {/* Settings Header */}
-          <div className="settings-header" onClick={() => setIsCollapsed(!isCollapsed)}>
-            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
-              Settings
-            </h3>
-            {isMobile() && <CollapseIcon isCollapsed={isCollapsed} />}
-          </div>
+        {/* Desktop Settings Panel */}
+        {!isMobile() && (
+          <div style={styles.settingsPanel}>
+            <div 
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '20px',
+                cursor: 'pointer',
+                padding: '8px 0'
+              }}
+              onClick={() => setIsCollapsed(!isCollapsed)}
+            >
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
+                Settings
+              </h3>
+              <CollapseIcon isCollapsed={isCollapsed} />
+            </div>
 
-          {(!isMobile() || !isCollapsed) && (
-            <>
-              {/* Difficulty Selection */}
-              <div className="settings-section">
-                <label className="settings-label">Difficulty</label>
-                <div className="difficulty-buttons">
-                  {['beginner', 'intermediate', 'advanced', 'expert'].map(diff => (
-                    <button
-                      key={diff}
-                      className={`difficulty-button ${diff} ${selectedDifficulty === diff ? 'selected' : ''}`}
-                      onClick={() => handleDifficultyChange(diff)}
-                    >
-                      {diff.charAt(0).toUpperCase() + diff.slice(1)}
-                      <div style={{ fontSize: '12px', opacity: 0.8 }}>
-                        {diff === 'beginner' && 'Easy patterns'}
-                        {diff === 'intermediate' && 'Standard puzzles'}
-                        {diff === 'advanced' && 'Complex tactics'}
-                        {diff === 'expert' && 'Master level'}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Sequence Length */}
-              <div className="settings-section">
-                <label className="settings-label">Sequence Length</label>
-                <div className="sequence-buttons">
-                  {[4, 6, 8].map(length => (
-                    <button
-                      key={length}
-                      className={`sequence-button ${sequenceLength === length ? 'selected' : ''}`}
-                      onClick={() => setSequenceLength(length)}
-                    >
-                      {length} moves
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Themes */}
-              {availableThemes.length > 0 && (
-                <div className="settings-section">
-                  <div 
-                    className="settings-header"
-                    onClick={() => setIsThemesCollapsed(!isThemesCollapsed)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <label className="settings-label">Themes ({availableThemes.length})</label>
-                    <CollapseIcon isCollapsed={isThemesCollapsed} />
-                  </div>
+            {!isCollapsed && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: '10px',
+                    fontWeight: 'bold',
+                    fontSize: '13px',
+                    color: isDarkMode ? '#ffffff' : '#333'
+                  }}>
+                    🏆 Difficulty Level
+                  </label>
                   
-                  {!isThemesCollapsed && (
-                    <div className="theme-buttons">
+                  <div style={{
+                    display: 'flex',
+                    gap: '8px',
+                    flexWrap: 'wrap',
+                    justifyContent: 'flex-start'
+                  }}>
+                    {[
+                      { value: 'beginner', label: 'Beginner', color: '#4CAF50' },
+                      { value: 'intermediate', label: 'Intermediate', color: '#FF9800' },
+                      { value: 'advanced', label: 'Advanced', color: '#f44336' },
+                      { value: 'expert', label: 'Expert', color: '#9C27B0' }
+                    ].map(diff => (
                       <button
-                        className={`theme-button all ${selectedTheme === 'all' ? 'selected' : ''}`}
+                        key={diff.value}
+                        onClick={() => handleDifficultyChange(diff.value)}
+                        disabled={isLoadingPuzzles}
+                        style={{
+                          padding: '6px 12px',
+                          border: '2px solid',
+                          borderColor: selectedDifficulty === diff.value ? diff.color : '#ddd',
+                          backgroundColor: selectedDifficulty === diff.value ? diff.color : 'white',
+                          color: selectedDifficulty === diff.value ? 'white' : '#333',
+                          borderRadius: '16px',
+                          cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: selectedDifficulty === diff.value ? 'bold' : 'normal',
+                          transition: 'all 0.3s ease',
+                          opacity: isLoadingPuzzles ? 0.6 : 1,
+                          minWidth: '70px',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {diff.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {availableThemes && availableThemes.length > 0 && (
+                  <div>
+                    <div 
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: '10px',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => setIsThemesCollapsed(!isThemesCollapsed)}
+                    >
+                      <label style={{
+                        fontWeight: 'bold',
+                        fontSize: '13px',
+                        color: isDarkMode ? '#ffffff' : '#333'
+                      }}>
+                        🎯 Puzzle Themes
+                      </label>
+                      <CollapseIcon isCollapsed={isThemesCollapsed} />
+                    </div>
+                    
+                    <div style={{
+                      display: 'flex',
+                      gap: '6px',
+                      flexWrap: 'wrap',
+                      justifyContent: 'flex-start'
+                    }}>
+                      <button
                         onClick={() => handleThemeChange('all')}
+                        disabled={isLoadingPuzzles}
+                        style={{
+                          padding: '6px 12px',
+                          border: '2px solid',
+                          borderColor: selectedTheme === 'all' ? '#2196F3' : '#ddd',
+                          backgroundColor: selectedTheme === 'all' ? '#2196F3' : 'white',
+                          color: selectedTheme === 'all' ? 'white' : '#333',
+                          borderRadius: '16px',
+                          cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: selectedTheme === 'all' ? 'bold' : 'normal',
+                          transition: 'all 0.2s ease',
+                          opacity: isLoadingPuzzles ? 0.6 : 1
+                        }}
                       >
                         All Themes
                       </button>
-                      {availableThemes.slice(0, 10).map(theme => (
-                        <button
-                          key={theme.name}
-                          className={`theme-button ${selectedTheme === theme.name ? 'selected' : ''}`}
-                          onClick={() => handleThemeChange(theme.name)}
-                        >
-                          {THEME_DISPLAY_NAMES[theme.name] || theme.name} ({theme.count})
-                        </button>
-                      ))}
+
+                      {!isThemesCollapsed && availableThemes
+                        .filter(theme => THEME_DISPLAY_NAMES[theme.name])
+                        .sort((a, b) => {
+                          if (a.name === 'opening') return -1;
+                          if (b.name === 'opening') return 1;
+                          return a.name.localeCompare(b.name);
+                        })
+                        .slice(0, 11)
+                        .map(theme => {
+                          const isSelected = selectedTheme === theme.name;
+                          const displayName = THEME_DISPLAY_NAMES[theme.name] || theme.name.charAt(0).toUpperCase() + theme.name.slice(1);
+                          
+                          return (
+                            <button
+                              key={theme.name}
+                              onClick={() => handleThemeChange(theme.name)}
+                              disabled={isLoadingPuzzles}
+                              title={`${theme.count} puzzles`}
+                              style={{
+                                padding: '6px 12px',
+                                border: '2px solid',
+                                borderColor: isSelected ? '#4CAF50' : '#ddd',
+                                backgroundColor: isSelected ? '#4CAF50' : 'white',
+                                color: isSelected ? 'white' : '#333',
+                                borderRadius: '16px',
+                                cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                                fontSize: '12px',
+                                fontWeight: isSelected ? 'bold' : 'normal',
+                                transition: 'all 0.2s ease',
+                                opacity: isLoadingPuzzles ? 0.6 : 1
+                              }}
+                            >
+                              {displayName}
+                            </button>
+                          );
+                        })}
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
 
-              {/* Speed Control */}
-              <div className="settings-section">
-                <label className="settings-label">Playback Speed</label>
-                <input
-                  type="range"
-                  min="500"
-                  max="4000"
-                  value={playSpeed}
-                  onChange={(e) => setPlaySpeed(Number(e.target.value))}
-                  className="speed-slider"
-                />
-                <div className="speed-labels">
-                  <span>Fast</span>
-                  <span>Slow</span>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ 
+                    display: 'block', 
+                    marginBottom: '8px', 
+                    fontWeight: 'bold',
+                    fontSize: '13px',
+                    color: isDarkMode ? '#ffffff' : '#333'
+                  }}>
+                    ⚡ Move Speed
+                  </label>
+                  
+                  <input
+                    type="range"
+                    min="500"
+                    max="3000"
+                    step="250"
+                    value={3500 - playSpeed}
+                    onChange={(e) => setPlaySpeed(3500 - Number(e.target.value))}
+                    disabled={isLoadingPuzzles}
+                    style={{
+                      width: '100%',
+                      height: '4px',
+                      borderRadius: '2px',
+                      background: '#ddd',
+                      outline: 'none',
+                      cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                      opacity: isLoadingPuzzles ? 0.6 : 1
+                    }}
+                  />
+                  
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '10px',
+                    color: '#666',
+                    marginTop: '4px'
+                  }}>
+                    <span>Slow</span>
+                    <span>Fast</span>
+                  </div>
+                  
+                  <div style={{
+                    textAlign: 'left',
+                    fontSize: '12px',
+                    color: '#666',
+                    marginTop: '6px'
+                  }}>
+                    {playSpeed / 1000}s per move
+                  </div>
                 </div>
-                <div className="speed-value">
-                  {(playSpeed / 1000).toFixed(1)}s per move
+
+                <div style={{ marginBottom: '8px' }}>
+                  <label style={{ 
+                    display: 'block', 
+                    marginBottom: '8px', 
+                    fontWeight: 'bold',
+                    fontSize: '13px',
+                    color: isDarkMode ? '#ffffff' : '#333'
+                  }}>
+                    🔢 Sequence Length
+                  </label>
+                  
+                  <div style={{
+                    display: 'flex',
+                    gap: '8px',
+                    justifyContent: 'flex-start',
+                    flexWrap: 'wrap'
+                  }}>
+                    {[4, 6, 8].map(length => (
+                      <button
+                        key={length}
+                        onClick={() => setSequenceLength(length)}
+                        disabled={isLoadingPuzzles}
+                        style={{
+                          padding: '6px 12px',
+                          border: '2px solid',
+                          borderColor: sequenceLength === length ? '#4CAF50' : '#ddd',
+                          backgroundColor: sequenceLength === length ? '#4CAF50' : 'white',
+                          color: sequenceLength === length ? 'white' : '#333',
+                          borderRadius: '12px',
+                          cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: sequenceLength === length ? 'bold' : 'normal',
+                          transition: 'all 0.2s ease',
+                          minWidth: '70px',
+                          opacity: isLoadingPuzzles ? 0.6 : 1
+                        }}
+                      >
+                        {length} Moves
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
+            )}
+          </div>
+        )}
 
-              {/* Playing As Indicator */}
-              <div className="settings-section">
-                <div className={`playing-as ${isDarkMode ? 'dark' : ''}`}>
-                  Playing as {userPlayingAs === 'white' ? 'White' : 'Black'}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        {/* Mobile: Feedback panel above board */}
+        {isMobile() && (
+          <div style={styles.feedbackPanel}>
+            <div>
+              <FeedbackCard 
+                message={feedbackMessage}
+                type={feedbackType}
+                userPlayingAs={userPlayingAs}
+              />
+            </div>
+          </div>
+        )}
 
-        {/* Board Container */}
         <div style={styles.boardContainer}>
           <div style={{ position: 'relative' }}>
             <Chessboard
               position={boardPosition}
+              onSquareClick={handleSquareClick}
               boardWidth={boardSize}
               boardOrientation={boardOrientation}
-              onSquareClick={handleSquareClick}
+              arePiecesDraggable={false}
               customSquareStyles={highlightedSquares}
-              animationDuration={200}
-              areArrowsAllowed={false}
-              arePremovesAllowed={false}
-              isDraggablePiece={() => false}
+              customDarkSquareStyle={{ backgroundColor: isDarkMode ? '#769656' : '#4caf50' }}
+              customLightSquareStyle={{ backgroundColor: isDarkMode ? '#eeeed2' : '#f1f1e6' }}
             />
             {renderMoveArrow()}
-            
-            {/* Expand Button */}
-            <button
-              onClick={toggleBoardExpansion}
-              style={{
-                position: 'absolute',
-                top: '10px',
-                right: '10px',
-                ...iconButtonStyle,
-                backgroundColor: 'rgba(255,255,255,0.9)',
-                borderRadius: '6px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-              }}
-              title={isExpanded ? 'Minimize Board' : 'Expand Board'}
-            >
-              <ExpandIcon isExpanded={isExpanded} />
-            </button>
-          </div>
-
-          {/* Control Buttons */}
-          <div className="control-buttons">
-            <button
-              onClick={goToPreviousPuzzle}
-              style={currentPuzzleIndex === 0 ? disabledIconButtonStyle : iconButtonStyle}
-              disabled={currentPuzzleIndex === 0}
-              title="Previous Puzzle"
-            >
-              <PrevIcon />
-            </button>
-
-            <button
-              onClick={isAutoPlaying ? pauseAutoPlay : startAutoPlay}
-              style={{
-                ...iconButtonStyle,
-                backgroundColor: isAutoPlaying ? '#ff9800' : '#4caf50',
-                color: 'white',
-                borderRadius: '6px'
-              }}
-              title={isAutoPlaying ? 'Pause' : 'Play Sequence'}
-            >
-              <PlayIcon isPlaying={isAutoPlaying} />
-            </button>
-
-            <button
-              onClick={handleHint}
-              style={!isUserTurnToMove ? disabledIconButtonStyle : iconButtonStyle}
-              disabled={!isUserTurnToMove}
-              title="Get Hint"
-            >
-              <HintIcon />
-            </button>
-
-            <button
-              onClick={handleRevealSolution}
-              style={puzzlePhase === 'ready' ? disabledIconButtonStyle : iconButtonStyle}
-              disabled={puzzlePhase === 'ready'}
-              title="Reveal Solution"
-            >
-              <RevealIcon />
-            </button>
-
-            <button
-              onClick={skipToNextPuzzle}
-              style={iconButtonStyle}
-              title="Next Puzzle"
-            >
-              <NextIcon />
-            </button>
-          </div>
-
-          {/* Puzzle Info */}
-          <div style={{
-            marginTop: '15px',
-            textAlign: 'center',
-            fontSize: '14px',
-            color: isDarkMode ? '#cccccc' : '#666666'
-          }}>
-            Puzzle {currentPuzzleIndex + 1} of {puzzles.length} • {selectedDifficulty} • {sequenceLength}-move
-            {selectedTheme !== 'all' && ` • ${THEME_DISPLAY_NAMES[selectedTheme] || selectedTheme}`}
           </div>
         </div>
 
-        {/* Feedback Panel */}
-        <div style={styles.feedbackPanel}>
-          <h3 className={`feedback-header ${isDarkMode ? 'dark' : ''}`}>
-            Feedback
-          </h3>
-          
-          <div className="feedback-messages" style={{ flex: 1 }}>
-            <FeedbackCard 
-              message={feedbackMessage} 
-              type={feedbackType}
-              userPlayingAs={userPlayingAs}
-            />
-          </div>
+        {/* Desktop: Right feedback panel */}
+        {!isMobile() && (
+          <div style={styles.feedbackPanel}>
+            <h3 style={{ 
+              margin: '0 0 15px 0', 
+              fontSize: '18px', 
+              fontWeight: 'bold',
+              borderBottom: `2px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
+              paddingBottom: '10px'
+            }}>
+              Messages
+            </h3>
 
-          {/* Bottom Options */}
-          <div className={`bottom-options ${isDarkMode ? 'dark' : ''}`}>
-            <button
-              className={`option-button dark-mode-button ${isDarkMode ? 'dark' : ''}`}
-              onClick={handleDarkModeToggle}
-            >
-              <DarkModeIcon isDark={isDarkMode} />
-              {isDarkMode ? 'Light' : 'Dark'}
-            </button>
+            <div style={{
+              flex: 1,
+              marginBottom: '20px'
+            }}>
+              <FeedbackCard 
+                message={feedbackMessage}
+                type={feedbackType}
+                userPlayingAs={userPlayingAs}
+              />
+            </div>
 
-            <button
-              className="option-button share-button"
-              onClick={handleSharePuzzle}
-            >
-              <ShareIcon />
-              Share
-            </button>
+            <div style={{
+              borderTop: `1px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
+              paddingTop: '15px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <button
+                onClick={handleDarkModeToggle}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'none',
+                  border: `1px solid ${isDarkMode ? '#555555' : '#ddd'}`,
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  color: isDarkMode ? '#ffffff' : '#333333',
+                  fontSize: '13px',
+                  transition: 'background-color 0.2s ease'
+                }}
+                title="Toggle Dark Mode"
+              >
+                <DarkModeIcon isDark={isDarkMode} />
+                {!isMobile() && (isDarkMode ? 'Light' : 'Dark')}
+              </button>
+
+              <button
+                onClick={handleSharePuzzle}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: '#2196F3',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  transition: 'background-color 0.2s ease'
+                }}
+                title="Share as GIF"
+              >
+                <ShareIcon />
+                {!isMobile() && 'Share'}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Modals */}
+      {/* Mobile Settings Overlay */}
+      {isMobile() && showMobileSettings && (
+        <div style={{
+          position: 'fixed',
+          bottom: '60px', // Above sticky bar
+          left: '10px',
+          right: '10px',
+          backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
+          borderRadius: '12px',
+          padding: '15px',
+          boxShadow: '0 -4px 20px rgba(0,0,0,0.2)',
+          zIndex: 999,
+          maxHeight: '60vh',
+          overflow: 'auto',
+          color: isDarkMode ? '#ffffff' : '#333333'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '15px'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>
+              Settings
+            </h3>
+            <button
+              onClick={() => setShowMobileSettings(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '24px',
+                cursor: 'pointer',
+                color: isDarkMode ? '#ffffff' : '#333333'
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <div>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: 'bold',
+                fontSize: '13px'
+              }}>
+                🏆 Difficulty Level
+              </label>
+              
+              <div style={{
+                display: 'flex',
+                gap: '6px',
+                flexWrap: 'wrap'
+              }}>
+                {[
+                  { value: 'beginner', label: 'Beginner', color: '#4CAF50' },
+                  { value: 'intermediate', label: 'Intermediate', color: '#FF9800' },
+                  { value: 'advanced', label: 'Advanced', color: '#f44336' },
+                  { value: 'expert', label: 'Expert', color: '#9C27B0' }
+                ].map(diff => (
+                  <button
+                    key={diff.value}
+                    onClick={() => handleDifficultyChange(diff.value)}
+                    disabled={isLoadingPuzzles}
+                    style={{
+                      padding: '6px 12px',
+                      border: '2px solid',
+                      borderColor: selectedDifficulty === diff.value ? diff.color : '#ddd',
+                      backgroundColor: selectedDifficulty === diff.value ? diff.color : 'white',
+                      color: selectedDifficulty === diff.value ? 'white' : '#333',
+                      borderRadius: '16px',
+                      cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: selectedDifficulty === diff.value ? 'bold' : 'normal',
+                      flex: '1',
+                      minWidth: '70px'
+                    }}
+                  >
+                    {diff.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {availableThemes && availableThemes.length > 0 && (
+              <div>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: 'bold',
+                  fontSize: '13px'
+                }}>
+                  🎯 Puzzle Themes
+                </label>
+                
+                <div style={{
+                  display: 'flex',
+                  gap: '6px',
+                  flexWrap: 'wrap'
+                }}>
+                  <button
+                    onClick={() => handleThemeChange('all')}
+                    disabled={isLoadingPuzzles}
+                    style={{
+                      padding: '6px 12px',
+                      border: '2px solid',
+                      borderColor: selectedTheme === 'all' ? '#2196F3' : '#ddd',
+                      backgroundColor: selectedTheme === 'all' ? '#2196F3' : 'white',
+                      color: selectedTheme === 'all' ? 'white' : '#333',
+                      borderRadius: '16px',
+                      cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: selectedTheme === 'all' ? 'bold' : 'normal'
+                    }}
+                  >
+                    All Themes
+                  </button>
+
+                  {availableThemes
+                    .filter(theme => THEME_DISPLAY_NAMES[theme.name])
+                    .sort((a, b) => {
+                      if (a.name === 'opening') return -1;
+                      if (b.name === 'opening') return 1;
+                      return a.name.localeCompare(b.name);
+                    })
+                    .slice(0, 8)
+                    .map(theme => {
+                      const isSelected = selectedTheme === theme.name;
+                      const displayName = THEME_DISPLAY_NAMES[theme.name] || theme.name.charAt(0).toUpperCase() + theme.name.slice(1);
+                      
+                      return (
+                        <button
+                          key={theme.name}
+                          onClick={() => handleThemeChange(theme.name)}
+                          disabled={isLoadingPuzzles}
+                          style={{
+                            padding: '6px 12px',
+                            border: '2px solid',
+                            borderColor: isSelected ? '#4CAF50' : '#ddd',
+                            backgroundColor: isSelected ? '#4CAF50' : 'white',
+                            color: isSelected ? 'white' : '#333',
+                            borderRadius: '16px',
+                            cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                            fontSize: '12px',
+                            fontWeight: isSelected ? 'bold' : 'normal'
+                          }}
+                        >
+                          {displayName}
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px', 
+                fontWeight: 'bold',
+                fontSize: '13px'
+              }}>
+                ⚡ Move Speed
+              </label>
+              
+              <input
+                type="range"
+                min="500"
+                max="3000"
+                step="250"
+                value={3500 - playSpeed}
+                onChange={(e) => setPlaySpeed(3500 - Number(e.target.value))}
+                disabled={isLoadingPuzzles}
+                style={{
+                  width: '100%',
+                  height: '4px',
+                  borderRadius: '2px',
+                  background: '#ddd',
+                  outline: 'none'
+                }}
+              />
+              
+              <div style={{
+                textAlign: 'center',
+                fontSize: '12px',
+                color: '#666',
+                marginTop: '6px'
+              }}>
+                {playSpeed / 1000}s per move
+              </div>
+            </div>
+
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px', 
+                fontWeight: 'bold',
+                fontSize: '13px'
+              }}>
+                🔢 Sequence Length
+              </label>
+              
+              <div style={{
+                display: 'flex',
+                gap: '8px'
+              }}>
+                {[4, 6, 8].map(length => (
+                  <button
+                    key={length}
+                    onClick={() => setSequenceLength(length)}
+                    disabled={isLoadingPuzzles}
+                    style={{
+                      padding: '6px 12px',
+                      border: '2px solid',
+                      borderColor: sequenceLength === length ? '#4CAF50' : '#ddd',
+                      backgroundColor: sequenceLength === length ? '#4CAF50' : 'white',
+                      color: sequenceLength === length ? 'white' : '#333',
+                      borderRadius: '12px',
+                      cursor: isLoadingPuzzles ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: sequenceLength === length ? 'bold' : 'normal',
+                      flex: 1
+                    }}
+                  >
+                    {length} Moves
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Sticky Control Bar */}
+      {isMobile() && (
+        <div style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: isDarkMode ? '#2d2d2d' : '#ffffff',
+          borderTop: `1px solid ${isDarkMode ? '#404040' : '#e0e0e0'}`,
+          padding: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px',
+          boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
+          zIndex: 1000
+        }}>
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px',
+              opacity: currentPuzzleIndex > 0 ? 1 : 0.4
+            }}
+            onClick={goToPreviousPuzzle}
+            disabled={currentPuzzleIndex === 0}
+            title="Previous Puzzle"
+          >
+            <PrevIcon />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '38px',
+              height: '38px',
+              backgroundColor: isAutoPlaying ? '#ff9800' : '#4caf50',
+              borderRadius: '50%',
+              color: 'white'
+            }}
+            onClick={isAutoPlaying ? pauseAutoPlay : startAutoPlay}
+            title={isAutoPlaying ? "Pause" : puzzlePhase === 'ready' ? "Watch Moves 1-3" : "Replay Sequence"}
+          >
+            <PlayIcon isPlaying={isAutoPlaying} />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px'
+            }}
+            onClick={toggleBoardExpansion}
+            title={isExpanded ? "Normal Size" : "Expand Board"}
+          >
+            <ExpandIcon isExpanded={isExpanded} />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px',
+              opacity: puzzlePhase === 'playing' ? 1 : 0.4
+            }}
+            onClick={handleHint}
+            disabled={puzzlePhase !== 'playing'}
+            title="Hint"
+          >
+            <HintIcon />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px',
+              opacity: (puzzlePhase === 'playing' || puzzlePhase === 'complete') ? 1 : 0.4
+            }}
+            onClick={handleRevealSolution}
+            disabled={puzzlePhase !== 'playing' && puzzlePhase !== 'complete'}
+            title="Reveal Solution"
+          >
+            <RevealIcon />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px'
+            }}
+            onClick={skipToNextPuzzle}
+            title="Next Puzzle"
+          >
+            <NextIcon />
+          </button>
+
+          <button 
+            style={{
+              ...iconButtonStyle,
+              width: '32px',
+              height: '32px',
+              backgroundColor: showMobileSettings ? '#2196F3' : 'transparent',
+              borderRadius: '6px',
+              color: showMobileSettings ? 'white' : 'black'
+            }}
+            onClick={() => setShowMobileSettings(!showMobileSettings)}
+            title="Settings"
+          >
+            <SettingsIcon />
+          </button>
+        </div>
+      )}
+
+      {/* Desktop Controls (inline with board) */}
+      {!isMobile() && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          marginTop: '20px',
+          marginBottom: '20px'
+        }}>
+          <button 
+            style={currentPuzzleIndex > 0 ? iconButtonStyle : disabledIconButtonStyle}
+            onClick={goToPreviousPuzzle}
+            disabled={currentPuzzleIndex === 0}
+            title="Previous Puzzle"
+          >
+            <PrevIcon />
+          </button>
+
+          <button 
+            style={iconButtonStyle}
+            onClick={isAutoPlaying ? pauseAutoPlay : startAutoPlay}
+            title={isAutoPlaying ? "Pause" : puzzlePhase === 'ready' ? "Watch Moves 1-3" : "Replay Sequence"}
+          >
+            <PlayIcon isPlaying={isAutoPlaying} />
+          </button>
+
+          <button 
+            style={iconButtonStyle}
+            onClick={toggleBoardExpansion}
+            title={isExpanded ? "Normal Size" : "Expand Board"}
+          >
+            <ExpandIcon isExpanded={isExpanded} />
+          </button>
+
+          <button 
+            style={puzzlePhase === 'playing' ? iconButtonStyle : disabledIconButtonStyle}
+            onClick={handleHint}
+            disabled={puzzlePhase !== 'playing'}
+            title="Hint"
+          >
+            <HintIcon />
+          </button>
+
+          <button 
+            style={puzzlePhase === 'playing' || puzzlePhase === 'complete' ? iconButtonStyle : disabledIconButtonStyle}
+            onClick={handleRevealSolution}
+            disabled={puzzlePhase !== 'playing' && puzzlePhase !== 'complete'}
+            title="Reveal Solution"
+          >
+            <RevealIcon />
+          </button>
+
+          <button 
+            style={iconButtonStyle}
+            onClick={skipToNextPuzzle}
+            title="Next Puzzle"
+          >
+            <NextIcon />
+          </button>
+        </div>
+      )}
+
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
@@ -1360,16 +1973,7 @@ const App = () => {
         profile={userProfile}
         onSignOut={handleSignOut}
         onClose={() => setShowProfileModal(false)}
-        key={profileUpdateKey}
       />
-
-      {showOpeningCourse && (
-        <OpeningCourse
-          userSystem={userSystem}
-          user={user}
-          onClose={() => setShowOpeningCourse(false)}
-        />
-      )}
     </div>
   );
 };

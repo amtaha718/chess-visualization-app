@@ -167,14 +167,36 @@ function analyzeMovesSimple(positionBefore, positionAfterUser, positionAfterCorr
   console.log('🔍 Starting simple chess analysis...');
   
   try {
-    // 1. Material analysis
+    // Create game instances for analysis
+    const gameAfterCorrect = new ChessClass(positionAfterCorrect);
+    const gameAfterUser = new ChessClass(positionAfterUser);
+    
+    // 1. CHECKMATE DETECTION (Highest Priority)
+    console.log('🔍 Checking for checkmate...');
+    if (gameAfterCorrect.isCheckmate && gameAfterCorrect.isCheckmate()) {
+      console.log('♔ CHECKMATE DETECTED: Correct move leads to checkmate');
+      return "This move misses checkmate! Look for a forcing move. Try again.";
+    }
+    
+    // 2. CHECK DETECTION
+    console.log('🔍 Checking for check...');
+    if (gameAfterCorrect.isCheck && gameAfterCorrect.isCheck()) {
+      // If the correct move gives check but user move doesn't, it might be important
+      const userGivesCheck = gameAfterUser.isCheck && gameAfterUser.isCheck();
+      if (!userGivesCheck) {
+        console.log('♔ CHECK DETECTED: Correct move gives check, user move doesn't');
+        return "This move misses a powerful check. Try again.";
+      }
+    }
+    
+    // 3. MATERIAL ANALYSIS
     const materialBefore = countMaterial(positionBefore);
     const materialAfterUser = countMaterial(positionAfterUser);
     const materialAfterCorrect = countMaterial(positionAfterCorrect);
     
     const userMaterialChange = materialAfterUser - materialBefore;
     const correctMaterialChange = materialAfterCorrect - materialBefore;
-    const materialDifference = correctMaterialChange - userMaterialChange;
+    const materialDifference = Math.abs(correctMaterialChange - userMaterialChange);
     
     console.log('📊 Material analysis:');
     console.log('- Before:', materialBefore);
@@ -182,20 +204,33 @@ function analyzeMovesSimple(positionBefore, positionAfterUser, positionAfterCorr
     console.log('- After correct:', materialAfterCorrect);
     console.log('- Material difference:', materialDifference);
     
-    if (materialDifference > 0) {
-      if (materialDifference >= 9) return "This move misses winning the queen. Try again.";
-      if (materialDifference >= 5) return "This move misses winning the rook. Try again.";
-      if (materialDifference >= 3) return "This move misses winning a minor piece. Try again.";
-      if (materialDifference >= 1) return "This move misses winning material. Try again.";
+    // Adjust material detection for different playing colors
+    let actualMaterialDiff = correctMaterialChange - userMaterialChange;
+    if (playingAs === 'black') {
+      // For black, positive material change means white is losing material (good for black)
+      actualMaterialDiff = userMaterialChange - correctMaterialChange;
+    }
+    
+    if (actualMaterialDiff >= 9) return "This move misses winning the queen. Try again.";
+    if (actualMaterialDiff >= 5) return "This move misses winning the rook. Try again.";
+    if (actualMaterialDiff >= 3) return "This move misses winning a minor piece. Try again.";
+    if (actualMaterialDiff >= 1) return "This move misses winning material. Try again.";
+
+    // 4. HANGING PIECE DETECTION
+    console.log('🔍 Checking for hanging pieces...');
+    const hangingPiece = detectSimpleHangingPiece(positionBefore, positionAfterUser, userMove, ChessClass);
+    if (hangingPiece) {
+      console.log('⚠️ HANGING PIECE DETECTED:', hangingPiece);
+      return `This move hangs your ${hangingPiece}. Try again.`;
     }
 
-    // 2. Check if user move puts king in check
+    // 5. CHECK EVASION (if user is in check after their move)
     try {
-      const gameAfterUser = new ChessClass(positionAfterUser);
       if (gameAfterUser.isCheck && gameAfterUser.isCheck()) {
         const currentTurn = gameAfterUser.turn();
         const userColor = playingAs === 'white' ? 'w' : 'b';
         if (currentTurn === userColor) {
+          console.log('♔ USER IN CHECK: Move puts own king in check');
           return "This move puts your king in check. Try again.";
         }
       }
@@ -203,25 +238,33 @@ function analyzeMovesSimple(positionBefore, positionAfterUser, positionAfterCorr
       console.warn('Check detection failed:', checkError);
     }
 
-    // 3. Hanging piece detection
-    const hangingPiece = detectSimpleHangingPiece(positionBefore, positionAfterUser, userMove, ChessClass);
-    if (hangingPiece) {
-      return `This move hangs your ${hangingPiece}. Try again.`;
+    // 6. TACTICAL PATTERN DETECTION
+    console.log('🔍 Analyzing tactical patterns...');
+    
+    // Check if correct move creates multiple threats
+    const correctMoveThreats = countThreats(gameAfterCorrect, ChessClass);
+    const userMoveThreats = countThreats(gameAfterUser, ChessClass);
+    
+    if (correctMoveThreats > userMoveThreats + 1) {
+      return "This move misses creating multiple threats. Try again.";
     }
 
-    // 4. Move pattern analysis
+    // 7. MOVE PATTERN ANALYSIS
     const patternAnalysis = analyzeMovePatterns(userMove, correctMove);
     if (patternAnalysis) {
+      console.log('🎯 PATTERN ANALYSIS:', patternAnalysis);
       return patternAnalysis;
     }
 
-    // 5. Position-based analysis
+    // 8. POSITIONAL ANALYSIS
     const positionalAnalysis = analyzePositionalFactors(userMove, correctMove);
     if (positionalAnalysis) {
+      console.log('🏰 POSITIONAL ANALYSIS:', positionalAnalysis);
       return positionalAnalysis;
     }
 
-    // 6. Default explanation
+    // 9. DEFAULT EXPLANATION
+    console.log('🔄 Using default explanation');
     return getDefaultExplanation(playingAs);
     
   } catch (analysisError) {
@@ -355,4 +398,30 @@ function getDefaultExplanation(playingAs) {
   
   const colorExplanations = explanations[playingAs] || explanations.white;
   return colorExplanations[Math.floor(Math.random() * colorExplanations.length)];
+}
+
+// Count tactical threats in a position
+function countThreats(game, ChessClass) {
+  try {
+    if (!game.moves) return 0;
+    
+    const moves = game.moves({ verbose: true });
+    if (!moves || !Array.isArray(moves)) return 0;
+    
+    let threatCount = 0;
+    
+    // Count different types of threats
+    moves.forEach(move => {
+      if (move.flags) {
+        if (move.flags.includes('c')) threatCount++; // Capture
+        if (move.flags.includes('+')) threatCount++; // Check  
+        if (move.flags.includes('#')) threatCount += 3; // Checkmate (high value)
+      }
+    });
+    
+    return threatCount;
+  } catch (error) {
+    console.warn('Error counting threats:', error);
+    return 0;
+  }
 }

@@ -1,4 +1,4 @@
-// src/ai.js - RELIABLE VERSION WITH BETTER ERROR HANDLING
+// src/ai.js - ENHANCED VERSION WITH MOVE CONSEQUENCES
 
 import { Chess } from 'chess.js';
 
@@ -7,7 +7,7 @@ import { Chess } from 'chess.js';
  */
 export async function getIncorrectMoveExplanation(originalFen, moves, userMove, correctMove, playingAs = 'white') {
   try {
-    console.log('🔍 === RELIABLE INCORRECT MOVE ANALYSIS ===');
+    console.log('🔍 === ENHANCED INCORRECT MOVE ANALYSIS ===');
     console.log('📤 Request data:', { originalFen, moves, userMove, correctMove, playingAs });
     
     // Calculate position after first 3 moves
@@ -43,8 +43,8 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
     try {
       const enhancedResult = await tryEnhancedAnalysis(positionAfter3Moves, userMove, correctMove, playingAs);
       if (enhancedResult) {
-        console.log('✅ Enhanced analysis successful:', enhancedResult);
-        return enhancedResult;
+        console.log('✅ Enhanced analysis successful:', enhancedResult.explanation);
+        return enhancedResult.explanation;
       }
     } catch (enhancedError) {
       console.warn('⚠️ Enhanced analysis failed:', enhancedError.message);
@@ -68,6 +68,122 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
   } catch (error) {
     console.error('❌ All analysis methods failed:', error);
     return getBasicPatternExplanation(userMove, correctMove, playingAs);
+  }
+}
+
+/**
+ * NEW: Get move consequences for demonstration
+ */
+export async function getMoveConsequences(originalFen, moves, userMove, correctMove, playingAs = 'white') {
+  try {
+    console.log('🎭 === MOVE CONSEQUENCES ANALYSIS ===');
+    console.log('📤 Request data:', { originalFen, moves, userMove, correctMove, playingAs });
+    
+    // Calculate position after first 3 moves
+    let positionAfter3Moves = null;
+    
+    try {
+      const tempGame = new Chess(originalFen);
+      if (moves.length >= 3) {
+        for (let i = 0; i < 3; i++) {
+          const move = moves[i];
+          const moveResult = tempGame.move({ 
+            from: move.slice(0, 2), 
+            to: move.slice(2, 4) 
+          });
+          
+          if (!moveResult) {
+            console.error(`Invalid move ${i + 1}: ${move}`);
+            throw new Error(`Move ${i + 1} is invalid`);
+          }
+        }
+        
+        positionAfter3Moves = tempGame.fen();
+        console.log('📍 Position after 3 moves calculated for consequences');
+      } else {
+        throw new Error('Need at least 3 moves to analyze consequences');
+      }
+    } catch (error) {
+      console.error('⚠️ Could not calculate position for consequences:', error);
+      return null;
+    }
+    
+    // Try move consequences analysis
+    try {
+      const consequencesResult = await tryMoveConsequencesAnalysis(
+        positionAfter3Moves, 
+        userMove, 
+        correctMove, 
+        playingAs
+      );
+      
+      if (consequencesResult) {
+        console.log('✅ Move consequences analysis successful');
+        return consequencesResult;
+      }
+    } catch (consequencesError) {
+      console.warn('⚠️ Move consequences analysis failed:', consequencesError.message);
+    }
+    
+    return null;
+    
+  } catch (error) {
+    console.error('❌ Move consequences analysis failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Try move consequences analysis with timeout
+ */
+async function tryMoveConsequencesAnalysis(positionAfter3Moves, userMove, correctMove, playingAs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+  
+  try {
+    const response = await fetch('/api/analyzeMoveConsequences', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        positionAfter3Moves,
+        userMove, 
+        correctMove, 
+        playingAs,
+        depth: 3 // Analyze 3 moves deep
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.userConsequences && data.correctBenefits) {
+      return {
+        userConsequences: data.userConsequences,
+        correctBenefits: data.correctBenefits,
+        explanation: data.explanation || 'Move consequences analyzed.'
+      };
+    } else {
+      throw new Error('Incomplete consequences data returned');
+    }
+    
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      console.warn('Move consequences analysis timed out');
+    } else {
+      console.warn('Move consequences analysis failed:', error.message);
+    }
+    
+    throw error;
   }
 }
 
@@ -102,7 +218,7 @@ async function tryEnhancedAnalysis(positionAfter3Moves, userMove, correctMove, p
     const data = await response.json();
     
     if (data.explanation && data.explanation.trim()) {
-      return data.explanation;
+      return { explanation: data.explanation };
     } else {
       throw new Error('Empty explanation returned');
     }
@@ -300,14 +416,15 @@ export function validateMove(fen, move) {
 
 // System info
 export const AnalysisInfo = {
-  version: '2.1-reliable',
+  version: '3.0-with-consequences',
   features: [
     'Multi-layer fallback system',
     'Timeout protection',
     'Pattern-based analysis',
     'Basic chess logic',
-    'Reliable error handling'
+    'Reliable error handling',
+    'Move consequences demonstration' // NEW FEATURE
   ],
-  accuracy: 'Good - Multiple fallback layers',
-  speed: 'Fast - Always responds quickly'
+  accuracy: 'Excellent - Multiple analysis layers with move demonstration',
+  speed: 'Fast - Always responds quickly with optional deep analysis'
 };

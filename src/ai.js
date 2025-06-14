@@ -1,14 +1,13 @@
-// src/ai.js - UPDATED WITH ENHANCED STOCKFISH + PATTERN ANALYSIS
+// src/ai.js - RELIABLE VERSION WITH BETTER ERROR HANDLING
 
 import { Chess } from 'chess.js';
 
 /**
- * Enhanced incorrect move analysis using Stockfish + Pattern Recognition
- * Provides accurate, chess-engine-backed explanations for mistakes
+ * Main incorrect move analysis - tries enhanced analysis first, then falls back gracefully
  */
 export async function getIncorrectMoveExplanation(originalFen, moves, userMove, correctMove, playingAs = 'white') {
   try {
-    console.log('🔍 === ENHANCED STOCKFISH + PATTERN ANALYSIS ===');
+    console.log('🔍 === RELIABLE INCORRECT MOVE ANALYSIS ===');
     console.log('📤 Request data:', { originalFen, moves, userMove, correctMove, playingAs });
     
     // Calculate position after first 3 moves
@@ -16,7 +15,6 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
     
     try {
       const tempGame = new Chess(originalFen);
-      // Apply the first 3 moves to get position before user's turn
       if (moves.length >= 3) {
         for (let i = 0; i < 3; i++) {
           const move = moves[i];
@@ -32,17 +30,55 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
         }
         
         positionAfter3Moves = tempGame.fen();
-        console.log('📍 Position after 3 moves:', positionAfter3Moves);
+        console.log('📍 Position after 3 moves calculated successfully');
       } else {
         throw new Error('Need at least 3 moves to analyze');
       }
     } catch (error) {
       console.error('⚠️ Could not calculate position after 3 moves:', error);
-      // Fallback to pattern-only analysis
-      return await getFallbackExplanation(userMove, correctMove, playingAs);
+      return getBasicPatternExplanation(userMove, correctMove, playingAs);
     }
     
-    // Use enhanced Stockfish + Pattern analysis endpoint
+    // Try enhanced analysis first
+    try {
+      const enhancedResult = await tryEnhancedAnalysis(positionAfter3Moves, userMove, correctMove, playingAs);
+      if (enhancedResult) {
+        console.log('✅ Enhanced analysis successful:', enhancedResult);
+        return enhancedResult;
+      }
+    } catch (enhancedError) {
+      console.warn('⚠️ Enhanced analysis failed:', enhancedError.message);
+    }
+    
+    // Try basic pattern analysis
+    try {
+      const patternResult = await tryPatternAnalysis(userMove, correctMove, playingAs);
+      if (patternResult) {
+        console.log('✅ Pattern analysis successful:', patternResult);
+        return patternResult;
+      }
+    } catch (patternError) {
+      console.warn('⚠️ Pattern analysis failed:', patternError.message);
+    }
+    
+    // Final fallback
+    console.log('🔄 Using final fallback explanation');
+    return getBasicPatternExplanation(userMove, correctMove, playingAs);
+    
+  } catch (error) {
+    console.error('❌ All analysis methods failed:', error);
+    return getBasicPatternExplanation(userMove, correctMove, playingAs);
+  }
+}
+
+/**
+ * Try enhanced Stockfish analysis with timeout
+ */
+async function tryEnhancedAnalysis(positionAfter3Moves, userMove, correctMove, playingAs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+  
+  try {
     const response = await fetch('/api/analyzeIncorrectMoveStockfish', {
       method: 'POST',
       headers: {
@@ -54,46 +90,44 @@ export async function getIncorrectMoveExplanation(originalFen, moves, userMove, 
         correctMove, 
         playingAs
       }),
+      signal: controller.signal
     });
 
-    console.log('📥 Analysis response status:', response.status);
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('❌ Stockfish analysis API error:', errorData);
-      
-      // Try fallback explanation
-      return await getFallbackExplanation(userMove, correctMove, playingAs);
+      throw new Error(`HTTP ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('✅ Stockfish + Pattern analysis received:', data);
-    console.log('🎯 Explanation:', data.explanation);
-    console.log('📊 Method used:', data.method);
     
-    if (data.evaluations) {
-      console.log('📈 Evaluations:', data.evaluations);
+    if (data.explanation && data.explanation.trim()) {
+      return data.explanation;
+    } else {
+      throw new Error('Empty explanation returned');
     }
     
-    return data.explanation;
-    
   } catch (error) {
-    console.error('❌ Error in enhanced analysis:', error);
+    clearTimeout(timeoutId);
     
-    // Final fallback to simple pattern analysis
-    return await getFallbackExplanation(userMove, correctMove, playingAs);
+    if (error.name === 'AbortError') {
+      console.warn('Enhanced analysis timed out');
+    } else {
+      console.warn('Enhanced analysis failed:', error.message);
+    }
+    
+    throw error;
   }
 }
 
 /**
- * Fallback explanation system when Stockfish analysis fails
- * Uses pattern recognition without engine evaluation
+ * Try basic pattern analysis
  */
-async function getFallbackExplanation(userMove, correctMove, playingAs) {
-  console.log('🔄 Using fallback explanation system');
+async function tryPatternAnalysis(userMove, correctMove, playingAs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
   
   try {
-    // Use the existing pattern-based endpoint as fallback
     const response = await fetch('/api/analyzeIncorrectMove', {
       method: 'POST',
       headers: {
@@ -104,95 +138,141 @@ async function getFallbackExplanation(userMove, correctMove, playingAs) {
         correctMove, 
         playingAs
       }),
+      signal: controller.signal
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      return data.explanation;
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
     }
-  } catch (fallbackError) {
-    console.error('❌ Fallback analysis also failed:', fallbackError);
+
+    const data = await response.json();
+    
+    if (data.explanation && data.explanation.trim()) {
+      return data.explanation;
+    } else {
+      throw new Error('Empty explanation returned');
+    }
+    
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
   }
-  
-  // Ultimate fallback - simple rule-based explanation
-  return getUltimateFallbackExplanation(userMove, correctMove, playingAs);
 }
 
 /**
- * Ultimate fallback explanation - pure rule-based
- * Used when all other systems fail
+ * Basic pattern explanation - always works
  */
-function getUltimateFallbackExplanation(userMove, correctMove, playingAs) {
+function getBasicPatternExplanation(userMove, correctMove, playingAs) {
   const userFrom = userMove.slice(0, 2);
   const userTo = userMove.slice(2, 4);
   const correctFrom = correctMove.slice(0, 2);
   const correctTo = correctMove.slice(2, 4);
   
-  console.log('🔄 Using ultimate fallback explanation');
+  console.log('📝 Generating basic pattern explanation');
   
-  // Basic pattern matching
+  // Analyze move patterns
   if (userFrom !== correctFrom) {
-    return "This piece doesn't achieve the goal. Try again.";
+    const wrongPieceExplanations = [
+      "This piece doesn't achieve the goal. Try again.",
+      "The key piece is elsewhere. Try again.",
+      "This doesn't address the main issue. Try again."
+    ];
+    return wrongPieceExplanations[Math.floor(Math.random() * wrongPieceExplanations.length)];
   }
   
   if (userFrom === correctFrom && userTo !== correctTo) {
-    return "Right piece, wrong destination. Try again.";
+    // Check specific square differences
+    if (isCenterSquare(correctTo) && !isCenterSquare(userTo)) {
+      return "This doesn't control the center effectively. Try again.";
+    }
+    
+    if (isBackRank(correctTo) && !isBackRank(userTo)) {
+      return "This doesn't address the back rank issue. Try again.";
+    }
+    
+    const wrongDestinationExplanations = [
+      "Right piece, wrong destination. Try again.",
+      "This square doesn't accomplish the goal. Try again.",
+      "The piece needs to go elsewhere. Try again."
+    ];
+    return wrongDestinationExplanations[Math.floor(Math.random() * wrongDestinationExplanations.length)];
   }
   
-  // Center vs edge analysis
-  const userToCenter = ['d4', 'd5', 'e4', 'e5'].includes(userTo);
-  const correctToCenter = ['d4', 'd5', 'e4', 'e5'].includes(correctTo);
-  
-  if (!userToCenter && correctToCenter) {
-    return "This move doesn't control the center. Try again.";
+  // Check for defensive vs aggressive patterns
+  if (isDefensiveMove(userMove) && isAggressiveMove(correctMove)) {
+    return "This move is too passive for the position. Try again.";
   }
   
-  // Default explanations by color
-  const explanations = {
+  if (isAggressiveMove(userMove) && isDefensiveMove(correctMove)) {
+    return "This move is too aggressive - defense is needed. Try again.";
+  }
+  
+  // Color-specific explanations
+  const explanationsByColor = {
     white: [
-      "This doesn't maintain White's advantage. Try again.",
+      "This doesn't maintain White's initiative. Try again.",
       "This allows Black to equalize. Try again.",
-      "This misses White's opportunity. Try again."
+      "This misses White's tactical opportunity. Try again.",
+      "This doesn't exploit Black's weakness. Try again."
     ],
     black: [
-      "This doesn't address White's threats. Try again.",
+      "This doesn't defend against White's threats. Try again.",
       "This allows White to increase pressure. Try again.",
-      "This misses Black's defensive resource. Try again."
+      "This misses Black's counterplay. Try again.",
+      "This doesn't neutralize White's attack. Try again."
     ]
   };
   
-  const colorExplanations = explanations[playingAs] || explanations.white;
-  return colorExplanations[Math.floor(Math.random() * colorExplanations.length)];
+  const explanations = explanationsByColor[playingAs] || explanationsByColor.white;
+  return explanations[Math.floor(Math.random() * explanations.length)];
 }
 
 /**
- * Enhanced correct move explanation (optional)
- * Could also use Stockfish to explain why the correct move is good
+ * Correct move explanation - simple and reliable
  */
 export async function getCorrectMoveExplanation(puzzle, userSystem, playingAs) {
   console.log('✅ === CORRECT MOVE EXPLANATION ===');
   console.log('📋 Puzzle ID:', puzzle.id);
   
-  // For correct moves, we typically just show "Correct!" 
-  // But we could enhance this with tactical theme identification
-  
-  try {
-    // Optional: Use Stockfish to identify tactical themes
-    // This would require additional API endpoint
-    
-    // For now, return empty string as before
-    return "";
-    
-  } catch (error) {
-    console.error('Error in correct move explanation:', error);
-    return "";
-  }
+  // Return empty string - "Correct!" is handled by the main app
+  return "";
 }
 
-/**
- * Optional: Chess position validator
- * Ensures the position makes sense before analysis
- */
+// Helper functions
+function isCenterSquare(square) {
+  return ['d4', 'd5', 'e4', 'e5', 'c4', 'c5', 'f4', 'f5'].includes(square);
+}
+
+function isBackRank(square) {
+  const rank = square[1];
+  return rank === '1' || rank === '8';
+}
+
+function isDefensiveMove(move) {
+  const to = move.slice(2, 4);
+  const rank = parseInt(to[1]);
+  
+  // Moves to back two ranks are generally defensive
+  return rank <= 2 || rank >= 7;
+}
+
+function isAggressiveMove(move) {
+  const to = move.slice(2, 4);
+  const rank = parseInt(to[1]);
+  
+  // Moves to central ranks are generally aggressive
+  return rank >= 3 && rank <= 6;
+}
+
+function isEdgeSquare(square) {
+  const file = square[0];
+  const rank = square[1];
+  return file === 'a' || file === 'h' || rank === '1' || rank === '8';
+}
+
+// Validation utilities
 export function validateChessPosition(fen) {
   try {
     const game = new Chess(fen);
@@ -203,10 +283,6 @@ export function validateChessPosition(fen) {
   }
 }
 
-/**
- * Optional: Move legality checker
- * Validates that a move is legal in the given position
- */
 export function validateMove(fen, move) {
   try {
     const game = new Chess(fen);
@@ -222,65 +298,16 @@ export function validateMove(fen, move) {
   }
 }
 
-/**
- * Chess piece evaluation utilities
- */
-export const ChessUtils = {
-  pieceValues: { 'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 0 },
-  
-  // Count material in a position
-  countMaterial(fen, color = null) {
-    const position = fen.split(' ')[0];
-    let material = 0;
-    
-    for (const char of position) {
-      if (char === '/' || /\d/.test(char)) continue;
-      
-      const piece = char.toLowerCase();
-      const pieceColor = char === piece ? 'b' : 'w';
-      
-      if (color && pieceColor !== color) continue;
-      
-      if (this.pieceValues[piece] !== undefined) {
-        material += this.pieceValues[piece];
-      }
-    }
-    
-    return material;
-  },
-  
-  // Check if a square is central
-  isCentralSquare(square) {
-    return ['d4', 'd5', 'e4', 'e5'].includes(square);
-  },
-  
-  // Check if a square is on the edge
-  isEdgeSquare(square) {
-    const file = square[0];
-    const rank = square[1];
-    return file === 'a' || file === 'h' || rank === '1' || rank === '8';
-  },
-  
-  // Get square color
-  getSquareColor(square) {
-    const file = square.charCodeAt(0) - 97; // a=0, b=1, etc.
-    const rank = parseInt(square[1]) - 1;   // 1=0, 2=1, etc.
-    return (file + rank) % 2 === 0 ? 'dark' : 'light';
-  }
-};
-
-// Export enhanced analysis system info
+// System info
 export const AnalysisInfo = {
-  version: '2.0',
+  version: '2.1-reliable',
   features: [
-    'Stockfish engine evaluation',
-    'Pattern-based mistake detection',
-    'Hanging piece detection',
-    'Tactical theme identification', 
-    'Material loss analysis',
-    'Positional error detection',
-    'Multi-layer fallback system'
+    'Multi-layer fallback system',
+    'Timeout protection',
+    'Pattern-based analysis',
+    'Basic chess logic',
+    'Reliable error handling'
   ],
-  accuracy: 'High - Chess engine backed',
-  speed: 'Fast - ~1-3 seconds per analysis'
+  accuracy: 'Good - Multiple fallback layers',
+  speed: 'Fast - Always responds quickly'
 };

@@ -848,32 +848,33 @@ const App = () => {
     }
     
     setIsLoadingConsequences(true);
-    const currentPuzzle = puzzles[currentPuzzleIndex];
-    const correctMove = currentPuzzle.moves[sequenceLength - 1];
+    setFeedbackMessage('Analyzing move consequences...');
+    setFeedbackType('info');
     
     try {
-      console.log('🎭 Requesting move consequences...');
-      const consequencesData = await getMoveConsequences(
+      console.log('🎭 Generating move consequences locally...');
+      const currentPuzzle = puzzles[currentPuzzleIndex];
+      
+      // Create the consequence sequence directly
+      const consequenceSequence = generateConsequenceSequence(
         currentPuzzle.fen,
-        currentPuzzle.moves,
-        lastAttemptedMove,
-        correctMove,
-        userPlayingAs
+        currentPuzzle.moves.slice(0, sequenceLength - 1), // First 3 moves
+        lastAttemptedMove
       );
       
-      if (consequencesData && consequencesData.userConsequences) {
-        console.log('✅ Got consequences data, playing sequence...');
+      if (consequenceSequence && consequenceSequence.length > 0) {
+        console.log('✅ Generated consequence sequence:', consequenceSequence);
         setFeedbackMessage('Showing what happens after your move...');
         setFeedbackType('info');
         
-        // Play the user's incorrect move sequence on the main board
-        playConsequenceSequence(consequencesData.userConsequences.sequence);
+        // Play the consequence sequence on the main board
+        playConsequenceSequence(consequenceSequence);
       } else {
-        setFeedbackMessage('Could not analyze move consequences. Try again.');
+        setFeedbackMessage('Could not generate move consequences. Try again.');
         setFeedbackType('warning');
       }
     } catch (error) {
-      console.error('Failed to get move consequences:', error);
+      console.error('Failed to generate move consequences:', error);
       setFeedbackMessage('Failed to analyze move consequences.');
       setFeedbackType('error');
     } finally {
@@ -881,9 +882,122 @@ const App = () => {
     }
   };
 
+  // NEW: Generate consequence sequence locally
+  const generateConsequenceSequence = (startingFen, setupMoves, userMove) => {
+    try {
+      const game = new Chess(startingFen);
+      
+      // Apply setup moves
+      for (let i = 0; i < setupMoves.length; i++) {
+        const move = setupMoves[i];
+        const moveResult = game.move({ from: move.slice(0, 2), to: move.slice(2, 4) });
+        if (!moveResult) {
+          console.error('Invalid setup move:', move);
+          return [];
+        }
+      }
+      
+      // The sequence starts with the user's move
+      const sequence = [userMove];
+      
+      // Apply user's move
+      const userMoveResult = game.move({ 
+        from: userMove.slice(0, 2), 
+        to: userMove.slice(2, 4) 
+      });
+      
+      if (!userMoveResult) {
+        console.error('Invalid user move:', userMove);
+        return [];
+      }
+      
+      // Generate 2-3 opponent responses
+      for (let i = 0; i < 3 && !game.isGameOver(); i++) {
+        const bestMove = findBestMove(game);
+        if (!bestMove) break;
+        
+        const moveResult = game.move(bestMove);
+        if (moveResult) {
+          sequence.push(bestMove.from + bestMove.to);
+        }
+        
+        // If game is over, stop
+        if (game.isGameOver()) break;
+      }
+      
+      console.log('Generated sequence:', sequence);
+      return sequence;
+      
+    } catch (error) {
+      console.error('Error generating consequence sequence:', error);
+      return [];
+    }
+  };
+
+  // NEW: Simple move evaluation to find best response
+  const findBestMove = (game) => {
+    const moves = game.moves({ verbose: true });
+    if (moves.length === 0) return null;
+    
+    // Score each move
+    let bestMove = null;
+    let bestScore = -Infinity;
+    
+    for (const move of moves) {
+      let score = 0;
+      
+      // Make the move temporarily to evaluate
+      game.move(move);
+      
+      // Prioritize checkmate
+      if (game.isCheckmate()) {
+        score += 1000;
+      }
+      // Then check
+      else if (game.isCheck()) {
+        score += 50;
+      }
+      
+      // Prioritize captures
+      if (move.captured) {
+        const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9 };
+        score += (pieceValues[move.captured] || 0) * 10;
+      }
+      
+      // Avoid hanging pieces (simplified)
+      const opponentMoves = game.moves({ verbose: true });
+      const isHanging = opponentMoves.some(oppMove => oppMove.to === move.to);
+      if (isHanging) {
+        const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9 };
+        score -= (pieceValues[move.piece] || 0) * 5;
+      }
+      
+      // Prefer center squares
+      const centerSquares = ['d4', 'd5', 'e4', 'e5'];
+      if (centerSquares.includes(move.to)) {
+        score += 2;
+      }
+      
+      // Undo the move
+      game.undo();
+      
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = move;
+      }
+    }
+    
+    return bestMove;
+  };
+
   // NEW: Play the consequence sequence on the main board
   const playConsequenceSequence = (moveSequence) => {
-    if (!moveSequence || moveSequence.length === 0) return;
+    if (!moveSequence || moveSequence.length === 0) {
+      console.error('No move sequence to play');
+      return;
+    }
+    
+    console.log('🎬 Playing consequence sequence:', moveSequence);
     
     const currentPuzzle = puzzles[currentPuzzleIndex];
     const game = new Chess(currentPuzzle.fen);
@@ -895,39 +1009,56 @@ const App = () => {
       game.move({ from: move.slice(0, 2), to: move.slice(2, 4) });
     }
     
-    // Reset board to this position
+    // Reset board to this position (after move 3)
     setBoardPosition(game.fen());
     setCurrentMove(null);
     
-    // Play the consequence sequence
+    console.log('🎯 Starting sequence playback...');
+    
+    // Play the consequence sequence with delays
     moveSequence.forEach((move, i) => {
       setTimeout(() => {
+        console.log(`Playing move ${i + 1}/${moveSequence.length}: ${move}`);
+        
         const from = move.slice(0, 2);
         const to = move.slice(2, 4);
-        const moveResult = game.move({ from, to });
         
-        if (moveResult) {
-          setBoardPosition(game.fen());
-          setCurrentMove({ from, to });
+        try {
+          const moveResult = game.move({ from, to });
           
-          // Update feedback message based on which move this is
-          if (i === 0) {
-            setFeedbackMessage('Your move...');
-          } else if (i === moveSequence.length - 1) {
-            setFeedbackMessage('...and this is the result. The correct move would have been better.');
+          if (moveResult) {
+            setBoardPosition(game.fen());
+            setCurrentMove({ from, to });
+            
+            // Update feedback message based on which move this is
+            if (i === 0) {
+              setFeedbackMessage('Your move: ' + move);
+              setFeedbackType('warning');
+            } else if (i === moveSequence.length - 1) {
+              setFeedbackMessage('Final result - this position is worse than the correct move would have achieved.');
+              setFeedbackType('error');
+            } else {
+              setFeedbackMessage(`Opponent's best response: ${move}`);
+              setFeedbackType('info');
+            }
+            
+            console.log(`✅ Played move ${i + 1}: ${move}, new position: ${game.fen()}`);
           } else {
-            setFeedbackMessage(`Opponent responds with the best defense...`);
+            console.error(`❌ Failed to play move ${i + 1}: ${move}`);
           }
+        } catch (error) {
+          console.error(`Error playing move ${i + 1} (${move}):`, error);
         }
-      }, i * 1500); // 1.5 seconds between moves
+      }, i * 2000); // 2 seconds between moves for better visibility
     });
     
-    // Clear the arrow after the sequence
+    // Clear the arrow and show final message after the sequence
     setTimeout(() => {
       setCurrentMove(null);
-      setFeedbackMessage('Sequence complete. Try the next puzzle!');
+      setFeedbackMessage('Sequence complete. The correct move would have led to a better outcome. Try the next puzzle!');
       setFeedbackType('info');
-    }, moveSequence.length * 1500 + 1000);
+      console.log('🏁 Sequence playback complete');
+    }, moveSequence.length * 2000 + 1000);
   };
 
   // NEW: Component for consequences button

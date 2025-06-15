@@ -1,16 +1,7 @@
 {
   "functions": {
-    "api/generate-puzzle.js": {
-      "maxDuration": 30
-    },
-    "api/analyzeIncorrectMove.js": {
-      "maxDuration": 15
-    },
     "api/analyzeIncorrectMoveStockfish.js": {
       "maxDuration": 15
-    },
-    "api/analyzeMoveConsequences.js": {
-      "maxDuration": 20
     },
     "api/analyzeMoveConsequencesStockfish.js": {
       "maxDuration": 25

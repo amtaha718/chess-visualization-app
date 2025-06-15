@@ -1,135 +1,22 @@
-// api/analyzeMoveConsequencesStockfish.js - Clean version without Stockfish dependencies
+// api/analyzeMoveConsequencesStockfish.js - FIXED VERSION with proper error handling
 
 let Chess;
 
 async function loadChess() {
   if (!Chess) {
-    const chessModule = await import('chess.js');
-    Chess = chessModule.Chess;
+    try {
+      const chessModule = await import('chess.js');
+      Chess = chessModule.Chess;
+      console.log('✅ Chess.js loaded successfully');
+    } catch (error) {
+      console.error('❌ Failed to load Chess.js:', error);
+      throw new Error('Chess.js module loading failed');
+    }
   }
   return Chess;
 }
 
-module.exports = async function handler(req, res) {
-  console.log('🎭 === ENHANCED MOVE CONSEQUENCES (HEURISTIC) ===');
-  
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  
-  if (req.method !== 'POST') {
-    return res.status(405).json({ 
-      error: 'Method Not Allowed'
-    });
-  }
-
-  try {
-    console.log('📥 Request received for enhanced move consequences');
-    
-    const ChessClass = await loadChess();
-    console.log('✅ Chess.js loaded successfully');
-
-    const { 
-      positionAfter3Moves,
-      userMove,
-      correctMove,
-      playingAs = 'white',
-      depth = 3
-    } = req.body;
-    
-    if (!positionAfter3Moves || !userMove || !correctMove) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: positionAfter3Moves, userMove, correctMove'
-      });
-    }
-
-    console.log('📊 Analyzing enhanced move consequences...');
-    console.log('- Position FEN:', positionAfter3Moves);
-    console.log('- User move:', userMove);
-    console.log('- Correct move:', correctMove);
-    console.log('- Playing as:', playingAs);
-
-    // Validate position
-    let gameAtPosition;
-    try {
-      gameAtPosition = new ChessClass(positionAfter3Moves);
-      console.log('✅ Position is valid');
-    } catch (fenError) {
-      console.error('❌ Invalid FEN position:', fenError);
-      return res.status(400).json({ 
-        error: 'Invalid FEN position',
-        details: fenError.message
-      });
-    }
-
-    // Analyze both moves using enhanced heuristics
-    const [userAnalysis, correctAnalysis] = await Promise.all([
-      analyzeMoveDevelopmentEnhanced(
-        gameAtPosition, 
-        userMove, 
-        depth, 
-        ChessClass,
-        'user'
-      ),
-      analyzeMoveDevelopmentEnhanced(
-        gameAtPosition, 
-        correctMove, 
-        depth, 
-        ChessClass,
-        'correct'
-      )
-    ]);
-
-    // Generate enhanced comparison explanation
-    const explanation = generateEnhancedExplanation(
-      userMove,
-      correctMove,
-      userAnalysis,
-      correctAnalysis,
-      playingAs
-    );
-
-    console.log('🎯 Generated enhanced move consequences analysis');
-
-    return res.status(200).json({ 
-      userConsequences: {
-        ...userAnalysis,
-        isEnhanced: true,
-        engineUsed: 'enhanced_heuristic'
-      },
-      correctBenefits: {
-        ...correctAnalysis,
-        isEnhanced: true,
-        engineUsed: 'enhanced_heuristic'
-      },
-      explanation,
-      comparison: {
-        materialDifference: (correctAnalysis.evaluation || 0) - (userAnalysis.evaluation || 0),
-        tacticsMissed: (correctAnalysis.analysis?.tacticalThemes?.length || 0) - (userAnalysis.analysis?.tacticalThemes?.length || 0)
-      },
-      method: 'enhanced_heuristic_analysis',
-      engineUsed: 'enhanced_heuristic'
-    });
-
-  } catch (error) {
-    console.error('❌ Unexpected error in enhanced analysis:', error);
-    
-    return res.status(500).json({ 
-      error: 'Enhanced analysis encountered an error',
-      details: error.message,
-      userConsequences: null,
-      correctBenefits: null,
-      explanation: 'Enhanced analysis temporarily unavailable.',
-      engineUsed: 'error'
-    });
-  }
-};
-
-// Enhanced move analysis using advanced heuristics
+// Enhanced move analysis using heuristic approach (Stockfish fallback)
 async function analyzeMoveDevelopmentEnhanced(game, move, depth, ChessClass, moveType) {
   console.log(`🔍 Enhanced ${moveType} move analysis:`, move);
   
@@ -166,7 +53,7 @@ async function analyzeMoveDevelopmentEnhanced(game, move, depth, ChessClass, mov
       materialLost: 0,
       kingDanger: false,
       controlsCenter: false,
-      initialEvaluation: evaluatePosition(gameCopy),
+      initialEvaluation: null, // Placeholder for future Stockfish integration
       tacticalThemes: [],
       materialBalance: 0
     };
@@ -198,7 +85,7 @@ async function analyzeMoveDevelopmentEnhanced(game, move, depth, ChessClass, mov
       }
     }
 
-    // Final position evaluation
+    // Enhanced position evaluation
     const finalEvaluation = evaluatePositionEnhanced(gameCopy, game, ChessClass);
     analysis = { ...analysis, ...finalEvaluation };
 
@@ -212,7 +99,8 @@ async function analyzeMoveDevelopmentEnhanced(game, move, depth, ChessClass, mov
       analysis,
       gameOver: gameCopy.isGameOver(),
       result: gameCopy.isGameOver() ? getGameResult(gameCopy) : null,
-      evaluation: analysis.materialBalance + (analysis.checksGiven * 0.5)
+      evaluation: analysis.materialBalance,
+      engineUsed: 'enhanced_heuristic' // Indicate this is enhanced heuristic analysis
     };
 
   } catch (error) {
@@ -257,18 +145,31 @@ function findBestResponseHeuristic(game, ChessClass) {
       score += (pieceValues[move.captured] || 0);
     }
     
-    // Bonus for central moves
-    const centerSquares = ['d4', 'd5', 'e4', 'e5'];
-    if (centerSquares.includes(move.to)) {
-      score += 50;
-    }
+    // Bonus for attacking valuable pieces
+    const attackedSquares = getAttackedSquares(gameCopy);
+    const opponentPieces = gameCopy.board().flat().filter(piece => 
+      piece && piece.color !== game.turn()
+    );
     
-    // Avoid hanging pieces (simplified check)
+    opponentPieces.forEach(piece => {
+      if (attackedSquares.includes(piece.square)) {
+        const pieceValues = { p: 50, n: 150, b: 150, r: 250, q: 450 };
+        score += (pieceValues[piece.type] || 0);
+      }
+    });
+    
+    // Avoid hanging pieces
     const nextMoves = gameCopy.moves({ verbose: true });
     const isHanging = nextMoves.some(nextMove => nextMove.to === move.to);
     if (isHanging) {
       const pieceValues = { p: 100, n: 300, b: 300, r: 500, q: 900 };
       score -= (pieceValues[move.piece] || 0) * 0.8;
+    }
+    
+    // Center control bonus
+    const centerSquares = ['d4', 'd5', 'e4', 'e5'];
+    if (centerSquares.includes(move.to)) {
+      score += 20;
     }
     
     // Add some randomness to avoid repetitive play
@@ -281,21 +182,13 @@ function findBestResponseHeuristic(game, ChessClass) {
   return scoredMoves[0].move;
 }
 
-// Enhanced position evaluation
-function evaluatePosition(game) {
-  try {
-    if (game.isCheckmate()) return game.turn() === 'w' ? -1000 : 1000;
-    if (game.isCheck()) return game.turn() === 'w' ? -50 : 50;
-    if (game.isDraw()) return 0;
-    
-    // Basic material count
-    const material = countMaterial(game.fen());
-    return material;
-  } catch (error) {
-    return 0;
-  }
+// Helper function to get attacked squares (simplified)
+function getAttackedSquares(game) {
+  const moves = game.moves({ verbose: true });
+  return [...new Set(moves.map(move => move.to))];
 }
 
+// Enhanced position evaluation
 function evaluatePositionEnhanced(currentGame, originalGame, ChessClass) {
   const evaluation = {
     materialBalance: 0,
@@ -333,11 +226,21 @@ function evaluatePositionEnhanced(currentGame, originalGame, ChessClass) {
       
       if (lastMove.captured) {
         evaluation.tacticalThemes.push('capture');
+        
+        // Check if it's a sacrifice
+        const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9 };
+        const capturedValue = pieceValues[lastMove.captured] || 0;
+        const capturingValue = pieceValues[lastMove.piece] || 0;
+        
+        if (capturingValue > capturedValue) {
+          evaluation.tacticalThemes.push('sacrifice');
+        }
       }
     }
 
     // Center control analysis
     const centerSquares = ['d4', 'd5', 'e4', 'e5'];
+    const board = currentGame.board();
     let centerPieces = 0;
     
     centerSquares.forEach(square => {
@@ -407,8 +310,8 @@ function generateEnhancedExplanation(userMove, correctMove, userAnalysis, correc
     }
 
     // Tactical theme analysis
-    const userThemes = userAnalysis.analysis?.tacticalThemes || [];
-    const correctThemes = correctAnalysis.analysis?.tacticalThemes || [];
+    const userThemes = userAnalysis.analysis.tacticalThemes || [];
+    const correctThemes = correctAnalysis.analysis.tacticalThemes || [];
     
     if (correctThemes.includes('checkmate')) {
       return `After ${userMove}, the opponent escapes. ${correctMove} leads to forced checkmate.`;
@@ -419,8 +322,8 @@ function generateEnhancedExplanation(userMove, correctMove, userAnalysis, correc
     }
 
     // Material analysis
-    const userMaterial = userAnalysis.analysis?.materialBalance || 0;
-    const correctMaterial = correctAnalysis.analysis?.materialBalance || 0;
+    const userMaterial = userAnalysis.analysis.materialBalance || 0;
+    const correctMaterial = correctAnalysis.analysis.materialBalance || 0;
     const materialDiff = correctMaterial - userMaterial;
 
     if (materialDiff >= 3) {
@@ -444,3 +347,145 @@ function generateEnhancedExplanation(userMove, correctMove, userAnalysis, correc
     return `After ${userMove}, there are complications. The correct move is ${correctMove}.`;
   }
 }
+
+// Main handler function with comprehensive error handling
+module.exports = async function handler(req, res) {
+  console.log('🎭 === ENHANCED MOVE CONSEQUENCES (HEURISTIC APPROACH) ===');
+  
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  if (req.method !== 'POST') {
+    console.error('❌ Method not allowed:', req.method);
+    return res.status(405).json({ 
+      error: 'Method Not Allowed',
+      userConsequences: null,
+      correctBenefits: null,
+      explanation: 'Enhanced analysis temporarily unavailable.',
+      engineUsed: 'error'
+    });
+  }
+
+  try {
+    console.log('📥 Request received for enhanced move consequences');
+    
+    // Load Chess.js with error handling
+    const ChessClass = await loadChess();
+
+    const { 
+      positionAfter3Moves,
+      userMove,
+      correctMove,
+      playingAs = 'white',
+      depth = 3
+    } = req.body;
+    
+    // Validate required fields
+    if (!positionAfter3Moves || !userMove || !correctMove) {
+      console.error('❌ Missing required fields');
+      return res.status(400).json({ 
+        error: 'Missing required fields: positionAfter3Moves, userMove, correctMove',
+        userConsequences: null,
+        correctBenefits: null,
+        explanation: 'Missing required data for analysis.',
+        engineUsed: 'error'
+      });
+    }
+
+    console.log('📊 Analyzing enhanced move consequences...');
+    console.log('- Position FEN:', positionAfter3Moves);
+    console.log('- User move:', userMove);
+    console.log('- Correct move:', correctMove);
+    console.log('- Playing as:', playingAs);
+
+    // Validate position
+    let gameAtPosition;
+    try {
+      gameAtPosition = new ChessClass(positionAfter3Moves);
+      console.log('✅ Position is valid');
+    } catch (fenError) {
+      console.error('❌ Invalid FEN position:', fenError);
+      return res.status(400).json({ 
+        error: 'Invalid FEN position',
+        details: fenError.message,
+        userConsequences: null,
+        correctBenefits: null,
+        explanation: 'Position validation failed.',
+        engineUsed: 'error'
+      });
+    }
+
+    // Analyze both moves in parallel with enhanced heuristics
+    const [userAnalysis, correctAnalysis] = await Promise.all([
+      analyzeMoveDevelopmentEnhanced(
+        gameAtPosition, 
+        userMove, 
+        depth, 
+        ChessClass,
+        'user'
+      ),
+      analyzeMoveDevelopmentEnhanced(
+        gameAtPosition, 
+        correctMove, 
+        depth, 
+        ChessClass,
+        'correct'
+      )
+    ]);
+
+    // Generate enhanced comparison explanation
+    const explanation = generateEnhancedExplanation(
+      userMove,
+      correctMove,
+      userAnalysis,
+      correctAnalysis,
+      playingAs
+    );
+
+    console.log('🎯 Generated enhanced move consequences analysis');
+    console.log('- User sequence length:', userAnalysis.sequence.length);
+    console.log('- Correct sequence length:', correctAnalysis.sequence.length);
+    console.log('- Engine used: enhanced_heuristic');
+
+    return res.status(200).json({ 
+      userConsequences: {
+        ...userAnalysis,
+        isEnhanced: true,
+        engineUsed: 'enhanced_heuristic'
+      },
+      correctBenefits: {
+        ...correctAnalysis,
+        isEnhanced: true,
+        engineUsed: 'enhanced_heuristic'
+      },
+      explanation,
+      comparison: {
+        materialDifference: correctAnalysis.evaluation - userAnalysis.evaluation,
+        tacticsMissed: correctAnalysis.analysis.tacticalThemes.length - userAnalysis.analysis.tacticalThemes.length
+      },
+      method: 'enhanced_heuristic_analysis',
+      engineUsed: 'enhanced_heuristic'
+    });
+
+  } catch (error) {
+    console.error('❌ Unexpected error in enhanced analysis:', error);
+    console.error('Error stack:', error.stack);
+    
+    // Return a structured error response that the frontend can handle
+    return res.status(500).json({ 
+      error: 'Enhanced analysis encountered an error',
+      details: error.message,
+      userConsequences: null,
+      correctBenefits: null,
+      explanation: 'Enhanced analysis temporarily unavailable. Please try the next puzzle.',
+      engineUsed: 'error',
+      fallback: true
+    });
+  }
+};

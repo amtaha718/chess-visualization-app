@@ -1,251 +1,23 @@
-// api/analyzeMoveConsequencesStockfish.js - Enhanced with Stockfish integration
+// api/analyzeMoveConsequencesStockfish.js - FIXED VERSION with proper error handling
 
 let Chess;
 
 async function loadChess() {
   if (!Chess) {
-    const chessModule = await import('chess.js');
-    Chess = chessModule.Chess;
+    try {
+      const chessModule = await import('chess.js');
+      Chess = chessModule.Chess;
+      console.log('✅ Chess.js loaded successfully');
+    } catch (error) {
+      console.error('❌ Failed to load Chess.js:', error);
+      throw new Error('Chess.js module loading failed');
+    }
   }
   return Chess;
 }
 
-// Stockfish integration for server-side analysis
-class StockfishEngine {
-  constructor() {
-    this.stockfish = null;
-    this.isReady = false;
-  }
-
-  async initialize() {
-    if (this.isReady) return;
-    
-    try {
-      // Use the lite version you provided
-      const stockfishPath = './stockfish-17-lite-single.js';
-      const Stockfish = require(stockfishPath);
-      
-      this.stockfish = new Stockfish();
-      
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Stockfish initialization timeout'));
-        }, 10000);
-
-        this.stockfish.addListener((line) => {
-          console.log('SF:', line);
-          if (line === 'uciok') {
-            clearTimeout(timeout);
-            this.isReady = true;
-            resolve();
-          }
-        });
-
-        this.stockfish.postMessage('uci');
-      });
-    } catch (error) {
-      console.error('Failed to initialize Stockfish:', error);
-      throw error;
-    }
-  }
-
-  async evaluatePosition(fen, depth = 12) {
-    if (!this.isReady) {
-      await this.initialize();
-    }
-
-    return new Promise((resolve, reject) => {
-      let bestMove = null;
-      let evaluation = null;
-      let principalVariation = [];
-      let depth_reached = 0;
-
-      const timeout = setTimeout(() => {
-        reject(new Error('Stockfish evaluation timeout'));
-      }, 15000);
-
-      const listener = (line) => {
-        console.log('SF eval:', line);
-
-        if (line.startsWith('info') && line.includes('score')) {
-          const depthMatch = line.match(/depth (\d+)/);
-          if (depthMatch) {
-            depth_reached = parseInt(depthMatch[1]);
-          }
-
-          const scoreMatch = line.match(/score (cp|mate) (-?\d+)/);
-          if (scoreMatch) {
-            const [, type, value] = scoreMatch;
-            evaluation = type === 'mate' ? 
-              (parseInt(value) > 0 ? 9999 : -9999) : 
-              parseInt(value) / 100;
-          }
-
-          const pvMatch = line.match(/pv (.+)/);
-          if (pvMatch) {
-            principalVariation = pvMatch[1].split(' ').slice(0, 5); // First 5 moves
-          }
-        }
-
-        if (line.startsWith('bestmove')) {
-          const moveMatch = line.match(/bestmove (\w+)/);
-          if (moveMatch) {
-            bestMove = moveMatch[1];
-          }
-          
-          clearTimeout(timeout);
-          this.stockfish.removeListener(listener);
-          
-          resolve({
-            bestMove,
-            evaluation,
-            principalVariation,
-            depth: depth_reached
-          });
-        }
-      };
-
-      this.stockfish.addListener(listener);
-      
-      this.stockfish.postMessage('ucinewgame');
-      this.stockfish.postMessage(`position fen ${fen}`);
-      this.stockfish.postMessage(`go depth ${depth}`);
-    });
-  }
-
-  terminate() {
-    if (this.stockfish) {
-      this.stockfish.terminate();
-      this.stockfish = null;
-      this.isReady = false;
-    }
-  }
-}
-
-// Global Stockfish instance
-let globalStockfish = null;
-
-module.exports = async function handler(req, res) {
-  console.log('🎭 === ENHANCED MOVE CONSEQUENCES WITH STOCKFISH ===');
-  
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  
-  if (req.method !== 'POST') {
-    return res.status(405).json({ 
-      error: 'Method Not Allowed'
-    });
-  }
-
-  try {
-    console.log('📥 Request received for enhanced move consequences');
-    
-    const ChessClass = await loadChess();
-    console.log('✅ Chess.js loaded successfully');
-
-    const { 
-      positionAfter3Moves,
-      userMove,
-      correctMove,
-      playingAs,
-      depth = 3,
-      useStockfish = true
-    } = req.body;
-    
-    if (!positionAfter3Moves || !userMove || !correctMove) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: positionAfter3Moves, userMove, correctMove'
-      });
-    }
-
-    console.log('📊 Analyzing enhanced move consequences...');
-    console.log('- Position FEN:', positionAfter3Moves);
-    console.log('- User move:', userMove);
-    console.log('- Correct move:', correctMove);
-    console.log('- Playing as:', playingAs);
-    console.log('- Use Stockfish:', useStockfish);
-
-    // Initialize Stockfish if needed
-    if (useStockfish && !globalStockfish) {
-      try {
-        globalStockfish = new StockfishEngine();
-        await globalStockfish.initialize();
-        console.log('🐟 Stockfish initialized successfully');
-      } catch (error) {
-        console.warn('⚠️ Stockfish initialization failed, falling back to heuristic analysis');
-        useStockfish = false;
-      }
-    }
-
-    // Validate position
-    let gameAtPosition;
-    try {
-      gameAtPosition = new ChessClass(positionAfter3Moves);
-      console.log('✅ Position is valid');
-    } catch (fenError) {
-      console.error('❌ Invalid FEN position:', fenError);
-      return res.status(400).json({ 
-        error: 'Invalid FEN position',
-        details: fenError.message
-      });
-    }
-
-    // Analyze both moves in parallel
-    const [userAnalysis, correctAnalysis] = await Promise.all([
-      analyzeMoveDevelopmentEnhanced(
-        gameAtPosition, 
-        userMove, 
-        depth, 
-        ChessClass,
-        'user',
-        useStockfish ? globalStockfish : null
-      ),
-      analyzeMoveDevelopmentEnhanced(
-        gameAtPosition, 
-        correctMove, 
-        depth, 
-        ChessClass,
-        'correct',
-        useStockfish ? globalStockfish : null
-      )
-    ]);
-
-    // Generate enhanced comparison explanation
-    const explanation = generateEnhancedExplanation(
-      userMove,
-      correctMove,
-      userAnalysis,
-      correctAnalysis,
-      playingAs
-    );
-
-    console.log('🎯 Generated enhanced move consequences analysis');
-
-    return res.status(200).json({ 
-      userConsequences: userAnalysis,
-      correctBenefits: correctAnalysis,
-      explanation,
-      method: 'enhanced_stockfish_analysis',
-      engineUsed: useStockfish ? 'stockfish' : 'heuristic'
-    });
-
-  } catch (error) {
-    console.error('❌ Unexpected error in enhanced analysis:', error);
-    
-    return res.status(500).json({ 
-      error: 'Enhanced analysis encountered an error',
-      details: error.message
-    });
-  }
-};
-
-// Enhanced move analysis with Stockfish integration
-async function analyzeMoveDevelopmentEnhanced(game, move, depth, ChessClass, moveType, stockfish) {
+// Enhanced move analysis using heuristic approach (Stockfish fallback)
+async function analyzeMoveDevelopmentEnhanced(game, move, depth, ChessClass, moveType) {
   console.log(`🔍 Enhanced ${moveType} move analysis:`, move);
   
   try {
@@ -263,33 +35,27 @@ async function analyzeMoveDevelopmentEnhanced(game, move, depth, ChessClass, mov
         finalPosition: game.fen(),
         isLegal: false,
         error: 'Illegal move',
-        evaluation: null
+        evaluation: null,
+        analysis: {
+          materialBalance: 0,
+          checksGiven: 0,
+          tacticalThemes: ['illegal_move']
+        }
       };
     }
 
     const sequence = [move];
     const positions = [gameCopy.fen()];
     
-    // Get initial evaluation with Stockfish if available
-    let initialEvaluation = null;
-    if (stockfish) {
-      try {
-        const evalResult = await stockfish.evaluatePosition(gameCopy.fen(), 10);
-        initialEvaluation = evalResult.evaluation;
-        console.log(`📊 ${moveType} move evaluation: ${initialEvaluation}`);
-      } catch (evalError) {
-        console.warn(`⚠️ Stockfish evaluation failed for ${moveType} move:`, evalError);
-      }
-    }
-
     let analysis = {
       checksGiven: 0,
       materialWon: 0,
       materialLost: 0,
       kingDanger: false,
       controlsCenter: false,
-      initialEvaluation,
-      tacticalThemes: []
+      initialEvaluation: null, // Placeholder for future Stockfish integration
+      tacticalThemes: [],
+      materialBalance: 0
     };
 
     // Analyze the immediate position
@@ -302,11 +68,9 @@ async function analyzeMoveDevelopmentEnhanced(game, move, depth, ChessClass, mov
       analysis.tacticalThemes.push('checkmate');
     }
 
-    // Generate continuation sequence
+    // Generate continuation sequence using enhanced heuristics
     for (let i = 1; i < depth && !gameCopy.isGameOver(); i++) {
-      const bestResponse = stockfish ? 
-        await findBestResponseWithStockfish(gameCopy, stockfish) :
-        findBestResponseHeuristic(gameCopy, ChessClass);
+      const bestResponse = findBestResponseHeuristic(gameCopy, ChessClass);
       
       if (!bestResponse) break;
 
@@ -321,20 +85,9 @@ async function analyzeMoveDevelopmentEnhanced(game, move, depth, ChessClass, mov
       }
     }
 
-    // Final position evaluation
+    // Enhanced position evaluation
     const finalEvaluation = evaluatePositionEnhanced(gameCopy, game, ChessClass);
     analysis = { ...analysis, ...finalEvaluation };
-
-    // Get final Stockfish evaluation
-    if (stockfish && !gameCopy.isGameOver()) {
-      try {
-        const finalEval = await stockfish.evaluatePosition(gameCopy.fen(), 8);
-        analysis.finalEvaluation = finalEval.evaluation;
-        analysis.finalBestMove = finalEval.bestMove;
-      } catch (evalError) {
-        console.warn('⚠️ Final Stockfish evaluation failed:', evalError);
-      }
-    }
 
     console.log(`✅ ${moveType} enhanced sequence:`, sequence);
     
@@ -346,7 +99,8 @@ async function analyzeMoveDevelopmentEnhanced(game, move, depth, ChessClass, mov
       analysis,
       gameOver: gameCopy.isGameOver(),
       result: gameCopy.isGameOver() ? getGameResult(gameCopy) : null,
-      evaluation: analysis.finalEvaluation || analysis.initialEvaluation
+      evaluation: analysis.materialBalance,
+      engineUsed: 'enhanced_heuristic' // Indicate this is enhanced heuristic analysis
     };
 
   } catch (error) {
@@ -357,33 +111,17 @@ async function analyzeMoveDevelopmentEnhanced(game, move, depth, ChessClass, mov
       finalPosition: game.fen(),
       isLegal: false,
       error: error.message,
-      evaluation: null
+      evaluation: null,
+      analysis: {
+        materialBalance: 0,
+        checksGiven: 0,
+        tacticalThemes: ['analysis_error']
+      }
     };
   }
 }
 
-// Find best response using Stockfish
-async function findBestResponseWithStockfish(game, stockfish) {
-  try {
-    const evalResult = await stockfish.evaluatePosition(game.fen(), 8);
-    const bestMoveUci = evalResult.bestMove;
-    
-    if (bestMoveUci && bestMoveUci.length >= 4) {
-      return {
-        from: bestMoveUci.slice(0, 2),
-        to: bestMoveUci.slice(2, 4),
-        promotion: bestMoveUci.length > 4 ? bestMoveUci[4] : undefined
-      };
-    }
-  } catch (error) {
-    console.warn('⚠️ Stockfish best move failed, falling back to heuristic:', error);
-  }
-  
-  // Fallback to heuristic
-  return findBestResponseHeuristic(game, Chess);
-}
-
-// Heuristic best response (your existing logic)
+// Enhanced heuristic best response finder
 function findBestResponseHeuristic(game, ChessClass) {
   const legalMoves = game.moves({ verbose: true });
   if (legalMoves.length === 0) return null;
@@ -394,30 +132,60 @@ function findBestResponseHeuristic(game, ChessClass) {
     
     let score = 0;
     
+    // Prioritize checkmate
     if (gameCopy.isCheckmate()) {
-      score += 1000;
+      score += 10000;
     } else if (gameCopy.isCheck()) {
-      score += 50;
+      score += 500;
     }
     
+    // Prioritize captures by piece value
     if (move.captured) {
-      const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9 };
-      score += (pieceValues[move.captured] || 0) * 10;
+      const pieceValues = { p: 100, n: 300, b: 300, r: 500, q: 900 };
+      score += (pieceValues[move.captured] || 0);
     }
     
-    // Penalize hanging pieces
-    const opponentMoves = gameCopy.moves({ verbose: true });
-    const canBeCaptured = opponentMoves.some(oppMove => oppMove.to === move.to);
-    if (canBeCaptured) {
-      const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9 };
-      score -= (pieceValues[move.piece] || 0) * 5;
+    // Bonus for attacking valuable pieces
+    const attackedSquares = getAttackedSquares(gameCopy);
+    const opponentPieces = gameCopy.board().flat().filter(piece => 
+      piece && piece.color !== game.turn()
+    );
+    
+    opponentPieces.forEach(piece => {
+      if (attackedSquares.includes(piece.square)) {
+        const pieceValues = { p: 50, n: 150, b: 150, r: 250, q: 450 };
+        score += (pieceValues[piece.type] || 0);
+      }
+    });
+    
+    // Avoid hanging pieces
+    const nextMoves = gameCopy.moves({ verbose: true });
+    const isHanging = nextMoves.some(nextMove => nextMove.to === move.to);
+    if (isHanging) {
+      const pieceValues = { p: 100, n: 300, b: 300, r: 500, q: 900 };
+      score -= (pieceValues[move.piece] || 0) * 0.8;
     }
+    
+    // Center control bonus
+    const centerSquares = ['d4', 'd5', 'e4', 'e5'];
+    if (centerSquares.includes(move.to)) {
+      score += 20;
+    }
+    
+    // Add some randomness to avoid repetitive play
+    score += Math.random() * 10;
     
     return { move, score };
   });
 
   scoredMoves.sort((a, b) => b.score - a.score);
   return scoredMoves[0].move;
+}
+
+// Helper function to get attacked squares (simplified)
+function getAttackedSquares(game) {
+  const moves = game.moves({ verbose: true });
+  return [...new Set(moves.map(move => move.to))];
 }
 
 // Enhanced position evaluation
@@ -489,7 +257,7 @@ function evaluatePositionEnhanced(currentGame, originalGame, ChessClass) {
   return evaluation;
 }
 
-// Material counting (existing function)
+// Material counting
 function countMaterial(fen) {
   const pieceValues = { 'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 0 };
   const position = fen.split(' ')[0];
@@ -541,20 +309,6 @@ function generateEnhancedExplanation(userMove, correctMove, userAnalysis, correc
       return `After ${userMove}, the position continues with complications. However, ${correctMove} leads to ${correctAnalysis.result.toLowerCase()}.`;
     }
 
-    // Use Stockfish evaluations if available
-    const userEval = userAnalysis.evaluation;
-    const correctEval = correctAnalysis.evaluation;
-    
-    if (userEval !== null && correctEval !== null) {
-      const evalDifference = correctEval - userEval;
-      
-      if (evalDifference > 3) {
-        return `After ${userMove}, your position becomes significantly worse (${userEval > 0 ? '+' : ''}${userEval.toFixed(1)}). ${correctMove} maintains a strong advantage (${correctEval > 0 ? '+' : ''}${correctEval.toFixed(1)}).`;
-      } else if (evalDifference > 1) {
-        return `After ${userMove}, you lose some advantage (${userEval > 0 ? '+' : ''}${userEval.toFixed(1)}). ${correctMove} keeps you ahead (${correctEval > 0 ? '+' : ''}${correctEval.toFixed(1)}).`;
-      }
-    }
-
     // Tactical theme analysis
     const userThemes = userAnalysis.analysis.tacticalThemes || [];
     const correctThemes = correctAnalysis.analysis.tacticalThemes || [];
@@ -593,3 +347,145 @@ function generateEnhancedExplanation(userMove, correctMove, userAnalysis, correc
     return `After ${userMove}, there are complications. The correct move is ${correctMove}.`;
   }
 }
+
+// Main handler function with comprehensive error handling
+module.exports = async function handler(req, res) {
+  console.log('🎭 === ENHANCED MOVE CONSEQUENCES (HEURISTIC APPROACH) ===');
+  
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  if (req.method !== 'POST') {
+    console.error('❌ Method not allowed:', req.method);
+    return res.status(405).json({ 
+      error: 'Method Not Allowed',
+      userConsequences: null,
+      correctBenefits: null,
+      explanation: 'Enhanced analysis temporarily unavailable.',
+      engineUsed: 'error'
+    });
+  }
+
+  try {
+    console.log('📥 Request received for enhanced move consequences');
+    
+    // Load Chess.js with error handling
+    const ChessClass = await loadChess();
+
+    const { 
+      positionAfter3Moves,
+      userMove,
+      correctMove,
+      playingAs = 'white',
+      depth = 3
+    } = req.body;
+    
+    // Validate required fields
+    if (!positionAfter3Moves || !userMove || !correctMove) {
+      console.error('❌ Missing required fields');
+      return res.status(400).json({ 
+        error: 'Missing required fields: positionAfter3Moves, userMove, correctMove',
+        userConsequences: null,
+        correctBenefits: null,
+        explanation: 'Missing required data for analysis.',
+        engineUsed: 'error'
+      });
+    }
+
+    console.log('📊 Analyzing enhanced move consequences...');
+    console.log('- Position FEN:', positionAfter3Moves);
+    console.log('- User move:', userMove);
+    console.log('- Correct move:', correctMove);
+    console.log('- Playing as:', playingAs);
+
+    // Validate position
+    let gameAtPosition;
+    try {
+      gameAtPosition = new ChessClass(positionAfter3Moves);
+      console.log('✅ Position is valid');
+    } catch (fenError) {
+      console.error('❌ Invalid FEN position:', fenError);
+      return res.status(400).json({ 
+        error: 'Invalid FEN position',
+        details: fenError.message,
+        userConsequences: null,
+        correctBenefits: null,
+        explanation: 'Position validation failed.',
+        engineUsed: 'error'
+      });
+    }
+
+    // Analyze both moves in parallel with enhanced heuristics
+    const [userAnalysis, correctAnalysis] = await Promise.all([
+      analyzeMoveDevelopmentEnhanced(
+        gameAtPosition, 
+        userMove, 
+        depth, 
+        ChessClass,
+        'user'
+      ),
+      analyzeMoveDevelopmentEnhanced(
+        gameAtPosition, 
+        correctMove, 
+        depth, 
+        ChessClass,
+        'correct'
+      )
+    ]);
+
+    // Generate enhanced comparison explanation
+    const explanation = generateEnhancedExplanation(
+      userMove,
+      correctMove,
+      userAnalysis,
+      correctAnalysis,
+      playingAs
+    );
+
+    console.log('🎯 Generated enhanced move consequences analysis');
+    console.log('- User sequence length:', userAnalysis.sequence.length);
+    console.log('- Correct sequence length:', correctAnalysis.sequence.length);
+    console.log('- Engine used: enhanced_heuristic');
+
+    return res.status(200).json({ 
+      userConsequences: {
+        ...userAnalysis,
+        isEnhanced: true,
+        engineUsed: 'enhanced_heuristic'
+      },
+      correctBenefits: {
+        ...correctAnalysis,
+        isEnhanced: true,
+        engineUsed: 'enhanced_heuristic'
+      },
+      explanation,
+      comparison: {
+        materialDifference: correctAnalysis.evaluation - userAnalysis.evaluation,
+        tacticsMissed: correctAnalysis.analysis.tacticalThemes.length - userAnalysis.analysis.tacticalThemes.length
+      },
+      method: 'enhanced_heuristic_analysis',
+      engineUsed: 'enhanced_heuristic'
+    });
+
+  } catch (error) {
+    console.error('❌ Unexpected error in enhanced analysis:', error);
+    console.error('Error stack:', error.stack);
+    
+    // Return a structured error response that the frontend can handle
+    return res.status(500).json({ 
+      error: 'Enhanced analysis encountered an error',
+      details: error.message,
+      userConsequences: null,
+      correctBenefits: null,
+      explanation: 'Enhanced analysis temporarily unavailable. Please try the next puzzle.',
+      engineUsed: 'error',
+      fallback: true
+    });
+  }
+};

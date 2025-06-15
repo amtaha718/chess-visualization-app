@@ -5,6 +5,7 @@ import { getIncorrectMoveExplanation, getCorrectMoveExplanation, getMoveConseque
 import './index.css';
 import UserSystem from './user-system';
 import { AuthModal, UserProfile } from './auth-components';
+import StockfishAnalysisPanel from './components/StockfishAnalysisPanel';
 
 const getBoardSize = (isExpanded = false) => {
   if (isExpanded) {
@@ -34,6 +35,7 @@ const getActiveColor = (fen) => {
 };
 
 const STORAGE_KEY = 'chess-trainer-session';
+const [currentPosition, setCurrentPosition] = useState('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
 
 const saveSessionData = (data) => {
   try {
@@ -842,7 +844,15 @@ const App = () => {
       setHighlightedSquares({});
     }, 3000);
   };
-
+const handleAnalysisUpdate = (analysis) => {
+  console.log('New analysis:', analysis);
+  // Use the analysis data in your app
+  // e.g., show evaluation bar, highlight best move, etc.
+};
+  <StockfishAnalysisPanel
+  position={currentPosition}
+  onAnalysisUpdate={handleAnalysisUpdate}
+/>
   // ENHANCED: Function to show move consequences using enhanced Stockfish analysis
   const showMoveConsequences = async () => {
     if (!puzzleAttempted || solved || !lastAttemptedMove) {

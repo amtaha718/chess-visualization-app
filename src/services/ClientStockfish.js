@@ -197,3 +197,4 @@ class ClientStockfish {
     }
   }
 }
+export default ClientStockfish;

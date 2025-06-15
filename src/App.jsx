@@ -1785,6 +1785,13 @@ const handleAnalysisUpdate = (analysis) => {
                 type={feedbackType}
                 userPlayingAs={userPlayingAs}
               />
+
+              <StockfishAnalysisPanel
+    position={boardPosition}
+    onAnalysisUpdate={(analysis) => {
+      console.log('Stockfish analysis:', analysis);
+    }}
+  />
               
               <ConsequencesButton />
             </div>

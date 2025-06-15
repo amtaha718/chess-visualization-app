@@ -40,23 +40,23 @@ const StockfishAnalysisPanel = ({ position, onAnalysisUpdate }) => {
     }
   };
 
-  const formatEvaluation = (eval) => {
-    if (!eval) return '0.00';
+  const formatevaluationuation = (evaluationuation) => {
+    if (!evaluationuation) return '0.00';
     
-    if (eval.type === 'mate') {
-      const sign = eval.value > 0 ? '+' : '';
-      return `${sign}M${Math.abs(eval.value)}`;
+    if (evaluationuation.type === 'mate') {
+      const sign = evaluationuation.value > 0 ? '+' : '';
+      return `${sign}M${Math.abs(evaluationuation.value)}`;
     } else {
-      const sign = eval.value > 0 ? '+' : '';
-      return `${sign}${eval.value.toFixed(2)}`;
+      const sign = evaluationuation.value > 0 ? '+' : '';
+      return `${sign}${evaluationuation.value.toFixed(2)}`;
     }
   };
 
-  const getEvaluationColor = (eval) => {
-    if (!eval) return '#666';
-    if (eval.type === 'mate') return eval.value > 0 ? '#27ae60' : '#e74c3c';
-    if (eval.value > 1) return '#27ae60';
-    if (eval.value < -1) return '#e74c3c';
+  const getevaluationuationColor = (evaluation) => {
+    if (!evaluation) return '#666';
+    if (evaluation.type === 'mate') return evaluation.value > 0 ? '#27ae60' : '#e74c3c';
+    if (evaluation.value > 1) return '#27ae60';
+    if (evaluation.value < -1) return '#e74c3c';
     return '#666';
   };
 
@@ -117,22 +117,22 @@ const StockfishAnalysisPanel = ({ position, onAnalysisUpdate }) => {
 
       {currentAnalysis && (
         <div style={styles.results}>
-          <div style={styles.evaluation}>
-            <span style={styles.evalLabel}>Evaluation:</span>
+          <div style={styles.evaluationuation}>
+            <span style={styles.evaluationLabel}>evaluationuation:</span>
             <span 
               style={{
-                ...styles.evalValue,
-                color: getEvaluationColor(currentAnalysis.evaluation)
+                ...styles.evaluationValue,
+                color: getevaluationuationColor(currentAnalysis.evaluationuation)
               }}
             >
-              {formatEvaluation(currentAnalysis.evaluation)}
+              {formatevaluationuation(currentAnalysis.evaluationuation)}
             </span>
           </div>
 
           {currentAnalysis.bestMove && (
             <div style={styles.bestMove}>
               <span style={styles.moveLabel}>Best Move:</span>
-              <span style={styles.moveValue}>
+              <span style={styles.movevaluationue}>
                 {currentAnalysis.bestMove}
               </span>
             </div>
@@ -225,15 +225,15 @@ const styles = {
   results: {
     marginBottom: '12px'
   },
-  evaluation: {
+  evaluationuation: {
     display: 'flex',
     justifyContent: 'space-between',
     marginBottom: '8px'
   },
-  evalLabel: {
+  evaluationLabel: {
     fontWeight: 'bold'
   },
-  evalValue: {
+  evaluationValue: {
     fontFamily: 'monospace',
     fontSize: '18px',
     fontWeight: 'bold'
@@ -246,7 +246,7 @@ const styles = {
   moveLabel: {
     fontWeight: 'bold'
   },
-  moveValue: {
+  movevaluationue: {
     fontFamily: 'monospace',
     fontSize: '16px',
     color: '#27ae60'

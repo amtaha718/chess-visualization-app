@@ -235,14 +235,14 @@ class ClientStockfish {
   }
 
   calculateConsequenceDifference(userConsequences, correctConsequences) {
-    const userEval = userConsequences.evaluation;
-    const correctEval = correctConsequences.evaluation;
+    const userEvaluation = userConsequences.evaluation;
+    const correctEvaluation = correctConsequences.evaluation;
     
     // Convert evaluations to centipawns for comparison
-    const userCentipawns = userEval.type === 'mate' ? 
-      (userEval.value > 0 ? 1000 : -1000) : userEval.value * 100;
-    const correctCentipawns = correctEval.type === 'mate' ? 
-      (correctEval.value > 0 ? 1000 : -1000) : correctEval.value * 100;
+    const userCentipawns = userEvaluation.type === 'mate' ? 
+      (userEvaluation.value > 0 ? 1000 : -1000) : userEvaluation.value * 100;
+    const correctCentipawns = correctEvaluation.type === 'mate' ? 
+      (correctEvaluation.value > 0 ? 1000 : -1000) : correctEvaluation.value * 100;
     
     return {
       evaluationDiff: correctCentipawns - userCentipawns,
@@ -252,15 +252,15 @@ class ClientStockfish {
   }
 
   generateConsequenceExplanation(consequences) {
-    const eval = consequences.evaluation;
+    const evaluation = consequences.evaluation;
     
-    if (eval.type === 'mate') {
-      return eval.value > 0 ? 
+    if (evaluation.type === 'mate') {
+      return evaluation.value > 0 ? 
         'This leads to checkmate!' : 
         'This allows the opponent to deliver checkmate.';
     }
     
-    const centipawns = eval.value * 100;
+    const centipawns = evaluation.value * 100;
     if (Math.abs(centipawns) < 50) {
       return 'The position remains roughly equal.';
     } else if (centipawns > 200) {

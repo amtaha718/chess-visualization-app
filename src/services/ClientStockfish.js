@@ -1,20 +1,42 @@
+// src/services/ClientStockfish.js - Enhanced for move consequence analysis
+
 class ClientStockfish {
   constructor() {
     this.engine = null;
     this.isReady = false;
-    this.messageQueue = [];
-    this.responseCallbacks = new Map();
-    this.currentId = 0;
+    this.analysisCallbacks = new Map();
+    this.currentAnalysisId = 0;
   }
 
   async initialize() {
     if (this.isReady) return true;
 
     try {
-      console.log('🐟 Initializing client-side Stockfish...');
+      console.log('🐟 Initializing Stockfish for move consequence analysis...');
       
-      // Load Stockfish from CDN (works perfectly with Vercel)
-      this.engine = new Worker('https://cdn.jsdelivr.net/npm/stockfish@15.0.0/src/stockfish.js');
+      // Use the exact CDN URL that works with Vercel
+      const workerCode = `
+        importScripts('https://cdn.jsdelivr.net/npm/stockfish@15.0.0/src/stockfish.js');
+        
+        let stockfish = null;
+        
+        self.onmessage = function(e) {
+          const { command, id } = e.data;
+          
+          if (command === 'init') {
+            stockfish = new Worker('https://cdn.jsdelivr.net/npm/stockfish@15.0.0/src/stockfish.js');
+            stockfish.onmessage = function(event) {
+              self.postMessage({ id, response: event.data });
+            };
+            stockfish.postMessage('uci');
+          } else if (stockfish) {
+            stockfish.postMessage(command);
+          }
+        };
+      `;
+      
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      this.engine = new Worker(URL.createObjectURL(blob));
       
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -22,117 +44,145 @@ class ClientStockfish {
         }, 10000);
 
         this.engine.onmessage = (event) => {
-          const message = event.data;
-          console.log('SF:', message);
-
-          if (message === 'uciok') {
+          const { id, response } = event.data;
+          
+          if (response === 'uciok' && !this.isReady) {
             clearTimeout(timeout);
             this.isReady = true;
             this.setupMessageHandler();
-            console.log('✅ Client Stockfish ready!');
+            console.log('✅ Stockfish ready for move analysis!');
             resolve(true);
+          } else {
+            // Handle analysis responses
+            this.handleAnalysisResponse(id, response);
           }
         };
 
         this.engine.onerror = (error) => {
           clearTimeout(timeout);
-          console.error('❌ Stockfish initialization failed:', error);
+          console.error('❌ Stockfish worker error:', error);
           reject(error);
         };
 
-        // Initialize UCI protocol
-        this.engine.postMessage('uci');
+        // Initialize the worker
+        this.engine.postMessage({ command: 'init', id: 'init' });
       });
     } catch (error) {
-      console.error('❌ Failed to load Stockfish:', error);
+      console.error('❌ Failed to initialize Stockfish:', error);
       throw error;
     }
   }
 
   setupMessageHandler() {
     this.engine.onmessage = (event) => {
-      const message = event.data;
-      
-      // Handle analysis responses
-      if (message.startsWith('info') || message.startsWith('bestmove')) {
-        this.handleAnalysisMessage(message);
-      }
+      const { id, response } = event.data;
+      this.handleAnalysisResponse(id, response);
     };
   }
 
-  handleAnalysisMessage(message) {
-    // Find the callback for this analysis
-    for (const [id, callback] of this.responseCallbacks) {
+  handleAnalysisResponse(id, message) {
+    const callback = this.analysisCallbacks.get(id);
+    if (callback) {
       callback(message);
     }
   }
 
-  async analyzePosition(fen, options = {}) {
+  // Analyze consequences of a move by playing it and getting best response
+  async analyzeMoveConsequences(fen, move, depth = 3) {
     if (!this.isReady) {
-      throw new Error('Stockfish not initialized');
+      throw new Error('Stockfish not ready');
     }
 
-    const {
-      depth = 12,        // Mobile-friendly depth
-      timeLimit = 2000,  // 2 seconds max
-      multiPV = 1        // Number of best moves to show
-    } = options;
+    console.log(`🔍 Analyzing consequences of move ${move} from position ${fen.slice(0, 20)}...`);
 
-    console.log(`🔍 Analyzing position: ${fen}`);
+    try {
+      // First, apply the move to get the new position
+      const positionAfterMove = await this.applyMoveToPosition(fen, move);
+      if (!positionAfterMove) {
+        throw new Error('Invalid move or position');
+      }
 
+      // Now analyze the resulting position to get the best response sequence
+      const consequences = await this.getConsequenceSequence(positionAfterMove, depth);
+      
+      return {
+        originalMove: move,
+        positionAfterMove,
+        sequence: [move, ...consequences.moves],
+        evaluation: consequences.evaluation,
+        bestLine: consequences.bestLine,
+        explanation: this.generateConsequenceExplanation(consequences)
+      };
+
+    } catch (error) {
+      console.error('❌ Move consequence analysis failed:', error);
+      throw error;
+    }
+  }
+
+  // Apply a move to a position (we'll use chess.js for this)
+  async applyMoveToPosition(fen, move) {
+    try {
+      // Import chess.js dynamically to avoid module issues
+      const { Chess } = await import('chess.js');
+      const game = new Chess(fen);
+      
+      const moveResult = game.move({
+        from: move.slice(0, 2),
+        to: move.slice(2, 4),
+        promotion: move.length > 4 ? move[4] : undefined
+      });
+      
+      if (!moveResult) {
+        throw new Error(`Invalid move: ${move}`);
+      }
+      
+      return game.fen();
+    } catch (error) {
+      console.error('❌ Failed to apply move:', error);
+      return null;
+    }
+  }
+
+  // Get the best response sequence from a position
+  async getConsequenceSequence(fen, depth) {
+    const analysisId = ++this.currentAnalysisId;
+    
     return new Promise((resolve, reject) => {
-      const analysisId = ++this.currentId;
+      const timeout = setTimeout(() => {
+        this.analysisCallbacks.delete(analysisId);
+        reject(new Error('Analysis timeout'));
+      }, 8000);
+
       let bestMove = null;
       let evaluation = null;
       let principalVariation = [];
-      let currentDepth = 0;
-      let nodes = 0;
-
-      const timeout = setTimeout(() => {
-        this.responseCallbacks.delete(analysisId);
-        
-        // Return best result so far
-        resolve({
-          bestMove: bestMove || 'e2e4', // Fallback
-          evaluation: evaluation || { type: 'centipawn', value: 0 },
-          principalVariation,
-          depth: currentDepth,
-          nodes,
-          incomplete: true,
-          timeMs: timeLimit
-        });
-      }, timeLimit);
 
       const messageHandler = (message) => {
         try {
-          // Parse evaluation info
-          if (message.startsWith('info') && message.includes('score')) {
+          // Parse Stockfish output
+          if (message.startsWith('info') && message.includes('pv')) {
             const depthMatch = message.match(/depth (\d+)/);
-            if (depthMatch) {
-              currentDepth = parseInt(depthMatch[1]);
-            }
+            const currentDepth = depthMatch ? parseInt(depthMatch[1]) : 0;
+            
+            // Only use deep enough analysis
+            if (currentDepth >= Math.min(depth, 8)) {
+              const scoreMatch = message.match(/score (cp|mate) (-?\d+)/);
+              if (scoreMatch) {
+                const [, type, value] = scoreMatch;
+                evaluation = {
+                  type: type === 'mate' ? 'mate' : 'centipawn',
+                  value: type === 'mate' ? parseInt(value) : parseInt(value) / 100
+                };
+              }
 
-            const nodesMatch = message.match(/nodes (\d+)/);
-            if (nodesMatch) {
-              nodes = parseInt(nodesMatch[1]);
-            }
-
-            const scoreMatch = message.match(/score (cp|mate) (-?\d+)/);
-            if (scoreMatch) {
-              const [, type, value] = scoreMatch;
-              evaluation = {
-                type: type === 'mate' ? 'mate' : 'centipawn',
-                value: type === 'mate' ? parseInt(value) : parseInt(value) / 100
-              };
-            }
-
-            const pvMatch = message.match(/pv (.+)/);
-            if (pvMatch) {
-              principalVariation = pvMatch[1].split(' ').slice(0, 10); // First 10 moves
+              const pvMatch = message.match(/pv (.+)/);
+              if (pvMatch) {
+                principalVariation = pvMatch[1].split(' ').slice(0, depth);
+              }
             }
           }
 
-          // Parse best move
           if (message.startsWith('bestmove')) {
             const moveMatch = message.match(/bestmove (\w+)/);
             if (moveMatch) {
@@ -140,52 +190,93 @@ class ClientStockfish {
             }
 
             clearTimeout(timeout);
-            this.responseCallbacks.delete(analysisId);
+            this.analysisCallbacks.delete(analysisId);
 
             resolve({
-              bestMove: bestMove || 'e2e4',
+              moves: principalVariation.slice(0, depth),
               evaluation: evaluation || { type: 'centipawn', value: 0 },
-              principalVariation,
-              depth: currentDepth,
-              nodes,
-              incomplete: false,
-              timeMs: Date.now() - startTime
+              bestMove: bestMove || principalVariation[0] || 'e2e4',
+              bestLine: principalVariation.join(' ')
             });
           }
         } catch (error) {
-          console.error('Error parsing Stockfish message:', error);
+          console.error('Error parsing Stockfish response:', error);
         }
       };
 
-      this.responseCallbacks.set(analysisId, messageHandler);
-      const startTime = Date.now();
+      this.analysisCallbacks.set(analysisId, messageHandler);
 
       // Send analysis commands
-      this.engine.postMessage('ucinewgame');
-      this.engine.postMessage(`position fen ${fen}`);
+      this.engine.postMessage({ command: 'ucinewgame', id: analysisId });
+      this.engine.postMessage({ command: `position fen ${fen}`, id: analysisId });
+      this.engine.postMessage({ command: `go depth ${Math.min(depth + 6, 12)}`, id: analysisId });
+    });
+  }
+
+  // Compare two moves by analyzing their consequences
+  async compareMoveConsequences(fen, userMove, correctMove, depth = 3) {
+    try {
+      console.log('🆚 Comparing move consequences...');
       
-      if (depth) {
-        this.engine.postMessage(`go depth ${depth}`);
-      } else {
-        this.engine.postMessage(`go movetime ${timeLimit}`);
-      }
-    });
+      const [userConsequences, correctConsequences] = await Promise.all([
+        this.analyzeMoveConsequences(fen, userMove, depth),
+        this.analyzeMoveConsequences(fen, correctMove, depth)
+      ]);
+
+      return {
+        userConsequences,
+        correctConsequences,
+        difference: this.calculateConsequenceDifference(userConsequences, correctConsequences)
+      };
+    } catch (error) {
+      console.error('❌ Move comparison failed:', error);
+      throw error;
+    }
   }
 
-  // Quick evaluation (lighter analysis)
-  async quickEval(fen, timeMs = 500) {
-    return this.analyzePosition(fen, {
-      depth: 8,
-      timeLimit: timeMs
-    });
+  calculateConsequenceDifference(userConsequences, correctConsequences) {
+    const userEval = userConsequences.evaluation;
+    const correctEval = correctConsequences.evaluation;
+    
+    // Convert evaluations to centipawns for comparison
+    const userCentipawns = userEval.type === 'mate' ? 
+      (userEval.value > 0 ? 1000 : -1000) : userEval.value * 100;
+    const correctCentipawns = correctEval.type === 'mate' ? 
+      (correctEval.value > 0 ? 1000 : -1000) : correctEval.value * 100;
+    
+    return {
+      evaluationDiff: correctCentipawns - userCentipawns,
+      userIsBetter: userCentipawns > correctCentipawns,
+      significance: Math.abs(correctCentipawns - userCentipawns)
+    };
   }
 
-  // Deep analysis for important positions
-  async deepAnalysis(fen, depthTarget = 18) {
-    return this.analyzePosition(fen, {
-      depth: depthTarget,
-      timeLimit: 10000 // 10 seconds max
-    });
+  generateConsequenceExplanation(consequences) {
+    const eval = consequences.evaluation;
+    
+    if (eval.type === 'mate') {
+      return eval.value > 0 ? 
+        'This leads to checkmate!' : 
+        'This allows the opponent to deliver checkmate.';
+    }
+    
+    const centipawns = eval.value * 100;
+    if (Math.abs(centipawns) < 50) {
+      return 'The position remains roughly equal.';
+    } else if (centipawns > 200) {
+      return 'This gives a significant advantage.';
+    } else if (centipawns < -200) {
+      return 'This gives the opponent a significant advantage.';
+    } else if (centipawns > 0) {
+      return 'This gives a slight advantage.';
+    } else {
+      return 'This gives the opponent a slight advantage.';
+    }
+  }
+
+  // Quick evaluation for simple positions
+  async quickEval(fen, timeMs = 1000) {
+    return this.getConsequenceSequence(fen, 2);
   }
 
   terminate() {
@@ -193,8 +284,9 @@ class ClientStockfish {
       this.engine.terminate();
       this.engine = null;
       this.isReady = false;
-      this.responseCallbacks.clear();
+      this.analysisCallbacks.clear();
     }
   }
 }
+
 export default ClientStockfish;

@@ -16,10 +16,22 @@ const StockfishAnalysisPanel = ({ position, onAnalysisUpdate }) => {
 
   // Auto-analyze when position changes
   useEffect(() => {
+    const handleAnalyze = async () => {
+      try {
+        const analysis = analysisMode === 'quick' 
+          ? await quickAnalyze(position)
+          : await deepAnalyze(position);
+        
+        console.log('✅ Analysis complete:', analysis);
+      } catch (err) {
+        console.error('❌ Analysis failed:', err);
+      }
+    };
+
     if (position && isReady) {
       handleAnalyze();
     }
-  }, [position, isReady]);
+  }, [position, isReady, analysisMode, quickAnalyze, deepAnalyze]);
 
   // Update parent component when analysis completes
   useEffect(() => {
@@ -27,18 +39,6 @@ const StockfishAnalysisPanel = ({ position, onAnalysisUpdate }) => {
       onAnalysisUpdate?.(currentAnalysis);
     }
   }, [currentAnalysis, onAnalysisUpdate]);
-
-  const handleAnalyze = async () => {
-    try {
-      const analysis = analysisMode === 'quick' 
-        ? await quickAnalyze(position)
-        : await deepAnalyze(position);
-      
-      console.log('✅ Analysis complete:', analysis);
-    } catch (err) {
-      console.error('❌ Analysis failed:', err);
-    }
-  };
 
   const formatEvaluation = (evaluation) => {
     if (!evaluation) return '0.00';
@@ -58,6 +58,18 @@ const StockfishAnalysisPanel = ({ position, onAnalysisUpdate }) => {
     if (evaluation.value > 1) return '#27ae60';
     if (evaluation.value < -1) return '#e74c3c';
     return '#666';
+  };
+
+  const handleManualAnalyze = async () => {
+    try {
+      const analysis = analysisMode === 'quick' 
+        ? await quickAnalyze(position)
+        : await deepAnalyze(position);
+      
+      console.log('✅ Manual analysis complete:', analysis);
+    } catch (err) {
+      console.error('❌ Manual analysis failed:', err);
+    }
   };
 
   if (error) {
@@ -156,7 +168,7 @@ const StockfishAnalysisPanel = ({ position, onAnalysisUpdate }) => {
       )}
 
       <button
-        onClick={handleAnalyze}
+        onClick={handleManualAnalyze}
         disabled={isAnalyzing || !position}
         style={styles.analyzeButton}
       >

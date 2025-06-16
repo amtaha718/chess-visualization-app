@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
-import { getIncorrectMoveExplanation, getCorrectMoveExplanation, getMoveConsequencesEnhanced } from './ai';
+import { getIncorrectMoveExplanation, getCorrectMoveExplanation } from './ai';
 import './index.css';
 import UserSystem from './user-system';
 import { AuthModal, UserProfile } from './auth-components';
@@ -29,13 +29,7 @@ const getBoardSize = (isExpanded = false) => {
   }
 };
 
-const getActiveColor = (fen) => {
-  const parts = fen.split(' ');
-  return parts[1] === 'w' ? 'white' : 'black';
-};
-
 const STORAGE_KEY = 'chess-trainer-session';
-const [currentPosition, setCurrentPosition] = useState('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
 
 const saveSessionData = (data) => {
   try {
@@ -304,7 +298,6 @@ const App = () => {
   const [isLoadingConsequences, setIsLoadingConsequences] = useState(false);
   const [lastAttemptedMove, setLastAttemptedMove] = useState(null);
   const [solved, setSolved] = useState(false);
-  const [enhancedAnalysisAvailable, setEnhancedAnalysisAvailable] = useState(true);
 
   // Save session data when things change
   useEffect(() => {
@@ -844,215 +837,11 @@ const App = () => {
       setHighlightedSquares({});
     }, 3000);
   };
-const handleAnalysisUpdate = (analysis) => {
-  console.log('New analysis:', analysis);
-  // Use the analysis data in your app
-  // e.g., show evaluation bar, highlight best move, etc.
-};
-  <StockfishAnalysisPanel
-  position={currentPosition}
-  onAnalysisUpdate={handleAnalysisUpdate}
-/>
-  // ENHANCED: Function to show move consequences using CLIENT-SIDE Stockfish
-const showMoveConsequences = async () => {
-  if (!puzzleAttempted || solved || !lastAttemptedMove) {
-    console.log('Cannot show consequences:', { puzzleAttempted, solved, lastAttemptedMove });
-    return;
-  }
-  
-  setIsLoadingConsequences(true);
-  setFeedbackMessage('Analyzing move consequences with client-side Stockfish...');
-  setFeedbackType('info');
-  
-  try {
-    console.log('🎭 Generating Stockfish move consequences...');
-    const currentPuzzle = puzzles[currentPuzzleIndex];
-    
-    // Use CLIENT-SIDE Stockfish instead of server API
-    const consequenceData = await analyzeMovesWithStockfish(
-      currentPuzzle.fen,
-      currentPuzzle.moves.slice(0, sequenceLength - 1), // First 3 moves
-      lastAttemptedMove,
-      currentPuzzle.moves[sequenceLength - 1], // Correct move
-      userPlayingAs
-    );
-    
-    if (consequenceData) {
-      console.log('✅ Stockfish consequence analysis successful');
-      setFeedbackMessage(
-        `Stockfish analysis complete: ${consequenceData.explanation}`
-      );
-      setFeedbackType('info');
-      
-      // Play the Stockfish consequence sequence
-      playStockfishConsequenceSequence(consequenceData);
-    } else {
-      setFeedbackMessage('Stockfish analysis failed. Try the next puzzle!');
-      setFeedbackType('warning');
-    }
-  } catch (error) {
-    console.error('Failed to generate Stockfish consequences:', error);
-    setFeedbackMessage('Stockfish analysis unavailable. Try the next puzzle!');
-    setFeedbackType('error');
-  } finally {
-    setIsLoadingConsequences(false);
-  }
-};
 
-  // ENHANCED: Enhanced consequence sequence playback with Stockfish integration
-  const playEnhancedConsequenceSequence = (consequenceData) => {
-    const { userConsequences, correctBenefits, explanation } = consequenceData;
-    
-    console.log('🎬 Playing enhanced consequence sequence');
-    console.log('- User consequences:', userConsequences.sequence.length, 'moves');
-    console.log('- Correct benefits:', correctBenefits.sequence.length, 'moves');
-    console.log('- Engine used:', userConsequences.engineUsed || 'heuristic');
-    
-    const currentPuzzle = puzzles[currentPuzzleIndex];
-    const game = new Chess(currentPuzzle.fen);
-    
-    // Apply the first 3 moves to get to the decision point
-    const setupMoves = currentPuzzle.moves.slice(0, sequenceLength - 1);
-    for (let i = 0; i < setupMoves.length; i++) {
-      const move = setupMoves[i];
-      game.move({ from: move.slice(0, 2), to: move.slice(2, 4) });
-    }
-    
-    // Apply the user's move to get to the position after their incorrect move
-    const userMoveResult = game.move({ 
-      from: lastAttemptedMove.slice(0, 2), 
-      to: lastAttemptedMove.slice(2, 4) 
-    });
-    
-    if (!userMoveResult) {
-      console.error('Failed to apply user move');
-      return;
-    }
-    
-    // Set the board to show the position after user's move
-    setBoardPosition(game.fen());
-    setCurrentMove(null);
-    
-    console.log('🎯 Starting enhanced opponent response sequence...');
-    
-    // Show immediate feedback about analysis type
-    setTimeout(() => {
-      const engineInfo = userConsequences.engineUsed === 'stockfish' ? 
-        ' (Stockfish analysis)' : ' (heuristic analysis)';
-      setFeedbackMessage(`After your move ${lastAttemptedMove}${engineInfo}, here's what happens...`);
-      setFeedbackType('warning');
-    }, 500);
-    
-    // Play the user consequences sequence
-    const userSequence = userConsequences.sequence;
-    
-    userSequence.forEach((move, i) => {
-      setTimeout(() => {
-        console.log(`Playing consequence move ${i + 1}/${userSequence.length}: ${move}`);
-        
-        const from = move.slice(0, 2);
-        const to = move.slice(2, 4);
-        
-        try {
-          const moveResult = game.move({ from, to });
-          
-          if (moveResult) {
-            setBoardPosition(game.fen());
-            setCurrentMove({ from, to });
-            
-            // Enhanced feedback based on analysis
-            if (i === 0) {
-              const evalInfo = userConsequences.analysis?.initialEvaluation ? 
-                ` (eval: ${userConsequences.analysis.initialEvaluation > 0 ? '+' : ''}${userConsequences.analysis.initialEvaluation.toFixed(1)})` : '';
-              setFeedbackMessage(`Opponent responds with ${move}${evalInfo} - gaining the initiative!`);
-              setFeedbackType('info');
-            } else if (i === userSequence.length - 1) {
-              // Show final analysis
-              const finalAnalysis = analyzeEnhancedPosition(game, userConsequences.analysis);
-              setFeedbackMessage(`Final result: ${finalAnalysis} The correct move would have avoided this.`);
-              setFeedbackType('error');
-            } else {
-              setFeedbackMessage(`Opponent continues with ${move}...`);
-              setFeedbackType('info');
-            }
-            
-            console.log(`✅ Played enhanced consequence move ${i + 1}: ${move}`);
-          } else {
-            console.error(`❌ Failed to play consequence move ${i + 1}: ${move}`);
-          }
-        } catch (error) {
-          console.error(`Error playing consequence move ${i + 1} (${move}):`, error);
-        }
-      }, (i + 1) * 2000); // 2 seconds between moves
-    });
-    
-    // Clear the arrow and show final enhanced message
-    setTimeout(() => {
-      setCurrentMove(null);
-      
-      // Create enhanced final message
-      let finalMessage = 'Enhanced consequence analysis complete. ';
-      
-      if (userConsequences.engineUsed === 'stockfish') {
-        finalMessage += 'Stockfish shows how your move led to problems. ';
-      } else {
-        finalMessage += 'Analysis shows how your move created difficulties. ';
-      }
-      
-      // Add evaluation comparison if available
-      if (userConsequences.evaluation !== null && correctBenefits.evaluation !== null) {
-        const evalDiff = correctBenefits.evaluation - userConsequences.evaluation;
-        if (evalDiff > 1) {
-          finalMessage += `The correct move was ${evalDiff.toFixed(1)} points better. `;
-        }
-      }
-      
-      finalMessage += 'Try the next puzzle!';
-      
-      setFeedbackMessage(finalMessage);
-      setFeedbackType('info');
-      console.log('🏁 Enhanced consequence sequence playback complete');
-    }, (userSequence.length + 1) * 2000 + 1000);
-  };
-
-  // ENHANCED: Analyze enhanced position for better feedback
-  const analyzeEnhancedPosition = (game, analysis) => {
-    if (game.isCheckmate()) {
-      return "You've been checkmated!";
-    }
-    if (game.isCheck()) {
-      return "Your king is in check and under pressure.";
-    }
-    if (game.isStalemate()) {
-      return "The position is stalemate.";
-    }
-    if (game.isDraw()) {
-      return "The position is drawn.";
-    }
-    
-    // Use enhanced analysis data if available
-    if (analysis) {
-      if (analysis.materialBalance < -3) {
-        return "You've lost significant material.";
-      } else if (analysis.materialBalance < -1) {
-        return "You've lost some material.";
-      }
-      
-      if (analysis.tacticalThemes?.includes('checkmate')) {
-        return "Your opponent has a forced checkmate.";
-      }
-      
-      if (analysis.finalEvaluation !== null) {
-        const eval_score = analysis.finalEvaluation;
-        if (eval_score < -2) {
-          return `Your position is much worse (${eval_score.toFixed(1)}).`;
-        } else if (eval_score < -1) {
-          return `Your position is somewhat worse (${eval_score.toFixed(1)}).`;
-        }
-      }
-      const analyzeMovesWithStockfish = async (startFen, setupMoves, userMove, correctMove, playingAs) => {
+  // NEW: Analyze moves with client-side Stockfish
+  const analyzeMovesWithStockfish = async (startFen, setupMoves, userMove, correctMove, playingAs) => {
     try {
-      // Implementation from Step 3
+      // For now, return placeholder data - we'll implement real Stockfish later
       return {
         userConsequences: {
           sequence: [userMove, 'e7e8'],
@@ -1070,26 +859,122 @@ const showMoveConsequences = async () => {
       console.error('Stockfish analysis failed:', error);
       return null;
     }
+  };
+
+  // ENHANCED: Function to show move consequences using CLIENT-SIDE Stockfish
+  const showMoveConsequences = async () => {
+    if (!puzzleAttempted || solved || !lastAttemptedMove) {
+      console.log('Cannot show consequences:', { puzzleAttempted, solved, lastAttemptedMove });
+      return;
     }
     
-    // Fallback to basic material analysis
-    const pieces = game.board().flat().filter(piece => piece !== null);
-    const whitePieces = pieces.filter(piece => piece.color === 'w');
-    const blackPieces = pieces.filter(piece => piece.color === 'b');
+    setIsLoadingConsequences(true);
+    setFeedbackMessage('Analyzing move consequences with client-side Stockfish...');
+    setFeedbackType('info');
     
-    const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9 };
-    const whiteValue = whitePieces.reduce((sum, piece) => sum + (pieceValues[piece.type] || 0), 0);
-    const blackValue = blackPieces.reduce((sum, piece) => sum + (pieceValues[piece.type] || 0), 0);
-    
-    const materialDiff = Math.abs(whiteValue - blackValue);
-    
-    if (materialDiff >= 5) {
-      return "You've lost significant material.";
-    } else if (materialDiff >= 3) {
-      return "You've lost some material.";
-    } else {
-      return "Your position is worse than before.";
+    try {
+      console.log('🎭 Generating Stockfish move consequences...');
+      const currentPuzzle = puzzles[currentPuzzleIndex];
+      
+      // Use CLIENT-SIDE Stockfish instead of server API
+      const consequenceData = await analyzeMovesWithStockfish(
+        currentPuzzle.fen,
+        currentPuzzle.moves.slice(0, sequenceLength - 1), // First 3 moves
+        lastAttemptedMove,
+        currentPuzzle.moves[sequenceLength - 1], // Correct move
+        userPlayingAs
+      );
+      
+      if (consequenceData) {
+        console.log('✅ Stockfish consequence analysis successful');
+        setFeedbackMessage(
+          `Stockfish analysis complete: ${consequenceData.explanation}`
+        );
+        setFeedbackType('info');
+        
+        // Play the Stockfish consequence sequence
+        playStockfishConsequenceSequence(consequenceData);
+      } else {
+        setFeedbackMessage('Stockfish analysis failed. Try the next puzzle!');
+        setFeedbackType('warning');
+      }
+    } catch (error) {
+      console.error('Failed to generate Stockfish consequences:', error);
+      setFeedbackMessage('Stockfish analysis unavailable. Try the next puzzle!');
+      setFeedbackType('error');
+    } finally {
+      setIsLoadingConsequences(false);
     }
+  };
+
+  // NEW: Play Stockfish consequence sequence
+  const playStockfishConsequenceSequence = (consequenceData) => {
+    const { userConsequences, explanation } = consequenceData;
+    
+    console.log('🎬 Playing Stockfish consequence sequence');
+    
+    const currentPuzzle = puzzles[currentPuzzleIndex];
+    const game = new Chess(currentPuzzle.fen);
+    
+    // Apply the first 3 moves to get to the decision point
+    const setupMoves = currentPuzzle.moves.slice(0, sequenceLength - 1);
+    for (let i = 0; i < setupMoves.length; i++) {
+      const move = setupMoves[i];
+      game.move({ from: move.slice(0, 2), to: move.slice(2, 4) });
+    }
+    
+    // Apply the user's move
+    const userMoveResult = game.move({ 
+      from: lastAttemptedMove.slice(0, 2), 
+      to: lastAttemptedMove.slice(2, 4) 
+    });
+    
+    if (!userMoveResult) {
+      console.error('Failed to apply user move');
+      return;
+    }
+    
+    // Set the board to show the position after user's move
+    setBoardPosition(game.fen());
+    setCurrentMove(null);
+    
+    setTimeout(() => {
+      setFeedbackMessage(`After your move ${lastAttemptedMove}, here's what happens...`);
+      setFeedbackType('warning');
+    }, 500);
+    
+    // Play the consequence sequence
+    const userSequence = userConsequences.sequence;
+    
+    userSequence.forEach((move, i) => {
+      setTimeout(() => {
+        const from = move.slice(0, 2);
+        const to = move.slice(2, 4);
+        
+        try {
+          const moveResult = game.move({ from, to });
+          
+          if (moveResult) {
+            setBoardPosition(game.fen());
+            setCurrentMove({ from, to });
+            
+            if (i === 0) {
+              setFeedbackMessage(`Opponent responds with ${move} - gaining the initiative!`);
+            } else if (i === userSequence.length - 1) {
+              setFeedbackMessage(`Final result: Your position is worse. The correct move would have avoided this.`);
+            }
+          }
+        } catch (error) {
+          console.error(`Error playing consequence move ${i + 1} (${move}):`, error);
+        }
+      }, (i + 1) * 2000);
+    });
+    
+    setTimeout(() => {
+      setCurrentMove(null);
+      setFeedbackMessage(`Stockfish analysis complete. ${explanation} Try the next puzzle!`);
+      setFeedbackType('info');
+    }, (userSequence.length + 1) * 2000 + 1000);
   };
 
   // Component for consequences button

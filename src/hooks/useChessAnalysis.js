@@ -1,5 +1,6 @@
 // src/hooks/useChessAnalysis.js
 import { useState, useEffect, useRef, useCallback } from 'react';
+import ClientStockfish from '../services/ClientStockfish.js';
 
 export const useChessAnalysis = () => {
   const [isReady, setIsReady] = useState(false);

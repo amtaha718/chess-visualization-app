@@ -40,19 +40,19 @@ const StockfishAnalysisPanel = ({ position, onAnalysisUpdate }) => {
     }
   };
 
-  const formatevaluationuation = (evaluationuation) => {
-    if (!evaluationuation) return '0.00';
+  const formatEvaluation = (evaluation) => {
+    if (!evaluation) return '0.00';
     
-    if (evaluationuation.type === 'mate') {
-      const sign = evaluationuation.value > 0 ? '+' : '';
-      return `${sign}M${Math.abs(evaluationuation.value)}`;
+    if (evaluation.type === 'mate') {
+      const sign = evaluation.value > 0 ? '+' : '';
+      return `${sign}M${Math.abs(evaluation.value)}`;
     } else {
-      const sign = evaluationuation.value > 0 ? '+' : '';
-      return `${sign}${evaluationuation.value.toFixed(2)}`;
+      const sign = evaluation.value > 0 ? '+' : '';
+      return `${sign}${evaluation.value.toFixed(2)}`;
     }
   };
 
-  const getevaluationuationColor = (evaluation) => {
+  const getEvaluationColor = (evaluation) => {
     if (!evaluation) return '#666';
     if (evaluation.type === 'mate') return evaluation.value > 0 ? '#27ae60' : '#e74c3c';
     if (evaluation.value > 1) return '#27ae60';
@@ -117,22 +117,22 @@ const StockfishAnalysisPanel = ({ position, onAnalysisUpdate }) => {
 
       {currentAnalysis && (
         <div style={styles.results}>
-          <div style={styles.evaluationuation}>
-            <span style={styles.evaluationLabel}>evaluationuation:</span>
+          <div style={styles.evaluation}>
+            <span style={styles.evalLabel}>Evaluation:</span>
             <span 
               style={{
-                ...styles.evaluationValue,
-                color: getevaluationuationColor(currentAnalysis.evaluationuation)
+                ...styles.evalValue,
+                color: getEvaluationColor(currentAnalysis.evaluation)
               }}
             >
-              {formatevaluationuation(currentAnalysis.evaluationuation)}
+              {formatEvaluation(currentAnalysis.evaluation)}
             </span>
           </div>
 
           {currentAnalysis.bestMove && (
             <div style={styles.bestMove}>
               <span style={styles.moveLabel}>Best Move:</span>
-              <span style={styles.movevaluationue}>
+              <span style={styles.moveValue}>
                 {currentAnalysis.bestMove}
               </span>
             </div>
@@ -225,15 +225,15 @@ const styles = {
   results: {
     marginBottom: '12px'
   },
-  evaluationuation: {
+  evaluation: {
     display: 'flex',
     justifyContent: 'space-between',
     marginBottom: '8px'
   },
-  evaluationLabel: {
+  evalLabel: {
     fontWeight: 'bold'
   },
-  evaluationValue: {
+  evalValue: {
     fontFamily: 'monospace',
     fontSize: '18px',
     fontWeight: 'bold'
@@ -246,7 +246,7 @@ const styles = {
   moveLabel: {
     fontWeight: 'bold'
   },
-  movevaluationue: {
+  moveValue: {
     fontFamily: 'monospace',
     fontSize: '16px',
     color: '#27ae60'

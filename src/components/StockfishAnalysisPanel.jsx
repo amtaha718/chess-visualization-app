@@ -1,5 +1,5 @@
 // src/components/StockfishAnalysisPanel.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useChessAnalysis } from '../hooks/useChessAnalysis';
 
 const StockfishAnalysisPanel = ({ position, onAnalysisUpdate }) => {
@@ -14,24 +14,27 @@ const StockfishAnalysisPanel = ({ position, onAnalysisUpdate }) => {
 
   const [analysisMode, setAnalysisMode] = useState('quick');
 
+  // Stable analyze function
+  const handleAnalyze = useCallback(async () => {
+    if (!position || !isReady) return;
+    
+    try {
+      const analysis = analysisMode === 'quick' 
+        ? await quickAnalyze(position)
+        : await deepAnalyze(position);
+      
+      console.log('✅ Analysis complete:', analysis);
+    } catch (err) {
+      console.error('❌ Analysis failed:', err);
+    }
+  }, [position, isReady, analysisMode, quickAnalyze, deepAnalyze]);
+
   // Auto-analyze when position changes
   useEffect(() => {
-    const handleAnalyze = async () => {
-      try {
-        const analysis = analysisMode === 'quick' 
-          ? await quickAnalyze(position)
-          : await deepAnalyze(position);
-        
-        console.log('✅ Analysis complete:', analysis);
-      } catch (err) {
-        console.error('❌ Analysis failed:', err);
-      }
-    };
-
     if (position && isReady) {
       handleAnalyze();
     }
-  }, [position, isReady, analysisMode, quickAnalyze, deepAnalyze]);
+  }, [position, isReady, handleAnalyze]);
 
   // Update parent component when analysis completes
   useEffect(() => {
@@ -58,18 +61,6 @@ const StockfishAnalysisPanel = ({ position, onAnalysisUpdate }) => {
     if (evaluation.value > 1) return '#27ae60';
     if (evaluation.value < -1) return '#e74c3c';
     return '#666';
-  };
-
-  const handleManualAnalyze = async () => {
-    try {
-      const analysis = analysisMode === 'quick' 
-        ? await quickAnalyze(position)
-        : await deepAnalyze(position);
-      
-      console.log('✅ Manual analysis complete:', analysis);
-    } catch (err) {
-      console.error('❌ Manual analysis failed:', err);
-    }
   };
 
   if (error) {
@@ -168,7 +159,7 @@ const StockfishAnalysisPanel = ({ position, onAnalysisUpdate }) => {
       )}
 
       <button
-        onClick={handleManualAnalyze}
+        onClick={handleAnalyze}
         disabled={isAnalyzing || !position}
         style={styles.analyzeButton}
       >

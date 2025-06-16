@@ -853,57 +853,51 @@ const handleAnalysisUpdate = (analysis) => {
   position={currentPosition}
   onAnalysisUpdate={handleAnalysisUpdate}
 />
-  // ENHANCED: Function to show move consequences using enhanced Stockfish analysis
-  const showMoveConsequences = async () => {
-    if (!puzzleAttempted || solved || !lastAttemptedMove) {
-      console.log('Cannot show consequences:', { puzzleAttempted, solved, lastAttemptedMove });
-      return;
-    }
+  // ENHANCED: Function to show move consequences using CLIENT-SIDE Stockfish
+const showMoveConsequences = async () => {
+  if (!puzzleAttempted || solved || !lastAttemptedMove) {
+    console.log('Cannot show consequences:', { puzzleAttempted, solved, lastAttemptedMove });
+    return;
+  }
+  
+  setIsLoadingConsequences(true);
+  setFeedbackMessage('Analyzing move consequences with client-side Stockfish...');
+  setFeedbackType('info');
+  
+  try {
+    console.log('🎭 Generating Stockfish move consequences...');
+    const currentPuzzle = puzzles[currentPuzzleIndex];
     
-    setIsLoadingConsequences(true);
-    setFeedbackMessage('Analyzing move consequences with Stockfish...');
-    setFeedbackType('info');
+    // Use CLIENT-SIDE Stockfish instead of server API
+    const consequenceData = await analyzeMovesWithStockfish(
+      currentPuzzle.fen,
+      currentPuzzle.moves.slice(0, sequenceLength - 1), // First 3 moves
+      lastAttemptedMove,
+      currentPuzzle.moves[sequenceLength - 1], // Correct move
+      userPlayingAs
+    );
     
-    try {
-      console.log('🎭 Generating enhanced move consequences with Stockfish...');
-      const currentPuzzle = puzzles[currentPuzzleIndex];
-      
-      // Use the enhanced analysis with Stockfish
-      const consequenceData = await getMoveConsequencesEnhanced(
-        currentPuzzle.fen,
-        currentPuzzle.moves.slice(0, sequenceLength - 1), // First 3 moves
-        lastAttemptedMove,
-        currentPuzzle.moves[sequenceLength - 1], // Correct move
-        userPlayingAs
+    if (consequenceData) {
+      console.log('✅ Stockfish consequence analysis successful');
+      setFeedbackMessage(
+        `Stockfish analysis complete: ${consequenceData.explanation}`
       );
+      setFeedbackType('info');
       
-      if (consequenceData && consequenceData.userConsequences && consequenceData.correctBenefits) {
-        console.log('✅ Enhanced consequence analysis successful');
-        console.log('- Engine used:', consequenceData.userConsequences.engineUsed || 'heuristic');
-        console.log('- User sequence:', consequenceData.userConsequences.sequence);
-        console.log('- Correct sequence:', consequenceData.correctBenefits.sequence);
-        
-        setFeedbackMessage(
-          `Analysis complete using ${consequenceData.userConsequences.engineUsed || 'heuristic analysis'}. 
-          ${consequenceData.explanation || 'Showing what happens after your move...'}`
-        );
-        setFeedbackType('info');
-        
-        // Play the enhanced consequence sequence
-        playEnhancedConsequenceSequence(consequenceData);
-      } else {
-        console.warn('⚠️ Enhanced analysis returned incomplete data');
-        setFeedbackMessage('Could not complete detailed move analysis. Position may be too complex.');
-        setFeedbackType('warning');
-      }
-    } catch (error) {
-      console.error('Failed to generate enhanced move consequences:', error);
-      setFeedbackMessage('Enhanced analysis temporarily unavailable. Try the next puzzle!');
-      setFeedbackType('error');
-    } finally {
-      setIsLoadingConsequences(false);
+      // Play the Stockfish consequence sequence
+      playStockfishConsequenceSequence(consequenceData);
+    } else {
+      setFeedbackMessage('Stockfish analysis failed. Try the next puzzle!');
+      setFeedbackType('warning');
     }
-  };
+  } catch (error) {
+    console.error('Failed to generate Stockfish consequences:', error);
+    setFeedbackMessage('Stockfish analysis unavailable. Try the next puzzle!');
+    setFeedbackType('error');
+  } finally {
+    setIsLoadingConsequences(false);
+  }
+};
 
   // ENHANCED: Enhanced consequence sequence playback with Stockfish integration
   const playEnhancedConsequenceSequence = (consequenceData) => {
